@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.vite
+.cache
+.claude
+*.local
+*.log
+.env
+.DS_Store
+Dockerfile
+.dockerignore
