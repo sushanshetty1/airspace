@@ -1,5 +1,5 @@
 """The airspace command: index | hook pre|post|any|stop | install-hooks | status | serve | mcp | insights | preflight |
-connect | disconnect."""
+remember | recall | connect | disconnect."""
 
 import argparse
 import os
@@ -291,6 +291,74 @@ def _cmd_insights(root: Path) -> int:
     for g in groups:
         note = "in conflict" if g.get("conflict") else "no conflicts"
         print(f"  {', '.join(g.get('agents') or [])}  ({note})")
+    notes = insights.get("notes") or []
+    print(f"Recent notes ({len(notes)})")
+    for n in notes:
+        print(f"  {_memory_line(n)}")
+    return 0
+
+
+def _memory_line(item: dict) -> str:
+    from airspace.admission.text import MEMORY_PREFIX, memory_line
+
+    return memory_line(item).removeprefix(MEMORY_PREFIX)
+
+
+def _resolved(engine, names: list[str]) -> list[str] | None:
+    """Qualnames and file paths for names as written, or None after printing why they cannot be used."""
+    from airspace.admission.memory import resolve_names
+    from airspace.admission.preflight import PreflightError
+
+    try:
+        return resolve_names(engine, names)
+    except PreflightError as e:
+        print(f"airspace: {e.message}", file=sys.stderr)
+        if e.suggestions:
+            print("Did you mean:", file=sys.stderr)
+            for s in e.suggestions:
+                print(f"  {s}", file=sys.stderr)
+        return None
+
+
+def _engine_down(root: Path, e: Exception) -> int:
+    try:
+        remote = _remote(root) is not None
+    except Exception:
+        remote = True
+    return _server_down(e) if remote else _db_down(e)
+
+
+def _cmd_remember(root: Path, symbols: list[str], text: str) -> int:
+    """A note about these symbols for every later agent that touches them, written as AIRSPACE_AGENT or Tower."""
+    try:
+        engine = _airspace(root)
+        resolved = _resolved(engine, symbols)
+        if resolved is None:
+            return 1
+        note_id = engine.remember(os.environ.get("AIRSPACE_AGENT") or "Tower", None, resolved, text, "note")
+    except ValueError as e:
+        print(f"airspace: {e}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        return _engine_down(root, e)
+    print(f"Noted {note_id} about {', '.join(resolved)}")
+    return 0
+
+
+def _cmd_recall(root: Path, symbols: list[str]) -> int:
+    try:
+        engine = _airspace(root)
+        resolved = _resolved(engine, symbols)
+        if resolved is None:
+            return 1
+        items = engine.recall(resolved)
+    except Exception as e:
+        return _engine_down(root, e)
+    if not items:
+        print(f"Nothing remembered about {', '.join(resolved)}.")
+        return 0
+    for item in items:
+        print(_memory_line(item))
     return 0
 
 
@@ -410,6 +478,8 @@ def main(argv: list[str] | None = None) -> int:
         ("mcp", "run the Airspace MCP server over stdio"),
         ("insights", "show hot zones and the groups of agents that can fly in parallel"),
         ("preflight", "before agents start: which planned tasks can run in parallel and which must coordinate"),
+        ("remember", "leave a note about symbols for every later agent that touches them"),
+        ("recall", "show what the graph remembers about symbols or files"),
         ("serve", "run the HTTP API for Tower"),
         ("connect", "send this repository's hooks to a hosted Airspace workspace"),
         ("disconnect", "send this repository's hooks to FalkorDB on this machine again"),
@@ -429,6 +499,14 @@ def main(argv: list[str] | None = None) -> int:
     pre.add_argument("--task", action="append", required=True, metavar='"NAME: SYMBOL, SYMBOL"',
                      help="a task and the symbols it will change; give 2 to 6")
     pre.add_argument("--depth", type=int, default=2, help="hops of callers, tests and subclasses in a cone (1 to 4)")
+
+    remember = sub.choices["remember"]
+    remember.add_argument("--symbol", action="append", required=True, metavar="SYMBOL",
+                          help="a symbol the note is about (qualname, unique suffix or file path); repeat for more")
+    remember.add_argument("text", help="the note, 1 to 500 characters")
+
+    recall = sub.choices["recall"]
+    recall.add_argument("symbols", nargs="+", metavar="SYMBOL", help="qualnames, unique suffixes or file paths")
 
     hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
     hook.add_argument("event", choices=list(_HANDLERS))
@@ -458,6 +536,10 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_insights(root)
     if args.command == "preflight":
         return _cmd_preflight(root, args.task, args.depth)
+    if args.command == "remember":
+        return _cmd_remember(root, args.symbol, args.text)
+    if args.command == "recall":
+        return _cmd_recall(root, args.symbols)
     if args.command == "connect":
         return _cmd_connect(root, args.server, args.key)
     if args.command == "disconnect":

@@ -22,6 +22,7 @@ _INDEXES = [
     ("Message", "id"),
     ("Sequence", "id"),
     ("Seen", "key"),
+    ("Note", "id"),
 ]
 
 

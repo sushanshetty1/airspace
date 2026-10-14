@@ -47,6 +47,7 @@ ENGINE_METHODS = {
     "release", "pending_briefings", "record_edited_file", "edited_files", "note_touched", "started_at", "stop_check",
     "holding", "land", "block_landing", "last_block", "note_reading", "note_interest_from_text", "pending_messages",
     "state", "explain", "insights", "owned", "restore_signatures",
+    "remember", "recall", "memory_for_task", "history", "recent_notes", "lookup_symbols",
 }
 SLUG_A, SLUG_B = REFS["slugify-keyword-only"]
 TRUNCATE_A = REFS["truncate-words-limit"][0]
@@ -331,6 +332,35 @@ def test_call_after_the_change_is_held_in_remote_mode(connected, server):
     held = graph.query("MATCH (x:Collision) RETURN x.kind, x.held_agent, x.owner_agent, x.symbol").result_set
     assert held == [["contract", "agent-b", "agent-a", "utils.text.slugify"]]
     assert {"graph.known", "graph.write_file", "check_edit", "record_changes"} <= set(server.methods())
+
+
+def test_memory_reaches_a_later_session_in_remote_mode(connected, server, workspace):
+    """Session 1 holds agent-b and clears its retry over RPC; agent-c, in session 2, hears the fix from its prompt
+    and not again when it reads the file. The notes live in the workspace graph."""
+    graph, a, b = connected
+    retry = {"file_path": "blog/views.py", "old_string": "<article>",
+             "new_string": '<article data-slug="{slugify(post.title, unicode=True)}">'}
+    assert a.apply(SLUG_A), a.holds
+    assert b.apply(SLUG_B) is False
+    assert b.edit("blog/views.py", "Edit", retry), b.holds[1:]
+    fix = ("agent-b's call slugify(post.title, allow_unicode=True) did not fit slugify(value, *, unicode=False) "
+           "after agent-a's change. It cleared as slugify(post.title, unicode=True).")
+    assert graph.query("MATCH (m:Note {kind: 'fix'}) RETURN m.text").result_set == [[fix]]
+
+    c = Agent(a.repo, "agent-c", "sess-cccc", a.deps)
+    told = _context(c.prompt("Make post_list in blog/views.py link each post by its slug."))
+    assert told.startswith(f"Airspace memory: utils.text.slugify: {fix} (fix, ")
+    assert fix not in _context(c.read("utils/text.py"))
+    assert c.read("utils/text.py") is None
+    assert "memory_for_task" in server.methods()
+
+    engine = RemoteAirspace(RpcClient(server.url, workspace[0]), seen_dir())
+    assert engine.lookup_symbols(["slugify"]) == {"symbols": ["utils.text.slugify"]}
+    note = engine.remember("agent-c", "sess-cccc", ["utils.text.slugify"], "Remote note.")
+    assert [i["id"] for i in engine.recall(["utils/text.py"])][0] == note
+    assert engine.recent_notes(1)[0]["text"] == "Remote note."
+    assert engine.history(["utils.text.slugify"])["notes"] == 2
+    assert engine.memory_for_task("sess-cccc", ["utils.text.slugify"]) == []
 
 
 def test_stop_blocks_the_landing_in_remote_mode(connected):

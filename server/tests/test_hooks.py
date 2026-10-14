@@ -63,6 +63,9 @@ class FakeAirspace:
         self.calls.append(("agent_of", task_id))
         return None
 
+    def memory_for_task(self, task_id, qualnames, limit=8):
+        return []
+
 
 def make_deps(fake=None, analysis=None, changes=None, analyze_calls=None, reindex_calls=None):
     fake = fake if fake is not None else FakeAirspace()

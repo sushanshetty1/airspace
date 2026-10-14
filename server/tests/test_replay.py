@@ -94,7 +94,7 @@ def test_document_shape(airspace, clock):
     (cid,) = doc["collisions"]
     assert doc["collisions"][cid]["path"] == [RENDER, SLUGIFY]
     assert doc["collisions"][cid]["new_sig"] == "slugify(value, *, unicode=False)"
-    assert set(doc["insights"]) == {"hot_zones", "parallel_groups"}
+    assert set(doc["insights"]) == {"hot_zones", "parallel_groups", "notes"}
     json.dumps(doc)
 
 

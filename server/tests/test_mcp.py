@@ -172,10 +172,10 @@ def test_hot_zones_when_empty():
     assert mcp.hot_zones(Calm()) == "No hot zones recorded yet."
 
 
-TOOLS = {"file_flight_plan", "check_symbols", "briefings", "explain", "hot_zones", "preflight"}
+TOOLS = {"file_flight_plan", "check_symbols", "briefings", "explain", "hot_zones", "preflight", "remember", "recall"}
 
 
-def test_build_server_registers_the_six_tools(tmp_path):
+def test_build_server_registers_the_eight_tools(tmp_path):
     server = mcp.build_server(tmp_path, env={}, airspace_factory=lambda root: FakeAirspace())
     tools = anyio.run(server.list_tools)
     assert {t.name for t in tools} == TOOLS

@@ -13,6 +13,7 @@ from typing import Any, TypedDict
 from mcp.server.mcpserver import MCPServer
 
 from airspace.admission.text import briefing_line
+from airspace.remote import RemoteError
 
 DEFAULT_AGENT = "agent-mcp"
 
@@ -20,7 +21,8 @@ INSTRUCTIONS = (
     "Airspace coordinates parallel coding agents on one repository. These tools file a flight plan for symbols, "
     "report which symbols other agents claim, deliver contract briefings and messages, explain the dependency path "
     "between two symbols and list the hot zones where agents have collided. Before work starts, preflight says which "
-    "planned tasks can run in parallel and which must coordinate."
+    "planned tasks can run in parallel and which must coordinate. remember leaves a note on the code for later "
+    "agents, and recall shows what the graph remembers about it."
 )
 
 
@@ -122,6 +124,35 @@ def hot_zones(airspace: Any) -> str:
     return "\n".join(lines)
 
 
+def remember(airspace: Any, agent: str, task: str, symbols: list[str], text: str) -> str:
+    """Write a note about symbols (short names, qualnames or file paths), or say why it was not written."""
+    from airspace.admission.memory import resolve_names
+    from airspace.admission.preflight import error_text
+
+    try:
+        resolved = resolve_names(airspace, symbols)
+        airspace.remember(agent, task, resolved, text, "note")
+    except (ValueError, RemoteError) as e:  # PreflightError is a ValueError; a server refusal is a RemoteError
+        return error_text(e) if hasattr(e, "suggestions") else str(e)
+    return f"Noted about {_join(resolved)}. Later agents that touch this code hear it once."
+
+
+def recall(airspace: Any, symbols: list[str]) -> str:
+    """What the graph remembers about symbols or files, one line per item, newest first."""
+    from airspace.admission.memory import resolve_names
+    from airspace.admission.preflight import error_text
+    from airspace.admission.text import MEMORY_PREFIX, memory_line
+
+    try:
+        resolved = resolve_names(airspace, symbols)
+    except ValueError as e:
+        return error_text(e) if hasattr(e, "suggestions") else str(e)
+    items = airspace.recall(resolved)
+    if not items:
+        return f"Nothing remembered about {_join(resolved)}."
+    return "\n".join(memory_line(i).removeprefix(MEMORY_PREFIX) for i in items)
+
+
 def preflight(airspace: Any, tasks: list[dict]) -> str:
     """The same text as `airspace preflight`, or the reason the tasks cannot be planned."""
     from airspace.admission.preflight import PreflightError, as_text, error_text, plan_for
@@ -186,8 +217,19 @@ def build_server(
         dependency path that links them and the hot spots in play."""
         return preflight(engine(), tasks)
 
+    def remember_tool(symbols: list[str], text: str) -> str:
+        """Leaves a note (1 to 500 characters) about these symbols (short names, qualnames or file paths) in the
+        code graph. Every later agent that edits, reads or is asked about that code hears it once."""
+        return remember(engine(), agent, task, symbols, text)
+
+    def recall_tool(symbols: list[str]) -> str:
+        """What the graph remembers about these symbols or files: notes, fixes and contract changes, newest first."""
+        return recall(engine(), symbols)
+
     server = MCPServer("airspace", instructions=INSTRUCTIONS)
     for name, fn in (
+        ("remember", remember_tool),
+        ("recall", recall_tool),
         ("file_flight_plan", file_flight_plan_tool),
         ("check_symbols", check_symbols_tool),
         ("briefings", briefings_tool),

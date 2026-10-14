@@ -31,6 +31,15 @@ class MessageBody(BaseModel):
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
 
 
+class NoteBody(BaseModel):
+    symbols: Any = None
+    text: Any = None
+
+
+MEMORY_SYMBOLS = 20
+NEEDS_HEADER = "This request needs the header X-Airspace: 1."
+
+
 class EngineUnavailable(Exception):
     pass
 
@@ -114,6 +123,55 @@ def tower_routes(
     @r.get("/insights")
     def insights(request: Request) -> dict:
         return engine(request).insights()
+
+    @r.get("/memory")
+    def memory(request: Request, symbols: str = ""):
+        """What the graph remembers about these symbols (qualnames, unique suffixes or file paths, comma separated)."""
+        from airspace.admission.memory import resolve_names
+        from airspace.admission.preflight import PreflightError
+
+        names = [s.strip() for s in symbols.split(",") if s.strip()]
+        if not names:
+            return JSONResponse(status_code=422, content={"error": "Name at least one symbol.", "suggestions": []})
+        if len(names) > MEMORY_SYMBOLS:
+            return JSONResponse(status_code=422, content={
+                "error": f"At most {MEMORY_SYMBOLS} symbols at a time.", "suggestions": []})
+        air = engine(request)
+        try:
+            resolved = resolve_names(air, names)
+        except PreflightError as e:
+            return JSONResponse(status_code=422, content={"error": e.message, "suggestions": e.suggestions})
+        return {"items": air.recall(resolved)}
+
+    @r.get("/memory/recent")
+    def recent_memory(request: Request, limit: int = 20) -> dict:
+        return {"items": engine(request).recent_notes(max(1, min(100, limit)))}
+
+    @r.post("/notes")
+    def add_note(request: Request, body: NoteBody):
+        """A note from a person in Tower, about one or more symbols. Answers {"id"}."""
+        from airspace.admission.memory import MAX_TEXT, resolve_names
+        from airspace.admission.preflight import PreflightError
+
+        air = engine(request)  # a workspace checks its owner (and this header) here
+        if request.headers.get("x-airspace") != "1":
+            raise ApiError(403, NEEDS_HEADER)
+        text = body.text.strip() if isinstance(body.text, str) else ""
+        if not 1 <= len(text) <= MAX_TEXT:
+            return JSONResponse(status_code=422, content={"error": f"A note is 1 to {MAX_TEXT} characters."})
+        symbols = body.symbols
+        if (not isinstance(symbols, list) or not symbols or len(symbols) > MEMORY_SYMBOLS
+                or not all(isinstance(s, str) and s.strip() for s in symbols)):
+            return JSONResponse(status_code=422, content={
+                "error": f"A note needs 1 to {MEMORY_SYMBOLS} symbols.", "suggestions": []})
+        try:
+            resolved = resolve_names(air, symbols)
+            note_id = air.remember("Tower", None, resolved, text, "note")
+        except PreflightError as e:
+            return JSONResponse(status_code=422, content={"error": e.message, "suggestions": e.suggestions})
+        except ValueError as e:
+            return JSONResponse(status_code=422, content={"error": str(e), "suggestions": []})
+        return {"id": note_id}
 
     @r.post("/agents/{agent}/pause")
     def pause(request: Request, agent: str) -> dict:

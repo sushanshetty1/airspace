@@ -30,7 +30,7 @@ def airspace(graph, clock):
 
 
 def test_insights_on_an_empty_graph(graph, clock):
-    assert Airspace(graph, clock=clock).insights() == {"hot_zones": [], "parallel_groups": []}
+    assert Airspace(graph, clock=clock).insights() == {"hot_zones": [], "parallel_groups": [], "notes": []}
 
 
 def test_insights_with_one_symbol_and_one_agent(graph, clock):
@@ -45,6 +45,7 @@ def test_insights_with_one_symbol_and_one_agent(graph, clock):
     assert airspace.insights() == {
         "hot_zones": [{"qualname": "m.f", "collisions": 1, "betweenness": 0.0}],
         "parallel_groups": [{"agents": ["agent-a", "agent-b"], "conflict": True}],
+        "notes": [],
     }
     airspace.release("task-b")
     graph.query("MATCH (a:Agent {id: 'agent-b'}) DETACH DELETE a")

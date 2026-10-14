@@ -32,6 +32,7 @@ ENGINE_METHODS = frozenset({
     "release", "pending_briefings", "record_edited_file", "edited_files", "note_touched", "started_at", "stop_check",
     "holding", "land", "block_landing", "last_block", "note_reading", "note_interest_from_text", "pending_messages",
     "state", "explain", "insights", "owned", "restore_signatures",
+    "remember", "recall", "memory_for_task", "history", "recent_notes", "lookup_symbols",
 })
 GRAPH_METHODS = frozenset({"graph.known", "graph.write_file", "graph.index", "graph.preflight"})
 WORKSPACE_HEADER = "X-Airspace-Workspace"
