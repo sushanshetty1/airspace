@@ -23,3 +23,10 @@ def test_seed_blog_graph(graph):
         "MATCH (:Symbol {qualname: 'blog.models.Post.save'})-[r:CALLS]->(:Symbol {qualname: 'utils.text.slugify'}) RETURN count(r)"
     ).result_set[0][0]
     assert edge == 1
+
+
+def test_graph_override_shares_graph_across_worktrees(tmp_path, monkeypatch):
+    a, b = tmp_path / "wa", tmp_path / "wb"
+    assert graph_name(a) != graph_name(b)
+    monkeypatch.setenv("AIRSPACE_GRAPH", "bench_shared")
+    assert graph_name(a) == graph_name(b) == "bench_shared"

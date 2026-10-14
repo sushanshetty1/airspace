@@ -26,6 +26,10 @@ def connect(host: str | None = None, port: int | None = None) -> FalkorDB:
 
 
 def graph_name(repo_root: str | Path) -> str:
+    """The repo's graph. AIRSPACE_GRAPH overrides it so agents in separate worktrees of one repo share a graph."""
+    override = os.environ.get("AIRSPACE_GRAPH")
+    if override:
+        return override
     real = os.path.realpath(str(repo_root))
     return "airspace_" + hashlib.sha1(real.encode()).hexdigest()[:12]
 
