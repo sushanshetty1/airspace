@@ -3,8 +3,9 @@
 {$DOMAIN::80} {
 	encode zstd gzip
 
-	# The API, including server-sent events: flush every write at once.
-	handle /api/* {
+	# The API, including server-sent events: flush every write at once. /auth/* is GitHub sign-in.
+	@api path /api/* /auth/*
+	handle @api {
 		reverse_proxy api:8787 {
 			flush_interval -1
 		}
