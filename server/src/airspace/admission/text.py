@@ -7,6 +7,13 @@ possible prompt injection. No em or en dashes.
 from airspace.types import Briefing
 
 
+# Agents often work in separate worktrees, so a change another agent made may not be on disk here yet.
+BRANCH_NOTE = (
+    "That change may not be in this working copy yet, so local tests can still reflect the old signature "
+    "until the branches are merged."
+)
+
+
 def contract_hold(
     callee: str, caller: str, other_agent: str, old_sig: str, new_sig: str, checked: bool = False
 ) -> str:
@@ -17,7 +24,8 @@ def contract_hold(
             f"It was {old_sig}. "
             f"This edit adds a call to it from {caller}. "
             f"Path: {caller} -> {callee}. "
-            "A retry that does not call it will be cleared."
+            "A retry that does not call it will be cleared. "
+            f"{BRANCH_NOTE}"
         )
     fit = f"The call {caller} makes does not fit the new signature. " if checked else ""
     return (
@@ -26,7 +34,8 @@ def contract_hold(
         f"This edit adds a call to it from {caller}. "
         f"{fit}"
         f"Path: {caller} -> {callee}. "
-        "A retry whose call matches the new signature will be cleared."
+        "A retry whose call matches the new signature will be cleared. "
+        f"{BRANCH_NOTE}"
     )
 
 
@@ -63,6 +72,7 @@ def briefing_text(briefings: list[Briefing]) -> str:
         if b.caller:
             target = "has no target now" if not b.new_signature else f"no longer fits {b.new_signature}"
             lines.append(f"  The call {b.caller} makes {target}.")
+    lines.append(BRANCH_NOTE)
     return "\n".join(lines)
 
 

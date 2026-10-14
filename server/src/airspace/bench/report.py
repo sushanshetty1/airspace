@@ -11,12 +11,18 @@ def summarize(results: list[dict]) -> dict:
     for c in CONDITIONS:
         rows = [r for r in results if r["condition"] == c]
         graded = [r for r in rows if r["outcome"] not in ("error", "task_failed")]
+        # The outcome that matters to a team: is the merged build green? Counted over every pair that merged.
+        merged = [r for r in rows if r["outcome"] not in ("error", "conflict") and r.get("merged") is not None]
+        merged_pass = sum(bool(r["merged"]) for r in merged)
         interference = sum(r["outcome"] == "interference" for r in graded)
         conditions[c] = {
             "pairs": len(rows),
             "graded": len(graded),
             "interference": interference,
             "interference_rate": round(interference / len(graded), 3) if graded else None,
+            "merged_runs": len(merged),
+            "merged_pass": merged_pass,
+            "merged_pass_rate": round(merged_pass / len(merged), 3) if merged else None,
             "clean": sum(r["outcome"] == "clean" for r in graded),
             "conflict": sum(r["outcome"] == "conflict" for r in graded),
             "task_failed": sum(r["outcome"] == "task_failed" for r in rows),
