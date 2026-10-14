@@ -1,3 +1,4 @@
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Footer } from './sections/Footer'
 import { GetStarted } from './sections/GetStarted'
 import { Hero } from './sections/Hero'
@@ -7,8 +8,22 @@ import { Problem } from './sections/Problem'
 import { Proof } from './sections/Proof'
 import { TowerDemo } from './sections/TowerDemo'
 import { WhyGraph } from './sections/WhyGraph'
+import { collisionIdFrom } from './tower/nav'
 
-export default function App() {
+const Tower = lazy(() => import('./tower/Tower'))
+
+/** The path, kept in sync with pushState navigation and the back button. */
+function usePathname() {
+  const [path, setPath] = useState(() => window.location.pathname)
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname)
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  return path
+}
+
+function Marketing() {
   return (
     <>
       <a href="#how" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-surface focus:px-4 focus:py-2">
@@ -27,4 +42,16 @@ export default function App() {
       <Footer />
     </>
   )
+}
+
+export default function App() {
+  const path = usePathname()
+  if (path === '/tower' || path.startsWith('/tower/')) {
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
+        <Tower collisionId={collisionIdFrom(path)} />
+      </Suspense>
+    )
+  }
+  return <Marketing />
 }

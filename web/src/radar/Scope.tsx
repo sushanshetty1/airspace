@@ -1,8 +1,11 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { useId } from 'react'
-import { agents, byId, nodes, polar, RING, SCOPE_R, VIEW, type AgentKey, type ScopeNode } from './graph'
+import { useId, type CSSProperties } from 'react'
+import { demoModel, polar, RING, SCOPE_R, type ScopeAgent, type ScopeModel, type ScopeNode } from './graph'
 
 const ease = [0.22, 1, 0.36, 1] as const
+
+const DEMO_LABEL =
+  "Two airspaces. agent-a is changing slugify; its range rings hold everything that calls it. agent-b is editing render_post. When agent-b's edit adds a call to slugify, the airspaces collide, the edit is held, agent-b is briefed with the new signature, then cleared."
 
 function trimmed(a: ScopeNode, b: ScopeNode, ra: number, rb: number) {
   const dx = b.x - a.x
@@ -11,8 +14,8 @@ function trimmed(a: ScopeNode, b: ScopeNode, ra: number, rb: number) {
   return `M${a.x + (dx / len) * ra} ${a.y + (dy / len) * ra} L${b.x - (dx / len) * rb} ${b.y - (dy / len) * rb}`
 }
 
-function Airspace({ agent, on }: { agent: AgentKey; on: boolean }) {
-  const c = agents[agent]
+function Airspace({ c }: { c: ScopeAgent }) {
+  const on = c.on
   const stroke = on ? c.color : 'var(--line-strong)'
   return (
     <g>
@@ -44,54 +47,54 @@ function Label({ n, strong }: { n: ScopeNode; strong: boolean }) {
   )
 }
 
-export function Scope({ step, className = '' }: { step: number; className?: string }) {
+/** Draws any set of airspaces: the marketing story or live radar data. */
+export function ScopeView({ model, className = '', label = DEMO_LABEL, style }: { model: ScopeModel; className?: string; label?: string; style?: CSSProperties }) {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
-  const clip = `lensA${uid}`
-  const clipB = `lensB${uid}`
-  const on = { a: step >= 1, b: step >= 2 }
-  const contract = step >= 4
-  const held = step === 5 || step === 6
-  const showCall = step >= 5
-  const a = agents.a
-  const b = agents.b
-  const lensOpacity = step === 5 ? 0.92 : step === 6 ? 0.6 : 0
-  const lensWord = step === 5 ? 'Hold' : step === 6 ? 'Briefed' : step === 7 ? 'Cleared' : null
-  const slug = byId.slugify
-  const render = byId.render_post
+  const clipId = (key: string) => `lens${key.toUpperCase()}${uid}`
+  const { view, lens, call } = model
+  const byKey = Object.fromEntries(model.agents.map((a) => [a.key, a]))
+  const byId = Object.fromEntries(model.nodes.map((n) => [n.id, n]))
+  const on = (key: string) => byKey[key]?.on ?? false
+  const la = lens ? byKey[lens.a] : undefined
+  const lb = lens ? byKey[lens.b] : undefined
+  const from = call ? byId[call.from] : undefined
+  const to = call ? byId[call.to] : undefined
+  const callPath = from && to ? trimmed(from, to, from.hop === 0 ? 18 : 9, to.hop === 0 ? 20 : 9) : null
+  const ringNode = model.ring ? byId[model.ring] : undefined
 
   return (
-    <svg
-      viewBox={`${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`}
-      className={`block h-auto w-full ${className}`}
-      role="img"
-      aria-label="Two airspaces. agent-a is changing slugify; its range rings hold everything that calls it. agent-b is editing render_post. When agent-b's edit adds a call to slugify, the airspaces collide, the edit is held, agent-b is briefed with the new signature, then cleared."
-    >
-      <defs>
-        <clipPath id={clip}>
-          <circle cx={a.cx} cy={a.cy} r={SCOPE_R} />
-        </clipPath>
-        <clipPath id={clipB}>
-          <circle cx={b.cx} cy={b.cy} r={SCOPE_R} />
-        </clipPath>
-      </defs>
+    <svg viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} className={`block h-auto w-full ${className}`} role="img" aria-label={label} style={style}>
+      {la && lb && (
+        <defs>
+          <clipPath id={clipId(la.key)}>
+            <circle cx={la.cx} cy={la.cy} r={SCOPE_R} />
+          </clipPath>
+          <clipPath id={clipId(lb.key)}>
+            <circle cx={lb.cx} cy={lb.cy} r={SCOPE_R} />
+          </clipPath>
+        </defs>
+      )}
 
-      <Airspace agent="a" on={on.a} />
-      <Airspace agent="b" on={on.b} />
+      {model.agents.map((c) => (
+        <Airspace key={c.key} c={c} />
+      ))}
 
       {/* The overlap. It fills the way the logo does when the airspaces collide. */}
-      <circle cx={b.cx} cy={b.cy} r={SCOPE_R} fill="var(--accent)" clipPath={`url(#${clip})`} style={{ opacity: lensOpacity, transition: 'opacity 500ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+      {lens && la && lb && (
+        <circle cx={lb.cx} cy={lb.cy} r={SCOPE_R} fill="var(--accent)" clipPath={`url(#${clipId(la.key)})`} style={{ opacity: lens.opacity, transition: 'opacity 500ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
+      )}
 
       {/* Dependency edges, drawn from each node toward what it depends on. */}
-      {nodes
-        .filter((n) => n.parent)
+      {model.nodes
+        .filter((n) => n.parent && byId[n.parent])
         .map((n) => {
           const p = byId[n.parent!]
-          const active = on[n.agent]
+          const active = on(n.agent)
           return (
             <path
               key={n.id}
               d={trimmed(n, p, n.kind === 'test' ? 7 : 7, p.hop === 0 ? 18 : 8)}
-              stroke={active ? agents[n.agent].color : 'var(--line-strong)'}
+              stroke={active ? byKey[n.agent].color : 'var(--line-strong)'}
               strokeOpacity={active ? 0.7 : 1}
               strokeWidth={1.3}
               strokeDasharray={n.kind === 'test' ? '3 4' : undefined}
@@ -100,32 +103,32 @@ export function Scope({ step, className = '' }: { step: number; className?: stri
           )
         })}
 
-      {/* The call agent-b's edit adds. */}
+      {/* The call the held agent's edit adds. */}
       <AnimatePresence>
-        {showCall && (
+        {callPath && call && (
           <motion.path
             key="call"
-            d={trimmed(render, slug, 18, 20)}
+            d={callPath}
             fill="none"
             strokeWidth={2.6}
             strokeLinecap="round"
             initial={{ pathLength: 0, stroke: 'var(--accent)' }}
-            animate={{ pathLength: 1, stroke: step >= 7 ? 'var(--agent-b)' : 'var(--accent)' }}
+            animate={{ pathLength: 1, stroke: call.color }}
             exit={{ opacity: 0, transition: { duration: 0.3 } }}
             transition={{ pathLength: { duration: 0.8, ease }, stroke: { duration: 0.4 } }}
           />
         )}
       </AnimatePresence>
-      {held && (
-        <g clipPath={`url(#${clip})`}>
-          <path d={trimmed(render, slug, 18, 20)} stroke="var(--ink)" strokeWidth={2.6} clipPath={`url(#${clipB})`} />
+      {callPath && call?.held && la && lb && (
+        <g clipPath={`url(#${clipId(la.key)})`}>
+          <path d={callPath} stroke="var(--ink)" strokeWidth={2.6} clipPath={`url(#${clipId(lb.key)})`} />
         </g>
       )}
 
       {/* Nodes. */}
-      {nodes.map((n) => {
-        const active = on[n.agent]
-        const color = active ? agents[n.agent].color : 'var(--faint)'
+      {model.nodes.map((n) => {
+        const active = on(n.agent)
+        const color = active ? byKey[n.agent].color : 'var(--faint)'
         if (n.hop === 0) {
           return (
             <g key={n.id}>
@@ -141,33 +144,69 @@ export function Scope({ step, className = '' }: { step: number; className?: stri
         )
       })}
 
-      {contract && step < 7 && <circle cx={slug.x} cy={slug.y} r={21} fill="none" stroke="var(--accent)" strokeWidth={2} />}
+      {ringNode && <circle cx={ringNode.x} cy={ringNode.y} r={21} fill="none" stroke="var(--accent)" strokeWidth={2} />}
 
-      {nodes.map((n) => (
-        <Label key={`l-${n.id}`} n={n} strong={on[n.agent]} />
+      {model.nodes.map((n) => (
+        <Label key={`l-${n.id}`} n={n} strong={on(n.agent)} />
+      ))}
+
+      {model.notes?.map((t) => (
+        <text key={`n-${t.x}-${t.y}`} x={t.x} y={t.y} textAnchor="middle" className="scope-minor" fill="var(--muted)">
+          {t.text}
+        </text>
       ))}
 
       {/* What the overlap says. */}
       <AnimatePresence mode="wait">
-        {lensWord && (
+        {lens?.word && (
           <motion.text
-            key={lensWord}
-            x={500}
-            y={258}
+            key={lens.word}
+            x={lens.wordX}
+            y={lens.wordY}
             textAnchor="middle"
-            fontSize={lensWord === 'Hold' ? 26 : 17}
+            fontSize={lens.word === 'Hold' ? 26 : 17}
             fontWeight={650}
             letterSpacing={-0.3}
-            fill={lensWord === 'Cleared' ? 'var(--ok)' : 'var(--ink)'}
+            fill={lens.wordColor ?? (lens.word === 'Cleared' ? 'var(--ok)' : 'var(--ink)')}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35, ease }}
           >
-            {lensWord}
+            {lens.word}
           </motion.text>
         )}
       </AnimatePresence>
+
+      {/* Live only: the lens opens the collision. */}
+      {lens?.onClick && la && lb && (
+        <circle
+          cx={lb.cx}
+          cy={lb.cy}
+          r={SCOPE_R}
+          fill="transparent"
+          clipPath={`url(#${clipId(la.key)})`}
+          role="button"
+          tabIndex={0}
+          aria-label={lens.title}
+          strokeWidth={3}
+          className="cursor-pointer outline-none focus-visible:stroke-text"
+          onClick={lens.onClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              lens.onClick?.()
+            }
+          }}
+        >
+          {lens.title && <title>{lens.title}</title>}
+        </circle>
+      )}
     </svg>
   )
+}
+
+/** The marketing scope at a step of the story. */
+export function Scope({ step, className = '' }: { step: number; className?: string }) {
+  return <ScopeView model={demoModel(step)} className={className} />
 }
