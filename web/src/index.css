@@ -4,7 +4,7 @@
   Airspace visual language
   - One typeface, Schibsted Grotesk, in sentence case. Mono only inside real code.
   - International orange marks a collision, a hold, the primary action. Nothing else.
-  - Agents get radar colours: agent-a cyan, agent-b violet.
+  - Agents get radar colours: agent-a cyan, agent-b violet, then a calm green and amber.
   - The brand idea is the logo: two airspaces whose overlap turns orange when they collide.
 */
 
@@ -24,6 +24,10 @@
   --agent-a-soft: rgb(69 196 230 / 0.08);
   --agent-b: #b18cff;
   --agent-b-soft: rgb(177 140 255 / 0.08);
+  --agent-c: #9fcb6b;
+  --agent-c-soft: rgb(159 203 107 / 0.08);
+  --agent-d: #e2b54a;
+  --agent-d-soft: rgb(226 181 74 / 0.08);
   --ok: #3ccf8e;
   --ok-soft: rgb(60 207 142 / 0.12);
   --bad: #ff5d5d;
@@ -49,6 +53,10 @@
     --agent-a-soft: rgb(10 134 168 / 0.07);
     --agent-b: #7a4fe0;
     --agent-b-soft: rgb(122 79 224 / 0.07);
+    --agent-c: #4f8a1f;
+    --agent-c-soft: rgb(79 138 31 / 0.07);
+    --agent-d: #a87410;
+    --agent-d-soft: rgb(168 116 16 / 0.07);
     --ok: #10865a;
     --ok-soft: rgb(16 134 90 / 0.1);
     --bad: #d63535;
@@ -73,6 +81,10 @@
   --agent-a-soft: rgb(10 134 168 / 0.07);
   --agent-b: #7a4fe0;
   --agent-b-soft: rgb(122 79 224 / 0.07);
+  --agent-c: #4f8a1f;
+  --agent-c-soft: rgb(79 138 31 / 0.07);
+  --agent-d: #a87410;
+  --agent-d-soft: rgb(168 116 16 / 0.07);
   --ok: #10865a;
   --ok-soft: rgb(16 134 90 / 0.1);
   --bad: #d63535;
@@ -96,6 +108,10 @@
   --color-agent-a-soft: var(--agent-a-soft);
   --color-agent-b: var(--agent-b);
   --color-agent-b-soft: var(--agent-b-soft);
+  --color-agent-c: var(--agent-c);
+  --color-agent-c-soft: var(--agent-c-soft);
+  --color-agent-d: var(--agent-d);
+  --color-agent-d-soft: var(--agent-d-soft);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
   --color-bad: var(--bad);
