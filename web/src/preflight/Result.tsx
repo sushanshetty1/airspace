@@ -71,10 +71,13 @@ export function Result({ answer, looks }: { answer: PreflightAnswer; looks: Reco
         <div className={`mt-5 grid gap-2 ${coordinate.length && parallel.length ? 'sm:grid-cols-2' : ''}`}>
           {coordinate.length > 0 && (
             <div className="rounded-[10px] bg-accent-soft p-3">
-              <p className="text-[13px] font-semibold text-accent">Must coordinate</p>
+              <p className="text-[13px] font-semibold text-accent">
+                Must coordinate{coordinate.length > 1 ? `, in ${coordinate.length} groups` : ''}
+              </p>
               <div className="mt-2.5 space-y-2">
                 {coordinate.map((g) => (
-                  <div key={g.tasks.join('\n')} className="flex flex-wrap gap-1.5">
+                  // Each group is its own box: tasks in different boxes do not wait for each other.
+                  <div key={g.tasks.join('\n')} className="flex flex-wrap gap-1.5 rounded-[8px] p-1.5 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_30%,transparent)]">
                     {g.tasks.map((t) => (
                       <TaskChip key={t} name={t} look={look(t)} />
                     ))}

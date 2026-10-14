@@ -17,10 +17,11 @@ type Row = { id: number; name: string; symbols: string[] }
 // Ready examples, so a first visit shows the point without typing.
 const EXAMPLES: Record<string, TaskInput[]> = {
   flask: [
-    { name: 'Flash categories', symbols: ['flask.helpers.get_flashed_messages'] },
-    { name: 'Templates', symbols: ['flask.templating.render_template'] },
+    { name: 'Routing', symbols: ['flask.sansio.scaffold.Scaffold.route'] },
+    { name: 'Rule registration', symbols: ['flask.sansio.scaffold.Scaffold.add_url_rule'] },
+    { name: 'Error handlers', symbols: ['flask.app.Flask.handle_user_exception'] },
+    { name: 'Error lookup', symbols: ['flask.sansio.app.App._find_error_handler'] },
     { name: 'Debug flag', symbols: ['flask.helpers.get_debug_flag'] },
-    { name: 'Error handling', symbols: ['flask.app.Flask.handle_user_exception'] },
   ],
   blog: [
     { name: 'Slug options', symbols: ['utils.text.slugify'] },
