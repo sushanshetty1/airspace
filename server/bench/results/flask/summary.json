@@ -1,0 +1,192 @@
+{
+  "conditions": {
+    "worktrees": {
+      "pairs": 9,
+      "graded": 9,
+      "interference": 9,
+      "interference_rate": 1.0,
+      "merged_runs": 9,
+      "merged_pass": 0,
+      "merged_pass_rate": 0.0,
+      "clean": 0,
+      "conflict": 0,
+      "task_failed": 0,
+      "adapted": 0,
+      "errors": 0,
+      "median_wall_seconds": 37.9,
+      "cost_usd": 3.25,
+      "holds": 0
+    },
+    "broadcast": {
+      "pairs": 9,
+      "graded": 9,
+      "interference": 4,
+      "interference_rate": 0.444,
+      "merged_runs": 9,
+      "merged_pass": 5,
+      "merged_pass_rate": 0.556,
+      "clean": 5,
+      "conflict": 0,
+      "task_failed": 0,
+      "adapted": 0,
+      "errors": 0,
+      "median_wall_seconds": 38.0,
+      "cost_usd": 3.24,
+      "holds": 0
+    },
+    "airspace": {
+      "pairs": 9,
+      "graded": 3,
+      "interference": 0,
+      "interference_rate": 0.0,
+      "merged_runs": 9,
+      "merged_pass": 7,
+      "merged_pass_rate": 0.778,
+      "clean": 3,
+      "conflict": 0,
+      "task_failed": 6,
+      "adapted": 4,
+      "errors": 0,
+      "median_wall_seconds": 52.1,
+      "cost_usd": 3.66,
+      "holds": 12
+    }
+  },
+  "sets": {
+    "flask-debug-rename": {
+      "kind": "rename",
+      "airspace": [
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    },
+    "flask-flash-categories": {
+      "kind": "signature",
+      "airspace": [
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": false
+        },
+        {
+          "outcome": "task_failed",
+          "merged": false
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    },
+    "flask-send-file-name": {
+      "kind": "signature",
+      "airspace": [
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    }
+  }
+}

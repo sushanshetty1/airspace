@@ -110,7 +110,9 @@ def reconcile(root: Path, agent: str, task: str, airspace, deps, now: float) -> 
         removed = [c.qualname for c in changes if not c.new_signature and c.qualname not in analysis.touched]
         airspace.ensure_task(agent, task)
         verdict = airspace.check_edit(task, analysis.touched + removed, analysis.new_calls, analysis.call_shapes)
-        deps.reindex(root, rel)
+        from airspace.hooks.handlers import reindex_own
+
+        reindex_own(airspace, deps, root, task, rel)
         airspace.claim_pending(task)
         if changes:
             airspace.record_changes(task, changes)

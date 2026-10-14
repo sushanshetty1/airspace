@@ -234,6 +234,12 @@ class RemoteAirspace:
     def note_touched(self, task_id: str, qualnames: list[str]) -> None:
         self._call("note_touched", task_id, qualnames)
 
+    def owned(self, task_id: str, qualnames: list[str]) -> list[str]:
+        return self._call("owned", task_id, qualnames)
+
+    def restore_signatures(self, signatures: list[tuple[str, str]]) -> None:
+        self._call("restore_signatures", signatures)
+
     def started_at(self, task_id: str) -> float | None:
         return self._call("started_at", task_id)
 

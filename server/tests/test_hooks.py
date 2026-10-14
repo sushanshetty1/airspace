@@ -49,6 +49,13 @@ class FakeAirspace:
         self.calls.append(("claim_pending", task_id))
         return []
 
+    def owned(self, task_id, qualnames):
+        # The fake's edits are all the task's own; stale copies are covered against the real engine.
+        return list(qualnames)
+
+    def restore_signatures(self, signatures):
+        self.calls.append(("restore_signatures", list(signatures)))
+
     def record_edited_file(self, task_id, rel):
         self.calls.append(("record_edited_file", task_id, rel))
 

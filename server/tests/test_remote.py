@@ -46,7 +46,7 @@ ENGINE_METHODS = {
     "ensure_task", "agent_of", "check_edit", "record_changes", "renamed", "claim_pending", "claim", "file_plan",
     "release", "pending_briefings", "record_edited_file", "edited_files", "note_touched", "started_at", "stop_check",
     "holding", "land", "block_landing", "last_block", "note_reading", "note_interest_from_text", "pending_messages",
-    "state", "explain", "insights",
+    "state", "explain", "insights", "owned", "restore_signatures",
 }
 SLUG_A, SLUG_B = REFS["slugify-keyword-only"]
 TRUNCATE_A = REFS["truncate-words-limit"][0]

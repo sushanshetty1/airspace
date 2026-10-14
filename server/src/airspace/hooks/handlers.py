@@ -214,6 +214,23 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
         return None
 
 
+def reindex_own(airspace, deps: Deps, root: Path, task: str, rel: str) -> list[SignatureChange]:
+    """Re-index a file and return the signature changes that are this task's own.
+
+    The graph is shared, and this working copy may predate another agent's change to a symbol in the same file.
+    A difference on a symbol this task never touched is that stale copy, not a change: the graph keeps the
+    newer signature, and nothing is recorded against this task.
+    """
+    changes = deps.reindex(root, rel)
+    if not changes:
+        return []
+    own = set(airspace.owned(task, [c.qualname for c in changes]))
+    stale = [(c.qualname, c.old_signature) for c in changes if c.qualname not in own and c.old_signature]
+    if stale:
+        airspace.restore_signatures(stale)
+    return [c for c in changes if c.qualname in own]
+
+
 def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -> dict | None:
     target = _target(payload, env)
     if target is None:
@@ -225,7 +242,7 @@ def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) 
         _unavailable(UNAVAILABLE, e)
         return None
     try:
-        changes = deps.reindex(root, rel)
+        changes = reindex_own(airspace, deps, root, task, rel)
         # Symbols the edit created exist now, so the task can claim them; a caller-first change then finds it.
         airspace.claim_pending(task)
         if changes:

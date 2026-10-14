@@ -548,6 +548,25 @@ class Airspace:
         """Symbols the task changed without clearance (a write that has already happened): its own all the same."""
         self._note_touched(task_id, qualnames)
 
+    def owned(self, task_id: str, qualnames: list[str]) -> list[str]:
+        """Those of qualnames the task touched or claims: the code its own edits changed."""
+        mine = self._own_symbols(task_id)
+        return [q for q in qualnames if q in mine]
+
+    def restore_signatures(self, signatures: list[tuple[str, str]]) -> None:
+        """Put back (qualname, signature) pairs a re-index overwrote with an older copy of the code.
+
+        Agents on separate worktrees share one graph. Re-indexing a file from a worktree that never had another
+        agent's change would put the old signature back; the graph keeps the newest contract instead.
+        """
+        from airspace.indexer.parse import _sig_hash
+
+        for qualname, signature in signatures:
+            self._q(
+                "MATCH (s:Symbol {qualname: $q}) SET s.signature = $sig, s.sig_hash = $hash",
+                {"q": qualname, "sig": signature, "hash": _sig_hash(signature)},
+            )
+
     def record_edited_file(self, task_id: str, rel: str) -> None:
         """Remember a repo-relative file the task edited, once. A task not in the graph yet is left alone."""
         self._q(
