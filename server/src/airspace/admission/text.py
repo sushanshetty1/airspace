@@ -16,7 +16,8 @@ BRANCH_NOTE = (
 LOCAL_NOTE = "This working copy already has that change, so local tests use the new signature."
 NOT_HERE_NOTE = (
     "That change is not in this working copy yet, so local tests still reflect the old signature until the "
-    "branches are merged. A call that fits the new signature is the one that merges cleanly."
+    "branches are merged. A call that fits the new signature is the one that merges cleanly, and a local test "
+    "failure caused only by that difference goes away at the merge."
 )
 
 

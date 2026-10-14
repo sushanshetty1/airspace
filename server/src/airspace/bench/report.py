@@ -60,3 +60,31 @@ def write_summary(out_dir: Path) -> dict:
     summary = summarize(results)
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2))
     return summary
+
+
+SET_ORDER = ("slugify-keyword-only", "truncate-words-limit", "rename-absolute-url", "render-post-show-body",
+             "post-requires-author", "tag-save-returns-none")
+
+
+def web_summary(out_dir: Path) -> dict:
+    """What the website's results section reads: per-condition totals and every run's merged result per set."""
+    results = [json.loads(p.read_text()) for p in sorted(out_dir.glob("*--*.json"))]
+    summary = summarize(results)
+    keep = ("pairs", "merged_pass", "merged_pass_rate", "median_wall_seconds", "cost_usd", "holds")
+    sets: dict[str, dict[str, list[bool]]] = {}
+    for set_id in [s for s in SET_ORDER if s in summary["sets"]] + sorted(set(summary["sets"]) - set(SET_ORDER)):
+        runs = sorted((r for r in results if r["set_id"] == set_id), key=lambda r: r.get("repeat", 0))
+        sets[set_id] = {c: [bool(r.get("merged")) for r in runs if r["condition"] == c] for c in CONDITIONS}
+    return {
+        "conditions": {c: {k: v[k] for k in keep} for c, v in summary["conditions"].items()},
+        "sets": sets,
+    }
+
+
+if __name__ == "__main__":
+    import sys
+
+    out_dir, web_path = Path(sys.argv[1]), Path(sys.argv[2])
+    write_summary(out_dir)
+    web_path.write_text(json.dumps(web_summary(out_dir), indent=2) + "\n")
+    print(f"Wrote {out_dir / 'summary.json'} and {web_path}")
