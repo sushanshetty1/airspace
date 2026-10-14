@@ -1,99 +1,97 @@
-# Airspace
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/banner-dark.png">
+    <img alt="Airspace. Air-traffic control for coding agents." src="assets/readme/banner-light.png" width="100%">
+  </picture>
+</p>
 
-**Air-traffic control for parallel coding agents.**
+<p align="center">
+  <img alt="Status: pre-hackathon" src="https://img.shields.io/badge/status-pre--hackathon-ff5a1f?style=flat-square&labelColor=111112">
+  <img alt="Built on FalkorDB" src="https://img.shields.io/badge/built%20on-FalkorDB-111112?style=flat-square">
+  <img alt="Works with Claude Code" src="https://img.shields.io/badge/works%20with-Claude%20Code-d97757?style=flat-square&labelColor=111112">
+  <img alt="MCP" src="https://img.shields.io/badge/MCP-server-111112?style=flat-square">
+  <a href="LICENSE"><img alt="Apache-2.0 licence" src="https://img.shields.io/badge/license-Apache--2.0-111112?style=flat-square"></a>
+</p>
 
-Run four coding agents at once and each one passes its tests on its own. Merge them, and the build breaks. Airspace sees the collision coming before the code is written, because it knows how your code connects.
+<!-- hero.gif: four agents, one collision on the radar, a held edit, a briefing, a green merge. Recorded on Oct 18. -->
 
-> **Status:** pre-hackathon. This repo holds only design notes, the graph model sketch and empty scaffolding.
-> All FalkorDB and agent code gets written during the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb)
-> (Oct 15–18, 2026 IST), per rule 8.
+**Airspace is air-traffic control for parallel coding agents.** Split a feature across four Claude Code sessions and each one passes its tests on its own. Merge them, and `main` is red: one agent changed a function that another was busy calling. Airspace keeps a live graph of how your code connects. It checks every edit against that graph before the edit is written, and holds the one that would collide.
 
-**Tracks:** Track 02 (Agent Memory and Coordination) · Track 01 (Agents That Act on Connected Data)
+Built for two kinds of people:
 
----
+- **Developers** who run several agents at once and are tired of clean merges that break the build.
+- **Tool builders** who orchestrate fleets of agents and need a shared, queryable picture of who is touching what.
 
-## The problem: passes alone, fails together
+## How it works
 
-Developers in 2026 split a feature across several Claude Code or Codex sessions, each in its own git worktree. Worktrees stop agents overwriting each other's files. They don't stop this:
-
-- Agent A changes `slugify(value, allow_unicode=False)` to `slugify(value, *, unicode=False)`.
-- At the same moment, agent B adds three new calls to `slugify(title, True)` in another package.
-- Both branches pass their tests, and git merges them without a conflict.
-- `main` is broken.
-
-Git sees lines. It doesn't see that B's new code depends on the function A is rewriting, across files, through imports and calls. The 2026 benchmark [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396) found this interference in **97%** of runs on constructed Django tasks. A [study of 33,596 agent pull requests](https://codex.danielvaughan.com/2026/07/28/agent-pr-merge-conflicts-concurrent-coding-agents-codex-cli-worktree-isolation-coordination-defence/) puts the merge-conflict rate for agent PRs at **27.67%**, and says the semantic layer is the part nobody measures.
-
-## What Airspace does
-
-Airspace keeps a **live code graph in FalkorDB** (symbols, calls, imports, inheritance, test coverage) and puts every agent's work into the same graph:
-
-1. **File a flight plan.** When an agent starts a task, it declares the symbols it intends to change. Airspace computes the task's **impact cone**: everything that calls, imports, overrides or tests those symbols, several hops out.
-2. **Clearance before every write.** A Claude Code `PreToolUse` hook asks Airspace before each `Edit` or `Write`. The check is deterministic, with no LLM in the decision:
-   - **cleared** when the edit stays inside the agent's airspace;
+1. **File a flight plan.** When an agent starts a task, Airspace marks the symbols it means to change. It then computes the task's **impact cone**: everything that calls, imports, overrides or tests those symbols, a few hops out.
+2. **Ask before every write.** A Claude Code `PreToolUse` hook checks each `Edit` and `Write` with Airspace. The answer is a graph query and a few rules, never a model call:
+   - **cleared** when the edit stays in the agent's own airspace;
    - **hold** when it enters another agent's cone;
-   - **contract change** when it alters a signature others depend on.
-3. **Handoffs, not surprises.** When agent A changes a contract, Airspace finds every active agent whose cone reaches it. It delivers a briefing into their next tool call, with the exact path that connects their work to the change.
-4. **Memory across sessions.** Leases, collisions and contract changes stay in the graph. Next time, the planner knows which symbols are hot zones and splits work around them.
+   - **briefed** when it depends on a contract someone else is changing.
+3. **Brief, don't surprise.** When one agent changes a signature, every agent whose cone reaches it gets a briefing on its next tool call. The briefing gives the new signature and the exact path that connects the two pieces of work.
 
-The **radar** UI shows the code graph with each agent's cone as a coloured region. Collisions flash, and each one comes with the shortest path that explains it.
+This is what an agent sees:
 
-## Why this needs a graph
+```text
+● Edit(blog/views.py)
+  ⏸ Airspace · HOLD
+    utils.text.slugify is changing in agent-a
+    new   slugify(value, *, unicode=False)
+    path  blog.views.render_post ─CALLS→ utils.text.slugify
+    Use the new signature, or wait for agent-a to land.
 
-The questions are about connections: "Can A and B work at the same time?" really means "do their cones overlap?"
-
-| Question | Graph work |
-|---|---|
-| What does this edit affect? | Reverse traversal over `CALLS`, `IMPORTS`, `INHERITS` and `COVERS`, or `algo.bfs` |
-| Do two agents collide, and why? | Intersection of their cones, plus `algo.SPpaths` for the explaining path |
-| Which tasks can run in parallel? | `algo.WCC` over the conflict graph; each component is serialised, components run concurrently |
-| Which symbols are risky to touch? | `algo.betweenness` / `algo.pageRank` on the call graph, plus collision history |
-| Who has to hear about this contract change? | Active `CLAIMS` whose cone reaches the changed symbol |
-
-FalkorDB features in use:
-
-- **6.0 MVCC**, so many agents read while admission writes;
-- **one graph per repo** (multi-graph);
-- built-in **`algo.*`** procedures;
-- vector index over symbol docstrings for planning;
-- full-text index over symbol names.
-
-## Graph data model (draft)
-
-**Code graph:**
-
+● Edit(blog/views.py)   slugify(post.title, unicode=True)
+  ✓ Airspace · cleared
 ```
-(:Repo)-[:HAS]->(:File {path})-[:DEFINES]->(:Symbol {qualname, kind, signature, sig_hash})
+
+### Why a graph
+
+| | |
+| --- | --- |
+| **Collisions are paths** | Two agents collide when their impact cones meet. That is a traversal over `CALLS`, `IMPORTS`, `INHERITS` and `COVERS`, not a text match. |
+| **Every hold explains itself** | `algo.SPpaths` returns the shortest path between the two pieces of work, and the agent and the radar both show it. |
+| **Parallel by default** | `algo.WCC` over the conflict graph splits tasks into groups. Groups run at the same time; only tasks inside a group wait for each other. |
+| **It remembers** | Holds, briefings and contract changes stay in the graph. Next session, the planner already knows the hot zones and splits work around them. |
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/architecture-dark.png">
+    <img alt="Architecture: your coding agents ask airspace/hooks before every edit. airspace/admission checks the FalkorDB graph with Cypher and graph algorithms and returns cleared, held or briefed. airspace/indexer re-indexes the code graph on save. The radar shows cones, collisions and paths live." src="assets/readme/architecture-light.png" width="100%">
+  </picture>
+</p>
+
+## The graph
+
+Each repo gets its own graph in FalkorDB. It has two layers: the code, and the agents working on it.
+
+```text
+(:File {path})-[:DEFINES]->(:Symbol {qualname, kind, signature, sig_hash})
 (:Symbol)-[:CALLS]->(:Symbol)
 (:File)-[:IMPORTS]->(:Symbol)
 (:Symbol)-[:INHERITS]->(:Symbol)
 (:Test)-[:COVERS]->(:Symbol)
-```
 
-**Airspace layer (coordination and memory):**
-
-```
 (:Agent {id, harness})-[:FLYING]->(:Task {intent, status, base_commit})
-(:Task)-[:CLAIMS {mode: 'write'|'contract', lease_until, fence}]->(:Symbol)
+(:Task)-[:CLAIMS {mode, lease_until, fence}]->(:Symbol)
 (:Task)-[:CONE {depth}]->(:Symbol)
 (:Collision {at, resolution})-[:BETWEEN]->(:Task)
 (:Collision)-[:AT]->(:Symbol)
 (:ContractChange {old_sig, new_sig, at})-[:ON]->(:Symbol)
 (:ContractChange)-[:BRIEFED]->(:Task)
-(:Session)-[:RAN]->(:Task)
-(:Symbol).collision_count            // hot-zone memory across sessions
 ```
 
-## Key Cypher (sketches, verified and finalised during the event)
+The queries the product depends on (sketches, finalised during the event):
 
 ```cypher
-// Impact cone: everything that depends on the symbols a task claims, up to 3 hops
+// Impact cone: everything that depends on what a task claims, up to 3 hops
 MATCH (t:Task {id: $task})-[:CLAIMS]->(s:Symbol)
 MATCH (dep)-[:CALLS|IMPORTS|INHERITS|COVERS*1..3]->(s)
 MERGE (t)-[:CONE]->(dep)
 ```
 
 ```cypher
-// Clearance: does this edit land inside another active task's cone?
+// Clearance: does this edit land in another active task's airspace?
 MATCH (target:Symbol {qualname: $qualname})
 MATCH (other:Task {status: 'active'})-[:CONE|CLAIMS]->(target)
 WHERE other.id <> $task
@@ -101,7 +99,7 @@ RETURN other.id, other.intent
 ```
 
 ```cypher
-// Explain a collision: shortest path from my claimed symbol to theirs
+// Why: the shortest path between my work and theirs
 MATCH (a:Symbol {qualname: $mine}), (b:Symbol {qualname: $theirs})
 CALL algo.SPpaths({sourceNode: a, targetNode: b, relTypes: ['CALLS', 'IMPORTS', 'INHERITS'], maxLen: 4})
 YIELD path
@@ -109,7 +107,7 @@ RETURN path
 ```
 
 ```cypher
-// Atomic lease (writes to a graph are serialised)
+// Lease a symbol atomically (writes to one graph are serialised)
 MATCH (s:Symbol {qualname: $qualname})
 OPTIONAL MATCH (other:Task)-[c:CLAIMS]->(s) WHERE other.id <> $task AND c.lease_until > $now
 WITH s, count(c) AS held WHERE held = 0
@@ -119,59 +117,91 @@ SET c.mode = $mode, c.lease_until = $now + $ttl, c.fence = coalesce(c.fence, 0) 
 RETURN c.fence
 ```
 
-## How we'll prove it works
+## Does it work?
 
-We'll run the same parallel-agent workload under three conditions, using the benchmark method from *Passes Alone, Fails Together*:
+We run the same parallel workload three ways, using the grading method from [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396). Tests run on each agent's patch alone and on the merge, and only failures caused by the merge count.
 
-1. **Worktrees only** (today's default).
-2. **Broadcast:** each agent is told what the others changed. The paper reports this recovers 82%.
-3. **Airspace:** graph-scoped clearance plus targeted briefings.
+| Condition | Interference | Parallelism kept | Wall-clock | Tokens |
+| --- | --- | --- | --- | --- |
+| Worktrees only | | | | |
+| Broadcast (each agent is told what the others changed) | | | | |
+| Airspace | | | | |
 
-Metrics:
+The table fills in once the runs are done. We won't publish a number we haven't measured.
 
-- **interference rate:** tests pass on each patch alone, fail when merged;
-- **parallelism kept**, compared with running every task one after another;
-- **wall-clock time**;
-- **tokens**.
+**Honest limits.** The paper found interference in 97% of runs on constructed Django tasks, but in only 1 of 417 pairs of real merged PRs. Constructed tasks show whether a coordination method works; they don't show how often the problem happens in practice. Airspace's code graph is built from Python `ast`, so dynamic dispatch and string imports can hide edges, and unresolved calls are reported, not guessed.
 
-The results table goes here once it's measured. We won't publish numbers we haven't run.
+## What's in this repo
 
-## Integrations
+| Path | What it is |
+| --- | --- |
+| [`server/src/airspace/indexer`](server/src/airspace/indexer) | Python `ast` → symbols, calls, imports, inheritance and test coverage, re-indexed per file |
+| [`server/src/airspace/graph`](server/src/airspace/graph) | FalkorDB connection, schema, indexes and the Cypher above |
+| [`server/src/airspace/admission`](server/src/airspace/admission) | Flight plans, cones, clearance, leases, briefings |
+| [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code `PreToolUse` / `PostToolUse` hooks |
+| [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `request_clearance`, `report_change`, `briefings`, `radar` |
+| [`server/src/airspace/api`](server/src/airspace/api) | HTTP and live updates for the radar |
+| [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness |
+| [`web`](web) | The radar (Vite, React, sigma.js) |
+| [`docs/notes.md`](docs/notes.md) | Research, plan and decisions |
 
-- **Claude Code:** `PreToolUse` and `PostToolUse` hooks give deterministic clearance and re-index after edits.
-- **Any MCP client:** tools `file_flight_plan`, `request_clearance`, `report_change`, `briefings`, `radar`.
+## Quick start
 
-## Stack
-
-- **Graph:** FalkorDB (Docker), FalkorDB Browser.
-- **Backend:** Python 3.12, FastAPI, the `falkordb` client, `mcp`. The code graph is built from Python `ast`.
-- **Agents under test:** Claude Code (headless), using the Anthropic API.
-- **Web:** Vite, React, TypeScript, with the radar drawn by sigma.js.
-
-## Running locally
-
-```bash
-cp .env.example .env            # add ANTHROPIC_API_KEY
+```sh
+cp .env.example .env            # ANTHROPIC_API_KEY, for the benchmark agents only
 docker compose up -d falkordb   # FalkorDB on :6379, Browser on :3000
 cd server && uv sync
 cd ../web && npm install
 ```
 
-Indexing, hook install and radar commands get added here as they're built.
+Indexing, hook install and radar commands land here as they're built.
+
+## Open decisions
+
+- [x] **Where the decision lives.** Clearance is Cypher plus rules, enforced by a hook that fails closed. No model is asked whether an edit is safe.
+- [x] **First language.** Python, through the standard-library `ast`. Other languages come later through tree-sitter.
+- [x] **First harness.** Claude Code, through `PreToolUse` and `PostToolUse` hooks. Any MCP client can use the same tools.
+- [x] **Storage.** Everything (code graph, flight plans, leases, history) lives in FalkorDB, one graph per repo. No side database.
+- [ ] **Benchmark repo.** Django, to match the paper's constructed tasks, or a smaller library if Django's test suite is too slow for many runs.
+- [ ] **Cone depth.** Three hops by default; tune it against hold rate and parallelism in the benchmark.
+
+## Roadmap
+
+- [ ] Indexer and code graph, with incremental re-index on save
+- [ ] Cones, clearance, leases and collision paths
+- [ ] Claude Code hooks and the MCP server
+- [ ] Briefings on contract changes
+- [ ] The radar
+- [ ] Hot-zone memory across sessions
+- [ ] Benchmark: worktrees vs broadcast vs Airspace
+- [ ] Live deployment, demo video and write-up
 
 ## Prior art
 
 - [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396) (Xia, Wu, Park, 2026): the benchmark method and the broadcast baseline.
 - [*Claim Plane*](https://arxiv.org/abs/2607.21909) (Nikolaev, 2026): admitting change intents before any write.
-  - Airspace computes scope from a live graph instead of making agents declare every resource.
-- [FalkorDB code-graph](https://github.com/FalkorDB/code-graph) (MIT) and [CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext) (MIT): code graphs as agent tools.
-  - Both serve a single agent. We studied their schemas; Airspace's indexer is our own.
-- [Aura agent collision detection](https://auravcs.com/learn/agent-collision-detection): a description of file, symbol and dependency-level collision detection.
+  - Airspace works out scope from a live graph instead of asking agents to declare every resource.
+- [FalkorDB code-graph](https://github.com/FalkorDB/code-graph) and [CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext): code graphs as tools for a single agent.
+  - We studied their schemas. Airspace's indexer is our own.
 
-## AI assistance disclosure
+## FalkorDB Hackathon
 
-We use AI coding assistants (Claude Code) for research, scaffolding and pair programming, as required by rule 11. We can explain and defend the graph model, the queries, the architecture and every technical decision.
+Built for the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb) (Oct 15–18, 2026), entering **Track 02 · Agent Memory and Coordination** and **Track 01 · Agents That Act on Connected Data**.
+
+All product code is written during the event. Before it, this repo held only notes, diagrams and empty scaffolding.
+
+We use AI coding assistants (Claude Code) for research, scaffolding and pair programming, and say so here as rule 11 requires. We can explain every part of the graph model, the queries and the design.
+
+## Creators
+
+<table>
+  <tr>
+    <td align="center" width="160">
+      <a href="https://github.com/sushanshetty1"><img src="https://github.com/sushanshetty1.png?size=160" width="80" alt="Sushan Shetty"><br><b>Sushan Shetty</b></a><br><sub>@sushanshetty1</sub>
+    </td>
+  </tr>
+</table>
 
 ## License
 
-Apache-2.0
+[Apache-2.0](LICENSE).

@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e11; --panel: #13161a; --panel-2: #181c21; --line: #262b32;
+    --text: #f3f4f6; --muted: #8b919a; --faint: #5b616a;
+    --a: #5aa2ff; --b: #b18cff; --hot: #ff5a1f;
+    --add: #3ecf8e; --add-bg: rgba(62, 207, 142, .08); --hold-bg: rgba(255, 90, 31, .10);
+    --edge: #2e343c; --node: #3a414a;
+  }
+  html[data-theme="light"] {
+    --bg: #fafaf8; --panel: #ffffff; --panel-2: #f6f6f3; --line: #e5e5e0;
+    --text: #111112; --muted: #63676e; --faint: #9a9da3;
+    --a: #2f7cf0; --b: #8a5cf0; --hot: #f04e12;
+    --add: #13915a; --add-bg: rgba(19, 145, 90, .07); --hold-bg: rgba(240, 78, 18, .08);
+    --edge: #d6d6d0; --node: #c4c5c0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 2560px; height: 800px; background: var(--bg); color: var(--text);
+         font-family: "Geist", system-ui, sans-serif; overflow: hidden; position: relative; }
+  .left { position: absolute; left: 144px; top: 190px; width: 1060px; }
+  .brand { display: flex; align-items: center; gap: 40px; }
+  .brand svg { width: 150px; height: 104px; }
+  .word { font-size: 156px; font-weight: 600; letter-spacing: -6px; line-height: 1; }
+  .tag { margin-top: 64px; font-size: 64px; font-weight: 600; letter-spacing: -1.6px; }
+  .sub { margin-top: 26px; font-size: 37px; line-height: 1.42; color: var(--muted); max-width: 980px; }
+
+  .card { position: absolute; background: var(--panel); border: 2px solid var(--line); border-radius: 26px;
+          box-shadow: 0 30px 80px rgba(0,0,0,.28); overflow: hidden; }
+  html[data-theme="light"] .card { box-shadow: 0 24px 60px rgba(17,17,18,.08); }
+  .graph { left: 1330px; top: 92px; width: 1060px; height: 360px; }
+  .log { left: 1500px; top: 410px; width: 960px; font-family: "Geist Mono", monospace; }
+  .log .head { display: flex; justify-content: space-between; align-items: center;
+               padding: 26px 34px; border-bottom: 2px solid var(--line); font-size: 25px; }
+  .log .head .who { color: var(--muted); }
+  .log .head .who b { color: var(--text); font-weight: 500; }
+  .pill { font-size: 22px; font-weight: 600; letter-spacing: 2px; color: var(--hot);
+          border: 2px solid var(--hot); border-radius: 999px; padding: 6px 18px; }
+  .row { font-size: 25px; padding: 9px 34px; white-space: pre; color: var(--text); }
+  .row.add { background: var(--add-bg); } .row.add .m { color: var(--add); }
+  .row.hold { background: var(--hold-bg); } .row.hold .m { color: var(--hot); }
+  .row .k { color: var(--muted); }
+  .fn { color: var(--a); } .fn2 { color: var(--b); }
+  .row:last-child { padding-bottom: 26px; } .row:nth-child(2) { padding-top: 22px; }
+  .glabel { font-family: "Geist Mono", monospace; font-size: 22px; fill: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="left">
+    <div class="brand">
+      <svg viewBox="0 0 150 104" aria-hidden="true">
+        <defs>
+          <clipPath id="ca"><circle cx="52" cy="52" r="46"/></clipPath>
+        </defs>
+        <circle cx="98" cy="52" r="46" fill="var(--hot)" clip-path="url(#ca)"/>
+        <circle cx="52" cy="52" r="43" fill="none" stroke="var(--text)" stroke-width="7"/>
+        <circle cx="98" cy="52" r="43" fill="none" stroke="var(--text)" stroke-width="7"/>
+      </svg>
+      <div class="word">Airspace</div>
+    </div>
+    <div class="tag">Air-traffic control for coding agents.</div>
+    <div class="sub">Run your agents in parallel. Airspace sees the collision in the code graph before it is written.</div>
+  </div>
+
+  <div class="card graph">
+    <svg width="1060" height="470" viewBox="0 0 1060 470">
+      <ellipse cx="370" cy="148" rx="290" ry="132" fill="var(--a)" opacity=".10"/>
+      <ellipse cx="370" cy="148" rx="290" ry="132" fill="none" stroke="var(--a)" stroke-opacity=".55" stroke-width="2.5" stroke-dasharray="10 9"/>
+      <ellipse cx="690" cy="152" rx="290" ry="128" fill="var(--b)" opacity=".10"/>
+      <ellipse cx="690" cy="152" rx="290" ry="128" fill="none" stroke="var(--b)" stroke-opacity=".55" stroke-width="2.5" stroke-dasharray="10 9"/>
+      <g stroke="var(--edge)" stroke-width="3" fill="none">
+        <path d="M180 84 L300 128"/><path d="M190 212 L300 128"/><path d="M300 128 L420 76"/>
+        <path d="M420 76 L530 156"/><path d="M180 84 L120 164"/>
+        <path d="M760 68 L870 116"/><path d="M870 116 L930 204"/><path d="M760 228 L870 116"/>
+        <path d="M640 256 L760 228"/><path d="M920 40 L870 116"/><path d="M640 60 L760 68"/>
+      </g>
+      <path d="M300 128 L530 156 L760 228" stroke="var(--hot)" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M760 68 L530 156" stroke="var(--hot)" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="2 12"/>
+      <g fill="var(--node)">
+        <circle cx="120" cy="164" r="11"/><circle cx="180" cy="84" r="13"/><circle cx="190" cy="212" r="11"/>
+        <circle cx="420" cy="76" r="13"/><circle cx="640" cy="60" r="11"/><circle cx="920" cy="40" r="11"/>
+        <circle cx="870" cy="116" r="13"/><circle cx="930" cy="204" r="11"/><circle cx="640" cy="256" r="11"/>
+      </g>
+      <circle cx="300" cy="128" r="17" fill="var(--a)"/>
+      <circle cx="760" cy="228" r="17" fill="var(--b)"/>
+      <circle cx="760" cy="68" r="14" fill="var(--b)" opacity=".75"/>
+      <circle cx="530" cy="156" r="30" fill="none" stroke="var(--hot)" stroke-width="3" opacity=".45"/>
+      <circle cx="530" cy="156" r="20" fill="var(--hot)"/>
+      <text x="330" y="222" class="glabel" style="fill: var(--text)">utils.text.slugify</text>
+      <text x="232" y="168" class="glabel" style="fill: var(--a)">agent-a</text>
+      <text x="792" y="266" class="glabel" style="fill: var(--b)">agent-b</text>
+    </svg>
+  </div>
+
+  <div class="card log">
+    <div class="head"><span class="who"><b>agent-b</b> · Edit blog/views.py</span><span class="pill">HOLD</span></div>
+    <div class="row add"><span class="m">+</span>   <span class="fn">slugify</span>(post.title, True)</div>
+    <div class="row hold"><span class="m">!</span>   <span class="fn">slugify</span> is changing in <span class="fn">agent-a</span></div>
+    <div class="row"><span class="k">    new </span> slugify(value, *, unicode=False)</div>
+    <div class="row"><span class="k">    path</span> views.render_post → text.slugify</div>
+  </div>
+</body>
+</html>

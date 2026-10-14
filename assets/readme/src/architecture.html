@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0e11; --card: #15181c; --card-line: #262b32; --text: #f3f4f6; --muted: #8b919a;
+    --ink: #f3f4f6; --ink-text: #0c0e11; --ink-muted: #4a4f57;
+    --hot: #ff5a1f; --hot-text: #1a0a03; --hot-muted: #4a1d08; --wire: #6b717a;
+  }
+  html[data-theme="light"] {
+    --bg: #ffffff; --card: #f3f3f2; --card-line: #e6e6e3; --text: #111112; --muted: #5f636a;
+    --ink: #111112; --ink-text: #f3f4f6; --ink-muted: #9a9ea6;
+    --hot: #ff5a1f; --hot-text: #1a0a03; --hot-muted: #5a2208; --wire: #77797e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 2560px; height: 1280px; background: var(--bg); color: var(--text);
+         font-family: "Geist", system-ui, sans-serif; position: relative; overflow: hidden; }
+  h1 { position: absolute; left: 120px; top: 70px; font-size: 52px; font-weight: 600; letter-spacing: -1.4px; }
+  .card { position: absolute; border-radius: 26px; background: var(--card); border: 2px solid var(--card-line); padding: 40px 40px; }
+  .card h2 { font-size: 38px; font-weight: 600; letter-spacing: -0.8px; }
+  .card p { margin-top: 18px; font-family: "Geist Mono", monospace; font-size: 26px; color: var(--muted); }
+  .ink { background: var(--ink); border-color: var(--ink); }
+  .ink h2 { color: var(--ink-text); } .ink p { color: var(--ink-muted); }
+  .hot { background: var(--hot); border-color: var(--hot); }
+  .hot h2 { color: var(--hot-text); } .hot p { color: var(--hot-muted); }
+  svg.wires { position: absolute; inset: 0; }
+  .lbl { font-family: "Geist Mono", monospace; font-size: 26px; fill: var(--muted); }
+  .lbl-bg { fill: var(--bg); }
+  .foot { position: absolute; left: 120px; top: 1190px; font-size: 28px; color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>How Airspace fits together</h1>
+
+  <div class="card ink" style="left:120px; top:190px; width:760px; height:200px;">
+    <h2>Your coding agents</h2><p>Claude Code · Codex · any MCP client</p>
+  </div>
+  <div class="card" style="left:1680px; top:190px; width:760px; height:200px;">
+    <h2>You, on the radar</h2><p>cones · collisions · paths</p>
+  </div>
+  <div class="card hot" style="left:900px; top:530px; width:760px; height:190px;">
+    <h2>FalkorDB · one graph per repo</h2><p>code graph + flight plans</p>
+  </div>
+  <div class="card" style="left:120px; top:880px; width:700px; height:200px;">
+    <h2>airspace/hooks + MCP</h2><p>PreToolUse · PostToolUse · tools</p>
+  </div>
+  <div class="card" style="left:930px; top:880px; width:700px; height:200px;">
+    <h2>airspace/admission</h2><p>cones · clearance · leases</p>
+  </div>
+  <div class="card" style="left:1740px; top:880px; width:700px; height:200px;">
+    <h2>airspace/indexer</h2><p>ast → symbols · calls · tests</p>
+  </div>
+
+  <svg class="wires" width="2560" height="1280" viewBox="0 0 2560 1280">
+    <defs>
+      <marker id="arr" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+        <path d="M1.5 1.5 L10 6 L1.5 10.5 Z" fill="var(--bg)" stroke="var(--wire)" stroke-width="1.6" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    <g stroke="var(--wire)" stroke-width="3" fill="none">
+      <!-- agents -> hooks: every edit asks first -->
+      <path d="M300 392 V872" marker-end="url(#arr)"/>
+      <!-- hooks -> agents: cleared / hold / briefing -->
+      <path d="M640 878 V398" marker-end="url(#arr)"/>
+      <!-- hooks <-> admission -->
+      <path d="M822 980 H922" marker-end="url(#arr)" marker-start="url(#arr)"/>
+      <!-- admission <-> graph -->
+      <path d="M1280 878 V728" marker-end="url(#arr)" marker-start="url(#arr)"/>
+      <!-- indexer -> graph -->
+      <path d="M2090 878 V625 H1668" marker-end="url(#arr)"/>
+      <!-- graph -> radar -->
+      <path d="M1460 528 V290 H1672" marker-end="url(#arr)"/>
+    </g>
+    <g>
+      <rect class="lbl-bg" x="150" y="540" width="300" height="44"/>
+      <text class="lbl" x="300" y="572" text-anchor="middle">edit? ask first</text>
+      <rect class="lbl-bg" x="452" y="690" width="376" height="44"/>
+      <text class="lbl" x="640" y="722" text-anchor="middle">cleared · held · briefed</text>
+      <text class="lbl" x="1306" y="814">Cypher · algo.*</text>
+      <text class="lbl" x="1760" y="604">re-index on save</text>
+      <text class="lbl" x="1486" y="420">live</text>
+    </g>
+  </svg>
+
+  <div class="foot">The clearance decision is a graph query, not a model call. Agents are cleared, held or briefed before code is written.</div>
+</body>
+</html>
