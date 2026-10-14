@@ -1,4 +1,5 @@
-"""The airspace command: index | hook pre|post|any|stop | install-hooks | status | serve | mcp | insights."""
+"""The airspace command: index | hook pre|post|any|stop | install-hooks | status | serve | mcp | insights | connect |
+disconnect."""
 
 import argparse
 import os
@@ -61,7 +62,31 @@ def _index_repo(graph, root: Path):
     return index_repo(graph, root)
 
 
+def _remote(root: Path):
+    """The RPC client when the repository is connected to a hosted server, else None (FalkorDB on this machine)."""
+    from airspace.remote import client_for, remote_for
+
+    found = remote_for(root)
+    return client_for(found) if found is not None else None
+
+
+def _client(server: str, key: str):
+    from airspace.remote import RpcClient
+
+    return RpcClient(server, key)
+
+
+def _remote_airspace(client):
+    from airspace.remote import RemoteAirspace, seen_dir
+
+    return RemoteAirspace(client, seen_dir())
+
+
 def _airspace(root: Path):
+    client = _remote(root)
+    if client is not None:
+        return _remote_airspace(client)
+
     from airspace.api.app import open_airspace
 
     return open_airspace(root)
@@ -78,21 +103,42 @@ def _serve(root: Path, host: str, port: int) -> None:
 
 
 def _mcp(root: Path) -> None:
-    from airspace.mcp_server.server import run_stdio
+    from airspace.mcp_server.server import build_server, run_stdio
 
-    run_stdio(root)
+    client = _remote(root)
+    if client is None:
+        run_stdio(root)
+        return
+    build_server(root, airspace_factory=lambda _root: _remote_airspace(client)).run("stdio")
 
 
 # Commands.
 
 
+def _server_down(e: Exception) -> int:
+    print(f"airspace: Airspace server unavailable ({e})", file=sys.stderr)
+    return 1
+
+
 def _cmd_index(root: Path) -> int:
     try:
-        graph = _graph(root)
+        client = _remote(root)
     except Exception as e:
-        print(f"airspace: FalkorDB unavailable ({e})", file=sys.stderr)
-        return 1
-    stats = _index_repo(graph, root)
+        return _server_down(e)
+    if client is not None:
+        from airspace.remote import remote_index
+
+        try:
+            stats = remote_index(client, root)
+        except Exception as e:
+            return _server_down(e)
+    else:
+        try:
+            graph = _graph(root)
+        except Exception as e:
+            print(f"airspace: FalkorDB unavailable ({e})", file=sys.stderr)
+            return 1
+        stats = _index_repo(graph, root)
     print(f"Indexed {stats.files} files, {stats.symbols} symbols, {stats.calls} calls ({stats.unresolved} unresolved)")
     return 0
 
@@ -184,7 +230,34 @@ def _when(at) -> str:
     return str(at) if at is not None else "?"
 
 
+def _cmd_remote_status(client) -> int:
+    """A connected repository: the agents and recent collisions from the workspace's engine."""
+    try:
+        state = _remote_airspace(client).state()
+    except Exception as e:
+        return _server_down(e)
+    print(f"Workspace {client.workspace or '?'} on {client.server}")
+    agents = [a for a in state.get("agents") or [] if a.get("status") != "released"]
+    print(f"Agents flying ({len(agents)})")
+    for a in agents:
+        claimed = ", ".join(a.get("claims") or []) or "none"
+        flags = "".join(f", {f}" for f in ("paused", "held") if a.get(f))
+        print(f"  {a['id']}  {a.get('status')}{flags}  claims: {claimed}")
+    collisions = state.get("collisions") or []
+    print(f"Recent collisions ({len(collisions)})")
+    for c in collisions:
+        between = ", ".join(x for x in (c.get("held_agent"), c.get("owner_agent")) if x) or "?"
+        print(f"  {c.get('id')}  {_when(c.get('at'))}  at {c.get('symbol') or '?'}  between {between}")
+    return 0
+
+
 def _cmd_status(root: Path) -> int:
+    try:
+        client = _remote(root)
+    except Exception as e:
+        return _server_down(e)
+    if client is not None:
+        return _cmd_remote_status(client)
     try:
         graph = _graph(root)
     except Exception as e:
@@ -221,6 +294,57 @@ def _cmd_insights(root: Path) -> int:
     return 0
 
 
+def _cmd_connect(root: Path, server: str, key: str) -> int:
+    """Check the key, store it for this repository, index the repository into the workspace and say what is next."""
+    from airspace.remote import Remote, RemoteError, remote_index, remotes_path, set_remote
+
+    server = server.rstrip("/")
+    client = _client(server, key)
+    try:
+        client.call("graph.known")
+    except RemoteError as e:
+        if e.status == 401:
+            print(f"airspace: {server} did not accept this key ({e}). Nothing was saved.", file=sys.stderr)
+        else:
+            print(f"airspace: cannot connect to {server} ({e}). Nothing was saved.", file=sys.stderr)
+        return 1
+    workspace = client.workspace
+    if not workspace:
+        print(f"airspace: {server} did not name a workspace for this key. Nothing was saved.", file=sys.stderr)
+        return 1
+    try:
+        set_remote(root, Remote(server=server, key=key, workspace=workspace))
+    except (OSError, RemoteError) as e:
+        print(f"airspace: cannot save {remotes_path()} ({e})", file=sys.stderr)
+        return 1
+    print(f"Connected {root} to workspace {workspace} on {server}")
+    try:
+        stats = remote_index(client, root)
+    except Exception as e:
+        print(f"airspace: the first index did not finish ({e}). Run airspace index --root {shlex.quote(str(root))} "
+              "to try again.", file=sys.stderr)
+        return 1
+    print(f"Indexed {stats.files} files, {stats.symbols} symbols, {stats.calls} calls ({stats.unresolved} unresolved)")
+    print(f"Tower: {server}/w/{workspace}")
+    print(f"Next: airspace install-hooks --root {shlex.quote(str(root))}")
+    return 0
+
+
+def _cmd_disconnect(root: Path) -> int:
+    from airspace.remote import RemoteError, remove_remote
+
+    try:
+        removed = remove_remote(root)
+    except (OSError, RemoteError) as e:
+        print(f"airspace: {e}", file=sys.stderr)
+        return 1
+    if removed:
+        print(f"Disconnected {root}. Its hooks use FalkorDB on this machine again.")
+    else:
+        print(f"{root} was not connected.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="airspace", description="Air-traffic control for parallel coding agents.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -232,6 +356,8 @@ def main(argv: list[str] | None = None) -> int:
         ("mcp", "run the Airspace MCP server over stdio"),
         ("insights", "show hot zones and the groups of agents that can fly in parallel"),
         ("serve", "run the HTTP API for Tower"),
+        ("connect", "send this repository's hooks to a hosted Airspace workspace"),
+        ("disconnect", "send this repository's hooks to FalkorDB on this machine again"),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--root", type=Path, default=Path.cwd(), help="repository root (default: current directory)")
@@ -239,6 +365,10 @@ def main(argv: list[str] | None = None) -> int:
     serve = sub.choices["serve"]
     serve.add_argument("--host", default="127.0.0.1", help="interface to bind (default: 127.0.0.1)")
     serve.add_argument("--port", type=int, default=8787, help="port to listen on (default: 8787)")
+
+    connect = sub.choices["connect"]
+    connect.add_argument("--server", required=True, help="the Airspace server, such as https://airspace.sushans.dev")
+    connect.add_argument("--key", required=True, help="the workspace key (ask_...)")
 
     hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
     hook.add_argument("event", choices=list(_HANDLERS))
@@ -266,6 +396,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "insights":
         return _cmd_insights(root)
+    if args.command == "connect":
+        return _cmd_connect(root, args.server, args.key)
+    if args.command == "disconnect":
+        return _cmd_disconnect(root)
     return _cmd_status(root)
 
 
