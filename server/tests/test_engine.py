@@ -235,5 +235,42 @@ def test_messages_are_factual_and_dash_free():
     for fact in (SLUGIFY, OLD_SIG, NEW_SIG, "agent-a"):
         assert fact in brief
     assert text.briefing_text([]) == ""
-    for msg in (hold, claim, brief):
+    paused = text.paused_hold("agent-x")
+    assert paused == "Airspace hold: agent-x is paused from Tower. Its edits are held until it is resumed."
+    for msg in (hold, claim, brief, paused):
         assert "\u2014" not in msg and "\u2013" not in msg
+
+
+def test_same_agent_tasks_never_collide(airspace, graph):
+    # The hooks fly a task per Claude session and MCP flies "<agent>:mcp": both belong to agent-a.
+    airspace.file_plan("agent-a", "agent-a:mcp", "change slugify", [SLUGIFY])
+    airspace.record_changes("agent-a:mcp", [SLUGIFY_CHANGE])
+    airspace.file_plan("agent-a", "sess-a", "post saving", ["blog.models.Post.save"])
+    airspace.ensure_task("agent-b", "task-b")
+
+    assert airspace.check_edit("sess-a", [SLUGIFY], []).kind == "cleared"
+    assert airspace.check_edit("sess-a", ["blog.views.render_post"], [NEW_CALL]).kind == "cleared"
+    assert airspace.claim("sess-a", [SLUGIFY]) == [SLUGIFY]
+    assert airspace.pending_briefings("sess-a") == []
+    assert graph.query("MATCH (x:Collision) RETURN count(x)").result_set == [[0]]
+
+    # Another agent is still held by either task's claim.
+    assert airspace.check_edit("task-b", [SLUGIFY], []).kind == "hold"
+    assert airspace.claim("task-b", ["blog.models.Post.save"]) == []
+
+
+def test_collision_records_both_sides(airspace, graph):
+    airspace.file_plan("agent-a", "task-a", "change slugify", [SLUGIFY])
+    airspace.record_changes("task-a", [SLUGIFY_CHANGE])
+    airspace.ensure_task("agent-b", "task-b")
+    cid = airspace.check_edit("task-b", ["blog.views.render_post"], [NEW_CALL]).collision_id
+
+    verdict_rows = graph.query(
+        """MATCH (x:Collision {id: $id})
+        RETURN x.held_agent, x.held_task, x.owner_agent, x.owner_task, x.symbol, x.caller, x.old_sig, x.new_sig,
+               x.resolution""",
+        {"id": cid},
+    ).result_set
+    assert verdict_rows == [
+        ["agent-b", "task-b", "agent-a", "task-a", SLUGIFY, "blog.views.render_post", OLD_SIG, NEW_SIG, "held"]
+    ]

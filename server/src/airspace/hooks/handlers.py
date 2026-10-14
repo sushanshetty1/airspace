@@ -83,10 +83,26 @@ def briefing_context(briefings: list[Briefing]) -> str:
     return "\n".join(lines)
 
 
-def _context(event: str, briefings: list[Briefing]) -> dict | None:
-    if not briefings:
+def message_context(messages: list[str]) -> str:
+    """Messages sent from Tower, one per line."""
+    return "\n".join(f"Message from Tower: {m}" for m in messages)
+
+
+def _messages(airspace, agent: str, task: str) -> list[str]:
+    # A failed lookup must not cost a hold its deny, so it is noted and skipped on its own.
+    try:
+        return list(airspace.pending_messages(agent, task))
+    except Exception as e:
+        detail = " ".join(str(e).split()) or type(e).__name__
+        _note(f"airspace: {type(e).__name__} ({detail}), messages not delivered")
+        return []
+
+
+def _context(event: str, briefings: list[Briefing], messages: list[str]) -> dict | None:
+    parts = [p for p in (briefing_context(briefings), message_context(messages)) if p]
+    if not parts:
         return None
-    return {"hookSpecificOutput": {"hookEventName": event, "additionalContext": briefing_context(briefings)}}
+    return {"hookSpecificOutput": {"hookEventName": event, "additionalContext": "\n".join(parts)}}
 
 
 def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -> dict | None:
@@ -107,14 +123,16 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
         airspace.ensure_task(agent, task)
         verdict = airspace.check_edit(task, analysis.touched, analysis.new_calls)
         if verdict.kind == "hold":
+            # A message sent while the agent is held reaches it in this deny reason, not only on a later clear.
+            messages = message_context(_messages(airspace, agent, task))
             return {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
-                    "permissionDecisionReason": verdict.reason,
+                    "permissionDecisionReason": verdict.reason + ("\n" + messages if messages else ""),
                 }
             }
-        return _context("PreToolUse", airspace.pending_briefings(task))
+        return _context("PreToolUse", airspace.pending_briefings(task), _messages(airspace, agent, task))
     except Exception as e:
         _failed(e)
         return None
@@ -135,7 +153,7 @@ def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) 
         if changes:
             airspace.ensure_task(agent, task)
             airspace.record_changes(task, changes)
-        return _context("PostToolUse", airspace.pending_briefings(task))
+        return _context("PostToolUse", airspace.pending_briefings(task), _messages(airspace, agent, task))
     except Exception as e:
         _failed(e)
         return None

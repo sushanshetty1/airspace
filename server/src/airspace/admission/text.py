@@ -32,3 +32,22 @@ def briefing_text(briefings: list[Briefing]) -> str:
     for b in briefings:
         lines.append(f"- {b.symbol} changed by {b.from_agent}: {b.old_signature} is now {b.new_signature}.")
     return "\n".join(lines)
+
+
+def paused_hold(agent: str) -> str:
+    return f"Airspace hold: {agent} is paused from Tower. Its edits are held until it is resumed."
+
+
+# Event log phrases. Tower renders an event as "<agent> <text> <code>".
+EVENT_TEXT = {
+    "plan": "filed a plan for",
+    "cleared": "was cleared to edit",
+    "contract": "changed the signature of",
+    "hold": "was held editing",
+    "briefed": "got the new signature of",
+    "paused": "was paused from",
+    "resumed": "was resumed from",
+    "released": "had a hold released at",
+    "message": "got a message from",
+    "resolved": "cleared the collision at",
+}
