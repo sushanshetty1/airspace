@@ -203,3 +203,80 @@ def test_status_lists_tasks_claims_and_collisions(graph, tmp_path, monkeypatch, 
     assert "task-c" not in out
     col = next(line for line in out.splitlines() if "col_1" in line)
     assert "utils.text.slugify" in col and "agent-a" in col and "agent-b" in col
+
+
+def test_serve_runs_the_api_with_defaults(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(cli, "_serve", lambda root, host, port: seen.append((root, host, port)))
+    assert cli.main(["serve", "--root", str(tmp_path)]) == 0
+    assert seen == [(tmp_path.resolve(), "127.0.0.1", 8787)]
+
+
+def test_serve_takes_host_and_port(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(cli, "_serve", lambda root, host, port: seen.append((root, host, port)))
+    assert cli.main(["serve", "--root", str(tmp_path), "--host", "0.0.0.0", "--port", "9000"]) == 0
+    assert seen == [(tmp_path.resolve(), "0.0.0.0", 9000)]
+
+
+def test_mcp_runs_the_stdio_server(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(cli, "_mcp", lambda root: seen.append(root))
+    assert cli.main(["mcp", "--root", str(tmp_path)]) == 0
+    assert seen == [tmp_path.resolve()]
+
+
+class InsightsAirspace:
+    def insights(self):
+        return {
+            "hot_zones": [
+                {"qualname": "utils.text.slugify", "collisions": 3, "betweenness": 2.0},
+                {"qualname": "blog.models.Post.save", "collisions": 1, "betweenness": 0.5},
+            ],
+            "parallel_groups": [
+                {"agents": ["agent-a", "agent-b"], "conflict": True},
+                {"agents": ["agent-c"], "conflict": False},
+            ],
+        }
+
+
+def test_insights_prints_hot_zones_and_groups(tmp_path, monkeypatch, capsys):
+    roots = []
+
+    def fake_airspace(root):
+        roots.append(root)
+        return InsightsAirspace()
+
+    monkeypatch.setattr(cli, "_airspace", fake_airspace)
+    assert cli.main(["insights", "--root", str(tmp_path)]) == 0
+    assert roots == [tmp_path.resolve()]
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "Hot zones (2)"
+    slug = next(line for line in lines if "utils.text.slugify" in line)
+    assert "3 collisions" in slug and "betweenness 2.0" in slug
+    assert any("1 collision," in line for line in lines if "Post.save" in line)
+    assert "Parallel groups (2)" in lines
+    ab = next(line for line in lines if "agent-a" in line)
+    assert "agent-a, agent-b" in ab and "conflict" in ab
+    c = next(line for line in lines if "agent-c" in line)
+    assert "no conflicts" in c
+
+
+def test_insights_on_an_empty_graph(tmp_path, monkeypatch, capsys):
+    class Empty:
+        def insights(self):
+            return {"hot_zones": [], "parallel_groups": []}
+
+    monkeypatch.setattr(cli, "_airspace", lambda root: Empty())
+    assert cli.main(["insights", "--root", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+    assert "Hot zones (0)" in out and "Parallel groups (0)" in out
+
+
+def test_insights_reports_db_down(tmp_path, monkeypatch, capsys):
+    def down(root):
+        raise ConnectionError("refused")
+
+    monkeypatch.setattr(cli, "_airspace", down)
+    assert cli.main(["insights", "--root", str(tmp_path)]) == 1
+    assert "FalkorDB" in capsys.readouterr().err
