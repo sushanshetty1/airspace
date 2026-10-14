@@ -17,10 +17,16 @@ SLUGIFY_BRIEFING = Briefing(
 
 
 class FakeAirspace:
-    def __init__(self, verdict=None, briefings=None):
+    def __init__(self, verdict=None, briefings=None, messages=None):
         self.verdict = verdict or Verdict("cleared", "")
         self.briefings = list(briefings or [])
+        self.messages = list(messages or [])
         self.calls = []
+
+    def pending_messages(self, agent_id, task_id=None):
+        self.calls.append(("pending_messages", agent_id, task_id))
+        out, self.messages = self.messages, []
+        return out
 
     def ensure_task(self, agent_id, task_id, intent=""):
         self.calls.append(("ensure_task", agent_id, task_id))
@@ -195,6 +201,49 @@ def test_pre_hook_cleared_with_briefing_returns_context(tmp_path):
     text = out["hookSpecificOutput"]["additionalContext"]
     for part in ("utils.text.slugify", "agent-a", "slugify(value, *, unicode=False)", "slugify(value, allow_unicode=False)"):
         assert part in text
+
+
+def test_hooks_include_messages(tmp_path):
+    # Held: the message rides along in the deny reason, so it reaches the agent while it is held.
+    fake = FakeAirspace(verdict=Verdict("hold", "reason text"), messages=["slugify is mid change"])
+    out = handle_pre(payload(tmp_path), make_deps(fake, analysis=touched_render_post()), ENV)
+    assert out["hookSpecificOutput"]["permissionDecisionReason"] == "reason text\nMessage from Tower: slugify is mid change"
+    assert ("pending_messages", "agent-5e55", SESSION) in fake.calls
+
+    # Cleared: briefings first, then messages, in one additionalContext.
+    fake = FakeAirspace(briefings=[SLUGIFY_BRIEFING], messages=["one", "two"])
+    out = handle_pre(payload(tmp_path), make_deps(fake, analysis=touched_render_post()), ENV)
+    assert out["hookSpecificOutput"]["additionalContext"] == (
+        briefing_context([SLUGIFY_BRIEFING]) + "\nMessage from Tower: one\nMessage from Tower: two"
+    )
+
+    # Cleared with only a message.
+    fake = FakeAirspace(messages=["only"])
+    out = handle_pre(payload(tmp_path), make_deps(fake, analysis=touched_render_post()), ENV)
+    assert out == {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": "Message from Tower: only"}}
+
+    # Post hook.
+    fake = FakeAirspace(messages=["after"])
+    out = handle_post(payload(tmp_path, event="PostToolUse"), make_deps(fake, changes=[]), ENV)
+    assert out == {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "Message from Tower: after"}}
+    assert ("pending_messages", "agent-5e55", SESSION) in fake.calls
+
+
+def test_hold_reason_unchanged_without_messages(tmp_path):
+    fake = FakeAirspace(verdict=Verdict("hold", "reason text"))
+    out = handle_pre(payload(tmp_path), make_deps(fake, analysis=touched_render_post()), ENV)
+    assert out["hookSpecificOutput"]["permissionDecisionReason"] == "reason text"
+
+
+def test_hold_survives_a_failed_message_lookup(tmp_path, capsys):
+    class Broken(FakeAirspace):
+        def pending_messages(self, agent_id, task_id=None):
+            raise RuntimeError("graph went away")
+
+    out = handle_pre(payload(tmp_path), make_deps(Broken(verdict=Verdict("hold", "r")), analysis=touched_render_post()), ENV)
+    assert out["hookSpecificOutput"]["permissionDecisionReason"] == "r"
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and err.startswith("airspace: ")
 
 
 def test_briefing_context_lists_every_briefing():
