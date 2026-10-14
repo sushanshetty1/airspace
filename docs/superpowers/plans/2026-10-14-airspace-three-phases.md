@@ -43,7 +43,7 @@ Phase 2 adds the MCP server, an HTTP and live-events API, Tower (the web app in 
 
 | Phase | Outcome | Done when |
 |---|---|---|
-| **1. Core engine** (now) | The graph, the indexer, the admission engine, Claude Code hooks and a CLI work on a real repo | The end-to-end test passes: agent-a changes `slugify`; agent-b's edit adding `slugify(post.title, True)` is held with the path and briefing; agent-b's retry is cleared. Plus `airspace install-hooks` works in a real Claude Code session. |
+| **1. Core engine** (done 2026-10-14) | The graph, the indexer, the admission engine, Claude Code hooks and a CLI work on a real repo | The end-to-end test passes: agent-a changes `slugify`; agent-b's edit adding `slugify(post.title, True)` is held with the path and briefing; agent-b's retry is cleared. Plus `airspace install-hooks` works in a real Claude Code session. |
 | **2. Tower, MCP, memory** | Humans see and steer; agents plan through MCP; the graph remembers | Tower shows real live data from FalkorDB. Release, pause, message and approve from Tower are enforced by the hooks. MCP tools work from Claude Code. Hot zones (`algo.betweenness`) and parallel groups (`algo.WCC`) feed the planner. |
 | **3. Proof and ship** | Measured results, a live demo, the submission | The benchmark runs three conditions on constructed tasks. Replay mode and the playground are live on the VPS. The video is recorded, README numbers are filled in, the blog post is published, and the submission is made. |
 

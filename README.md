@@ -185,13 +185,23 @@ The table fills in once the runs are done. We won't publish a number we haven't 
 ## Quick start
 
 ```sh
-cp .env.example .env            # ANTHROPIC_API_KEY, for the benchmark agents only
-docker compose up -d falkordb   # FalkorDB on :6379, Browser on :3000
+docker compose up -d falkordb                      # FalkorDB on :6379, Browser on :3000
 cd server && uv sync
-cd ../web && npm install
+
+uv run airspace index --root /path/to/your/repo          # build the code graph
+uv run airspace install-hooks --root /path/to/your/repo  # Claude Code PreToolUse and PostToolUse hooks
+uv run airspace status --root /path/to/your/repo         # agents, claims and recent collisions
 ```
 
-Indexing, hook install and radar commands land here as they're built.
+Open two Claude Code sessions in that repo (set `AIRSPACE_AGENT=agent-a` and `agent-b` to name them) and let them work on the same feature. Every `Edit`, `Write` and `MultiEdit` on a Python file is checked first.
+
+Run the tests (FalkorDB must be running):
+
+```sh
+cd server && uv run pytest -q
+```
+
+The website lives in `web/` (`npm install && npm run dev`).
 
 ## Open decisions
 
@@ -204,10 +214,11 @@ Indexing, hook install and radar commands land here as they're built.
 
 ## Roadmap
 
-- [ ] Indexer and code graph, with incremental re-index on save
-- [ ] Cones, clearance, leases and collision paths
-- [ ] Claude Code hooks and the MCP server
-- [ ] Briefings on contract changes
+- [x] Indexer and code graph, with incremental re-index on save
+- [x] Cones, clearance, leases and collision paths
+- [x] Claude Code hooks and CLI
+- [x] Briefings on contract changes
+- [ ] MCP server
 - [ ] Tower: radar, flight log, activity and collision views
 - [ ] Tower actions: release, pause, hand off, message, approve
 - [ ] Tower playground and replay mode
