@@ -1,0 +1,10 @@
+{
+  "id": "render-post-show-body",
+  "kind": "signature",
+  "a": "In blog/views.py, give render_post a required keyword-only argument show_body, so the signature is exactly render_post(post, *, show_body). Only include the body paragraph when show_body is true. Update every existing caller in the repo to pass show_body=True.",
+  "b": "Create blog/index.py with a function render_index(posts) that returns a <ul> where each <li> holds blog.views.render_post for one post.",
+  "hidden": {
+    "tests/test_hidden_a.py": "import pytest\nfrom blog.models import Post\nfrom blog.views import render_post\n\n\ndef test_show_body_required():\n    p = Post('Hi', 'secret body').save()\n    assert 'secret body' not in render_post(p, show_body=False)\n    with pytest.raises(TypeError):\n        render_post(p)\n",
+    "tests/test_hidden_b.py": "from blog.index import render_index\nfrom blog.models import Post\n\n\ndef test_render_index():\n    html = render_index([Post('Hi', 'x').save(), Post('Yo', 'y').save()])\n    assert html.count('<li>') == 2 and 'Hi' in html and 'Yo' in html\n"
+  }
+}

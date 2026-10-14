@@ -1,0 +1,10 @@
+{
+  "id": "slugify-keyword-only",
+  "kind": "signature",
+  "a": "In utils/text.py, make the unicode option of slugify keyword-only and rename it, so the signature is exactly slugify(value, *, unicode=False). Update the function body and every existing caller in the repo that passes the option.",
+  "b": "In blog/views.py, make render_post add a data-slug attribute to the <article> tag. Build the slug with utils.text.slugify from the post title, keeping non-ASCII letters by using slugify's option for that.",
+  "hidden": {
+    "tests/test_hidden_a.py": "import pytest\nfrom utils.text import slugify\n\n\ndef test_unicode_is_keyword_only():\n    assert slugify('Café Été', unicode=True) == 'café-été'\n    with pytest.raises(TypeError):\n        slugify('Café', True)\n",
+    "tests/test_hidden_b.py": "from blog.models import Post\nfrom blog.views import render_post\n\n\ndef test_render_post_has_unicode_slug():\n    html = render_post(Post('Café', 'x').save())\n    assert 'data-slug=\"café\"' in html\n"
+  }
+}

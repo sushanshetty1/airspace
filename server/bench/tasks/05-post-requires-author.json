@@ -1,0 +1,10 @@
+{
+  "id": "post-requires-author",
+  "kind": "constructor",
+  "a": "In blog/models.py, give Post a required author argument, so Post.__init__ is exactly __init__(self, title, body, author), and store it as self.author. Update every existing caller and test in the repo.",
+  "b": "Add tests/test_feeds.py with a test for LatestPosts.item_description that builds a Post, saves it and checks the description contains the post title.",
+  "hidden": {
+    "tests/test_hidden_a.py": "import pytest\nfrom blog.models import Post\n\n\ndef test_author_required():\n    assert Post('Hi', 'x', 'ana').author == 'ana'\n    with pytest.raises(TypeError):\n        Post('Hi', 'x')\n",
+    "tests/test_hidden_b.py": "import importlib\n\n\ndef test_feed_test_exists():\n    mod = importlib.import_module('tests.test_feeds')\n    assert any(n.startswith('test_') for n in dir(mod))\n"
+  }
+}

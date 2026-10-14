@@ -1,0 +1,10 @@
+{
+  "id": "rename-absolute-url",
+  "kind": "rename",
+  "a": "In blog/models.py, rename the method Post.get_absolute_url to Post.url. Do not keep the old name as an alias. Update every caller in the repo.",
+  "b": "In blog/feeds.py, add a method item_link(self, post) to LatestPosts that returns the post's absolute URL using the URL method the Post model already has.",
+  "hidden": {
+    "tests/test_hidden_a.py": "from blog.models import Post\n\n\ndef test_url_renamed():\n    assert Post('Hi', 'x').save().url() == '/posts/hi/'\n    assert not hasattr(Post, 'get_absolute_url')\n",
+    "tests/test_hidden_b.py": "from blog.feeds import LatestPosts\nfrom blog.models import Post\n\n\ndef test_item_link():\n    assert LatestPosts().item_link(Post('Hi', 'x').save()) == '/posts/hi/'\n"
+  }
+}

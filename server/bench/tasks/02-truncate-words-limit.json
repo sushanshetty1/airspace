@@ -1,0 +1,10 @@
+{
+  "id": "truncate-words-limit",
+  "kind": "signature",
+  "a": "In utils/text.py, change truncate_words so its length argument is keyword-only and named limit, so the signature is exactly truncate_words(text, *, limit=30). Update every existing caller in the repo.",
+  "b": "In tags/views.py, add a function tag_label(name) that returns the tag name cut to its first 3 words using utils.text.truncate_words.",
+  "hidden": {
+    "tests/test_hidden_a.py": "import pytest\nfrom utils.text import truncate_words\n\n\ndef test_limit_is_keyword_only():\n    assert truncate_words('a b c', limit=2) == 'a b...'\n    with pytest.raises(TypeError):\n        truncate_words('a b c', 2)\n",
+    "tests/test_hidden_b.py": "from tags.views import tag_label\n\n\ndef test_tag_label():\n    assert tag_label('one two three four') == 'one two three...'\n"
+  }
+}

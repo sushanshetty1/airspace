@@ -1,0 +1,10 @@
+{
+  "id": "tag-save-returns-none",
+  "kind": "behaviour",
+  "a": "In tags/models.py, make Tag.save return None instead of the tag (it should only set the slug). Update every existing caller in the repo that relies on the return value.",
+  "b": "Create tags/utils.py with a function tag_slug(name) that creates a tags.models.Tag, saves it and returns its slug in a single expression.",
+  "hidden": {
+    "tests/test_hidden_a.py": "from tags.models import Tag\n\n\ndef test_save_returns_none():\n    t = Tag('Hello World')\n    assert t.save() is None and t.slug == 'hello-world'\n",
+    "tests/test_hidden_b.py": "from tags.utils import tag_slug\n\n\ndef test_tag_slug():\n    assert tag_slug('Hello World') == 'hello-world'\n"
+  }
+}
