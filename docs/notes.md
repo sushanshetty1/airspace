@@ -49,19 +49,54 @@ Every part of it had already been shown to these judges:
 - **Track 1:** agents act on what the graph shows (hold, brief, re-plan), algorithms as tools, tool selection through MCP.
 - **Not seen at any event we checked.** Nearest prior art: the Claim Plane paper (no graph, 6-pair feasibility check), Aura (commercial, description only), codegraph (single agent).
 
-## 4. Demo video (≤3 minutes)
+## 4. Tower, the web app, and the demo video
 
-1. **Cold open (20 s).** Four Claude Code terminals, one feature split four ways, all green. Merge, and `main` is red. "Passes alone, fails together."
-2. **Same run with Airspace (60 s).**
-   - The radar shows four coloured cones on the code graph.
-   - Agent A's edit to `slugify` is flagged as a contract change.
-   - The radar flashes, showing the shortest path from B's new call site to A's change.
-   - B's next tool call receives the briefing and adapts.
+**Tower** sits between the developer and the agents. Agents stay in real Claude Code terminals; Tower shows all of them at once and lets the developer act. Everything is read from and written to the FalkorDB graph, and every action is enforced by the hooks on the agent's next tool call.
+
+**What Tower shows:**
+- radar (code graph and cones);
+- flight log (every clearance check);
+- activity (each agent's tool calls, streamed by `PostToolUse`);
+- collision detail (two tasks, path, contract change, who was briefed);
+- hot zones;
+- playground;
+- results.
+
+**What you can do in Tower:**
+- release a hold (once, or for the rest of the task);
+- pause or resume an agent;
+- hand off a symbol from one task to another;
+- message an agent (the note arrives on its next tool call);
+- approve a contract change before its dependents are briefed.
+
+**The link between the two:** every HOLD message in a terminal carries a link to its collision in Tower. Every Tower action shows up in the terminal on the agent's next tool call. The demo moves back and forth across that link.
+
+**Recording layout:** two Claude Code terminals on the left, Tower on the right, one screen, one take where possible.
+
+**Demo video (≤3 minutes):**
+1. **Cold open (20 s).** Without Airspace: two terminals, one feature, both green. Merge, and `main` is red. "Passes alone, fails together."
+2. **With Airspace (70 s).**
+   - Terminal A starts changing `slugify`, and its cone appears in Tower.
+   - Terminal B tries to edit `views.py` and gets HOLD with the path.
+   - Click the link. Tower opens the collision, showing the path, A's new signature and B's call site.
+   - In Tower, choose **Message B: "use the new signature"**.
+   - Terminal B's next tool call shows the note, B adapts, and the edit is cleared.
    - Merge: green.
-3. **The graph is real (20 s).** FalkorDB Browser on the same graph; one `algo.WCC` query shows which tasks could safely run in parallel.
-4. **Numbers (30 s).** Bar chart of interference rate and parallelism kept for worktrees only, broadcast and Airspace across N task sets.
-5. **Memory (20 s).** Next session, the planner avoids the hot zone, and the collision never happens.
-6. **Close (10 s).** One-line install: the MCP server plus the Claude Code hook.
+3. **Steer from Tower (20 s).** Pause agent A from Tower. Terminal A's next edit is held with "paused by controller". Resume it.
+4. **The graph is real (20 s).**
+   - The Tower playground runs a clearance query live.
+   - FalkorDB Browser shows the same graph.
+   - `algo.WCC` splits the tasks into groups that can safely run in parallel.
+5. **Numbers (30 s).** Interference and parallelism kept for worktrees only, broadcast and Airspace.
+6. **Memory (10 s).** Next session, `slugify` is a hot zone, and the planner splits the work so the collision never happens.
+7. **Close (10 s).** `airspace install-hooks`, and the Tower URL.
+
+**How judges test it** (ordered by effort; the first three need no API key):
+1. The video.
+2. Tower live, with a recorded run replayed into a real graph; collision paths and queries run live.
+3. The playground.
+4. `airspace demo` locally with scripted agents.
+5. Real Claude Code with `airspace install-hooks`.
 
 ## 5. Benchmark plan
 
@@ -89,8 +124,8 @@ Every part of it had already been shown to these judges:
 |---|---|---|
 | **Oct 15** | Indexer (Python `ast` to FalkorDB, incremental re-index per file); cone, clearance, lease and explain queries tested on the target repo; algorithm checks | Index only the target package, not tests |
 | **Oct 16** | Admission service + MCP server + Claude Code hooks; two live agents colliding and being briefed end to end | Briefing delivered at the next prompt, not the next tool call |
-| **Oct 17** | Benchmark harness and runs; radar UI (cones, collisions, explaining path, timeline); hot-zone memory | Fewer task sets; static radar replay instead of live |
-| **Oct 18** | Numbers into the README; deploy the radar plus a demo replay; record the video; blog post; **submit by 18:00 IST** | Local setup and video instead of a live deploy |
+| **Oct 17** | Tower: radar, flight log, activity, collision detail, then actions (release, pause, hand off, message, approve); benchmark harness and runs; hot-zone memory | Fewer task sets; drop hand-off and approve, keep release, pause and message |
+| **Oct 18** | Playground and replay mode; deploy Tower with FalkorDB on the VPS; `airspace demo`; numbers into the README; record the video; blog post; **submit by 18:00 IST** | Local setup and video instead of a live deploy; never cut the video, live Tower or playground |
 
 ## 8. Side prizes
 

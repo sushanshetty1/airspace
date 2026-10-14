@@ -40,10 +40,25 @@ This is what an agent sees:
     new   slugify(value, *, unicode=False)
     path  blog.views.render_post ─CALLS→ utils.text.slugify
     Use the new signature, or wait for agent-a to land.
+    tower http://localhost:4173/collisions/c_0007
 
 ● Edit(blog/views.py)   slugify(post.title, unicode=True)
   ✓ Airspace · cleared
 ```
+
+### Tower: watch and steer from the browser
+
+Your agents work in their own Claude Code terminals. **Tower** is the web app where you see all of them at once and step in when you need to. Everything it shows is read live from the graph, and everything you do there is enforced on the agent's next tool call.
+
+| You see | You can do |
+| --- | --- |
+| **Radar:** the code graph, each agent's cone in its own colour, collisions as they happen | **Release** a hold, once or for the rest of the task |
+| **Flight log:** every clearance check, with agent, file, verdict, reason and time | **Pause** or resume an agent; its edits are held until you resume it |
+| **Activity:** each agent's tool calls, streamed from its session | **Hand off** a symbol from one task to another |
+| **Collision:** the two tasks, the path between them, the contract change, who was briefed | **Message** an agent; the note arrives with its next tool call |
+| **Hot zones:** symbols that collided across sessions | **Approve** a contract change before its dependents are briefed |
+
+Every hold message in the terminal links to its collision in Tower, so you can go from a blocked edit to the path behind it in one click.
 
 ### Why a graph
 
@@ -154,8 +169,18 @@ The table fills in once the runs are done. We won't publish a number we haven't 
 | [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `request_clearance`, `report_change`, `briefings`, `radar` |
 | [`server/src/airspace/api`](server/src/airspace/api) | HTTP and live updates for the radar |
 | [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness |
-| [`web`](web) | The radar (Vite, React, sigma.js) |
+| [`web`](web) | Tower, the web app: radar, flight log, activity, collisions, hot zones, playground, results (Vite, React, sigma.js) |
 | [`docs/notes.md`](docs/notes.md) | Research, plan and decisions |
+
+## Try it
+
+| Time | How | You need |
+| --- | --- | --- |
+| 0 min | Watch the demo video | Nothing |
+| 30 s | Open Tower live and replay a recorded run. Click a collision for its path; the queries run on FalkorDB. | A browser |
+| 2 min | **Playground** in Tower: pick what two agents will change on a real repo and get the verdict and path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
+| 5 min | `airspace demo`: two scripted agents replay a real run through the real hooks | Docker |
+| 15 min | `airspace install-hooks` in any Python repo, then two Claude Code sessions | Claude Code |
 
 ## Quick start
 
@@ -183,7 +208,9 @@ Indexing, hook install and radar commands land here as they're built.
 - [ ] Cones, clearance, leases and collision paths
 - [ ] Claude Code hooks and the MCP server
 - [ ] Briefings on contract changes
-- [ ] The radar
+- [ ] Tower: radar, flight log, activity and collision views
+- [ ] Tower actions: release, pause, hand off, message, approve
+- [ ] Tower playground and replay mode
 - [ ] Hot-zone memory across sessions
 - [ ] Benchmark: worktrees vs broadcast vs Airspace
 - [ ] Live deployment, demo video and write-up
