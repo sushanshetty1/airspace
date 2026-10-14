@@ -13,6 +13,8 @@
   <a href="LICENSE"><img alt="Apache-2.0 licence" src="https://img.shields.io/badge/license-Apache--2.0-111112?style=flat-square"></a>
 </p>
 
+<p align="center"><b><a href="https://airspace.sushans.dev">airspace.sushans.dev</a></b> · <a href="https://airspace.sushans.dev/tower">Tower</a> · <a href="https://airspace.sushans.dev/playground">Playground</a></p>
+
 <!-- hero.gif: four agents, one collision on the radar, a held edit, a briefing, a green merge. Recorded on Oct 18. -->
 
 **Airspace is air-traffic control for parallel coding agents.** Split a feature across four Claude Code sessions and each one passes its tests on its own. Merge them, and `main` is red: one agent changed a function that another was busy calling. Airspace keeps a live graph of how your code connects. It checks every edit against that graph before the edit is written, and holds the one that would collide.
@@ -196,8 +198,8 @@ Every run is in [`server/bench/results/final`](server/bench/results/final): both
 
 | Time | How | You need |
 | --- | --- | --- |
-| 30 s | Open **Tower** and replay a recorded run of two real Claude Code sessions. Click a collision for its path. | A browser |
-| 2 min | **Playground**: pick what two agents will change in a sample repo and get the verdict and the path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
+| 30 s | Open [**Tower**](https://airspace.sushans.dev/tower) and replay a recorded run of two real Claude Code sessions. Click a collision for its path. | A browser |
+| 2 min | [**Playground**](https://airspace.sushans.dev/playground): pick what two agents will change in a sample repo and get the verdict and the path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
 | 15 min | Index any Python repo, install the hooks, open two Claude Code sessions ([Quick start](#quick-start)) | Docker, Claude Code |
 
 ## Quick start
@@ -244,7 +246,8 @@ The website lives in `web/` (`npm install && npm run dev`).
 - [x] Tower playground and replay mode
 - [x] Hot-zone memory across sessions
 - [x] Benchmark: worktrees vs broadcast vs Airspace
-- [ ] Live deployment, demo video and write-up
+- [x] Live deployment at [airspace.sushans.dev](https://airspace.sushans.dev)
+- [ ] Demo video and write-up
 - [ ] TypeScript and Go through tree-sitter
 - [ ] Other harnesses through MCP: Codex, Cursor, Gemini CLI
 
