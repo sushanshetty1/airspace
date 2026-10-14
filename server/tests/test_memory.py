@@ -549,3 +549,12 @@ def test_preflight_carries_each_tasks_history(blog):
     assert answer["summary"].endswith(" Slug touches utils.text.slugify, which collided twice before.")
     assert f"  Slug: {SLUGIFY} (cone 6), from earlier sessions: 2 collisions, 1 note\n" in as_text(answer)
     assert "  Tags: tags.models.Tag.save (cone 1)\n" in as_text(answer)
+
+
+def test_notes_on_the_public_demo_are_read_only(blog, monkeypatch):
+    # A hosted demo anyone can open must not let anyone write text everyone reads. Workspaces stay writable.
+    monkeypatch.setenv("AIRSPACE_PUBLIC_DEMO", "1")
+    api = TestClient(create_app(lambda: Airspace(blog)))
+    r = api.post("/api/notes", json={"symbols": ["slugify"], "text": "spam"}, headers=WRITE)
+    assert r.status_code == 403 and "read-only" in r.json()["error"]
+    assert api.get("/api/memory/recent").json() == {"items": []}

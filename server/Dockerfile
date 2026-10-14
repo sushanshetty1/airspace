@@ -48,6 +48,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     AIRSPACE_REPLAY=/app/demo/replay.json \
     AIRSPACE_PLAYGROUND_REPO=/data/repo \
     AIRSPACE_FLASK_REPO=/data/flask \
+    AIRSPACE_PUBLIC_DEMO=1 \
     AIRSPACE_FORWARDED_IPS=*
 
 USER airspace

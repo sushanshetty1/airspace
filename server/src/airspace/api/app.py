@@ -5,6 +5,7 @@ Every route is a thin call into the admission engine. Engine calls block on Falk
 """
 
 import asyncio
+import os
 import json
 import logging
 import threading
@@ -156,6 +157,9 @@ def tower_routes(
         air = engine(request)  # a workspace checks its owner (and this header) here
         if request.headers.get("x-airspace") != "1":
             raise ApiError(403, NEEDS_HEADER)
+        # The hosted demo is public: anyone could write there and everyone would read it. Workspaces are owned.
+        if os.environ.get("AIRSPACE_PUBLIC_DEMO") == "1" and not request.url.path.startswith("/api/w/"):
+            raise ApiError(403, "Notes on the public demo are read-only. Sign in and add notes in your own workspace.")
         text = body.text.strip() if isinstance(body.text, str) else ""
         if not 1 <= len(text) <= MAX_TEXT:
             return JSONResponse(status_code=422, content={"error": f"A note is 1 to {MAX_TEXT} characters."})
