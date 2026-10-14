@@ -13,8 +13,8 @@
       "task_failed": 0,
       "adapted": 0,
       "errors": 0,
-      "median_wall_seconds": 37.9,
-      "cost_usd": 3.25,
+      "median_wall_seconds": 34.9,
+      "cost_usd": 3.24,
       "holds": 0
     },
     "broadcast": {
@@ -30,26 +30,26 @@
       "task_failed": 0,
       "adapted": 0,
       "errors": 0,
-      "median_wall_seconds": 38.0,
-      "cost_usd": 3.24,
+      "median_wall_seconds": 40.2,
+      "cost_usd": 3.35,
       "holds": 0
     },
     "airspace": {
       "pairs": 9,
-      "graded": 3,
+      "graded": 6,
       "interference": 0,
       "interference_rate": 0.0,
       "merged_runs": 9,
-      "merged_pass": 7,
-      "merged_pass_rate": 0.778,
-      "clean": 3,
+      "merged_pass": 9,
+      "merged_pass_rate": 1.0,
+      "clean": 6,
       "conflict": 0,
-      "task_failed": 6,
-      "adapted": 4,
+      "task_failed": 3,
+      "adapted": 3,
       "errors": 0,
-      "median_wall_seconds": 52.1,
-      "cost_usd": 3.66,
-      "holds": 12
+      "median_wall_seconds": 40.5,
+      "cost_usd": 3.73,
+      "holds": 9
     }
   },
   "sets": {
@@ -106,12 +106,12 @@
           "merged": true
         },
         {
-          "outcome": "task_failed",
-          "merged": false
+          "outcome": "clean",
+          "merged": true
         },
         {
-          "outcome": "task_failed",
-          "merged": false
+          "outcome": "clean",
+          "merged": true
         }
       ],
       "broadcast": [
@@ -151,7 +151,7 @@
           "merged": true
         },
         {
-          "outcome": "task_failed",
+          "outcome": "clean",
           "merged": true
         },
         {
@@ -161,16 +161,16 @@
       ],
       "broadcast": [
         {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
           "outcome": "interference",
           "merged": false
-        },
-        {
-          "outcome": "clean",
-          "merged": true
-        },
-        {
-          "outcome": "clean",
-          "merged": true
         }
       ],
       "worktrees": [

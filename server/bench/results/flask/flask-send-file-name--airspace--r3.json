@@ -6,29 +6,29 @@
   "a_alone": true,
   "b_alone": true,
   "merged": true,
-  "wall_seconds": 39.5,
-  "cost_usd": 0.4423,
+  "wall_seconds": 40.5,
+  "cost_usd": 0.3844,
   "holds": 1,
   "briefed": 1,
   "agents": [
     {
       "agent": "agent-a",
-      "seconds": 39.5,
-      "cost_usd": 0.2181454,
+      "seconds": 40.5,
+      "cost_usd": 0.1748876,
       "turns": 9,
-      "result": "I renamed `send_file`'s `download_name` parameter to `filename` in `src/flask/helpers.py` (signature, docstring and the pass-through to Werkzeug, whose own argument is still `download_name`), no other code or test in the repo passed that argument, and the test suite passes (491 passed, 3 skipped).",
+      "result": "I renamed `send_file`'s `download_name` parameter to `filename` in its signature, docstring and body in `src/flask/helpers.py` (no tests or other code in the repo called it with that name, so nothing else needed changing), and all tests pass (491 passed, 3 skipped).",
       "error": ""
     },
     {
       "agent": "agent-b",
-      "seconds": 39.1,
-      "cost_usd": 0.22414780000000004,
+      "seconds": 39.3,
+      "cost_usd": 0.2094818,
       "turns": 11,
-      "result": "I added `send_text(text, name)` to `src/flask/helpers.py` and exported it from `flask`, and all tests pass (491 passed, 3 skipped); it passes the file name to `send_file` by position rather than as `download_name=`, because a hook reported that another agent is renaming that parameter to `filename`, and this way the call works under either name.",
+      "result": "I added `send_text(text, name)` at the end of `src/flask/helpers.py` and exported it from `flask`, and all tests pass (491 passed, 3 skipped); I pass the file name to `send_file` by position because a hook said another agent is renaming its `download_name` keyword to `filename`.",
       "error": ""
     }
   ],
   "diff_a": "diff --git a/src/flask/helpers.py b/src/flask/helpers.py\nindex 5073bea..1c888e8 100644\n--- a/src/flask/helpers.py\n+++ b/src/flask/helpers.py\n@@ -418,7 +418,7 @@ def send_file(\n     path_or_file: os.PathLike[t.AnyStr] | str | t.IO[bytes],\n     mimetype: str | None = None,\n     as_attachment: bool = False,\n-    download_name: str | None = None,\n+    filename: str | None = None,\n     conditional: bool = True,\n     etag: bool | str = True,\n     last_modified: datetime | int | float | None = None,\n@@ -451,7 +451,7 @@ def send_file(\n         provided, it will try to detect it from the file name.\n     :param as_attachment: Indicate to a browser that it should offer to\n         save the file instead of displaying it.\n-    :param download_name: The default name browsers will use when saving\n+    :param filename: The default name browsers will use when saving\n         the file. Defaults to the passed file name.\n     :param conditional: Enable conditional and range responses based on\n         request headers. Requires passing a file path and ``environ``.\n@@ -531,7 +531,7 @@ def send_file(\n             environ=request.environ,\n             mimetype=mimetype,\n             as_attachment=as_attachment,\n-            download_name=download_name,\n+            download_name=filename,\n             conditional=conditional,\n             etag=etag,\n             last_modified=last_modified,\n",
-  "diff_b": "diff --git a/src/flask/__init__.py b/src/flask/__init__.py\nindex 30dce6f..4788f63 100644\n--- a/src/flask/__init__.py\n+++ b/src/flask/__init__.py\n@@ -18,6 +18,7 @@ from .helpers import make_response as make_response\n from .helpers import redirect as redirect\n from .helpers import send_file as send_file\n from .helpers import send_from_directory as send_from_directory\n+from .helpers import send_text as send_text\n from .helpers import stream_with_context as stream_with_context\n from .helpers import url_for as url_for\n from .json import jsonify as jsonify\ndiff --git a/src/flask/helpers.py b/src/flask/helpers.py\nindex 5073bea..21c4d5b 100644\n--- a/src/flask/helpers.py\n+++ b/src/flask/helpers.py\n@@ -1,6 +1,7 @@\n from __future__ import annotations\n \n import importlib.util\n+import io\n import os\n import sys\n import typing as t\n@@ -677,3 +678,17 @@ class _CollectErrors:\n         \"\"\"Raise if any errors were collected.\"\"\"\n         if self.errors:\n             raise BaseExceptionGroup(message, self.errors)\n+\n+\n+def send_text(text: str, name: str) -> Response:\n+    \"\"\"Send a string to the client as a downloadable plain text file.\n+\n+    The text is encoded as UTF-8 and sent with :func:`send_file` using\n+    the ``text/plain`` mimetype.\n+\n+    :param text: The text content of the file.\n+    :param name: The name browsers will use when saving the file.\n+    \"\"\"\n+    # The download name is passed positionally so the call does not depend\n+    # on the name of send_file's download name parameter.\n+    return send_file(io.BytesIO(text.encode(\"utf-8\")), \"text/plain\", True, name)\n",
+  "diff_b": "diff --git a/src/flask/__init__.py b/src/flask/__init__.py\nindex 30dce6f..4788f63 100644\n--- a/src/flask/__init__.py\n+++ b/src/flask/__init__.py\n@@ -18,6 +18,7 @@ from .helpers import make_response as make_response\n from .helpers import redirect as redirect\n from .helpers import send_file as send_file\n from .helpers import send_from_directory as send_from_directory\n+from .helpers import send_text as send_text\n from .helpers import stream_with_context as stream_with_context\n from .helpers import url_for as url_for\n from .json import jsonify as jsonify\ndiff --git a/src/flask/helpers.py b/src/flask/helpers.py\nindex 5073bea..77ff27b 100644\n--- a/src/flask/helpers.py\n+++ b/src/flask/helpers.py\n@@ -1,6 +1,7 @@\n from __future__ import annotations\n \n import importlib.util\n+import io\n import os\n import sys\n import typing as t\n@@ -677,3 +678,15 @@ class _CollectErrors:\n         \"\"\"Raise if any errors were collected.\"\"\"\n         if self.errors:\n             raise BaseExceptionGroup(message, self.errors)\n+\n+\n+def send_text(text: str, name: str) -> Response:\n+    \"\"\"Send ``text`` to the client as a downloadable plain text file\n+    named ``name``. The text is encoded as UTF-8.\n+\n+    :param text: The text content to send.\n+    :param name: The file name the client should save the download as.\n+    \"\"\"\n+    # The download name is passed positionally (path_or_file, mimetype,\n+    # as_attachment, name) so the call doesn't depend on its keyword name.\n+    return send_file(io.BytesIO(text.encode(\"utf-8\")), \"text/plain\", True, name)\n",
   "detail": ""
 }

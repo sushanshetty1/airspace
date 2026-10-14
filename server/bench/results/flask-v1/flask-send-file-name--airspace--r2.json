@@ -1,0 +1,34 @@
+{
+  "set_id": "flask-send-file-name",
+  "kind": "signature",
+  "condition": "airspace",
+  "outcome": "task_failed",
+  "a_alone": true,
+  "b_alone": false,
+  "merged": true,
+  "wall_seconds": 55.5,
+  "cost_usd": 0.4405,
+  "holds": 1,
+  "briefed": 1,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 37.3,
+      "cost_usd": 0.196421,
+      "turns": 10,
+      "result": "I renamed `send_file`'s `download_name` parameter to `filename` in the signature, docstring and body of `src/flask/helpers.py` (no other code or test passed it by name, and it is still forwarded to Werkzeug's own `download_name`), and the tests pass (491 passed, 3 skipped), though I left the historical `download_name` mentions in the docstring's 2.0 version note and `CHANGES.rst` unchanged.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 55.5,
+      "cost_usd": 0.2440548,
+      "turns": 13,
+      "result": "`send_text` now calls `send_file(..., filename=name)` to match agent-a's renamed parameter, and the test suite still passes (491 passed, 3 skipped), but nothing tests `send_text` and this worktree's `send_file` still takes `download_name`, so calling `send_text` here would raise a `TypeError` until agent-a's change is merged in.",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/src/flask/helpers.py b/src/flask/helpers.py\nindex 5073bea..1c888e8 100644\n--- a/src/flask/helpers.py\n+++ b/src/flask/helpers.py\n@@ -418,7 +418,7 @@ def send_file(\n     path_or_file: os.PathLike[t.AnyStr] | str | t.IO[bytes],\n     mimetype: str | None = None,\n     as_attachment: bool = False,\n-    download_name: str | None = None,\n+    filename: str | None = None,\n     conditional: bool = True,\n     etag: bool | str = True,\n     last_modified: datetime | int | float | None = None,\n@@ -451,7 +451,7 @@ def send_file(\n         provided, it will try to detect it from the file name.\n     :param as_attachment: Indicate to a browser that it should offer to\n         save the file instead of displaying it.\n-    :param download_name: The default name browsers will use when saving\n+    :param filename: The default name browsers will use when saving\n         the file. Defaults to the passed file name.\n     :param conditional: Enable conditional and range responses based on\n         request headers. Requires passing a file path and ``environ``.\n@@ -531,7 +531,7 @@ def send_file(\n             environ=request.environ,\n             mimetype=mimetype,\n             as_attachment=as_attachment,\n-            download_name=download_name,\n+            download_name=filename,\n             conditional=conditional,\n             etag=etag,\n             last_modified=last_modified,\n",
+  "diff_b": "diff --git a/src/flask/__init__.py b/src/flask/__init__.py\nindex 30dce6f..4788f63 100644\n--- a/src/flask/__init__.py\n+++ b/src/flask/__init__.py\n@@ -18,6 +18,7 @@ from .helpers import make_response as make_response\n from .helpers import redirect as redirect\n from .helpers import send_file as send_file\n from .helpers import send_from_directory as send_from_directory\n+from .helpers import send_text as send_text\n from .helpers import stream_with_context as stream_with_context\n from .helpers import url_for as url_for\n from .json import jsonify as jsonify\ndiff --git a/src/flask/helpers.py b/src/flask/helpers.py\nindex 5073bea..6a60c6b 100644\n--- a/src/flask/helpers.py\n+++ b/src/flask/helpers.py\n@@ -1,6 +1,7 @@\n from __future__ import annotations\n \n import importlib.util\n+import io\n import os\n import sys\n import typing as t\n@@ -677,3 +678,18 @@ class _CollectErrors:\n         \"\"\"Raise if any errors were collected.\"\"\"\n         if self.errors:\n             raise BaseExceptionGroup(message, self.errors)\n+\n+\n+def send_text(text: str, name: str) -> Response:\n+    \"\"\"Send ``text`` to the client as a downloadable plain text file\n+    named ``name``.\n+\n+    :param text: The text to send, encoded as UTF-8.\n+    :param name: The file name browsers will use when saving the file.\n+    \"\"\"\n+    return send_file(\n+        io.BytesIO(text.encode(\"utf-8\")),\n+        mimetype=\"text/plain\",\n+        as_attachment=True,\n+        filename=name,\n+    )\n",
+  "detail": "........ [ 87%]\n...............................................................          [100%]\n=================================== FAILURES ===================================\n________________________________ test_send_text ________________________________\n\n    def test_send_text():\n        app = flask.Flask(__name__)\n        with app.test_request_context():\n>           rv = flask.send_text(\"hello\", \"notes.txt\")\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:7: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntext = 'hello', name = 'notes.txt'\n\n    def send_text(text: str, name: str) -> Response:\n        \"\"\"Send ``text`` to the client as a downloadable plain text file\n        named ``name``.\n    \n        :param text: The text to send, encoded as UTF-8.\n        :param name: The file name browsers will use when saving the file.\n        \"\"\"\n>       return send_file(\n            io.BytesIO(text.encode(\"utf-8\")),\n            mimetype=\"text/plain\",\n            as_attachment=True,\n            filename=name,\n        )\nE       TypeError: send_file() got an unexpected keyword argument 'filename'\n\nsrc/flask/helpers.py:690: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-flask-send-file-name-airspace-1zi1ydwj/repo/test_hidden_b.py::test_send_text\n1 failed, 491 passed, 3 skipped in 1.14s\n"
+}
