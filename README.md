@@ -190,6 +190,8 @@ Every run is in [`server/bench/results/final`](server/bench/results/final): both
 | [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code hooks: clearance before an edit, reindex after it, git reconcile after shell commands, briefings on every tool call, the holding pattern at `Stop` |
 | [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `check_symbols`, `briefings`, `explain`, `hot_zones` |
 | [`server/src/airspace/api`](server/src/airspace/api) | HTTP, server-sent events, Tower actions, replay and the playground |
+| [`server/src/airspace/cloud`](server/src/airspace/cloud) | GitHub sign-in, workspaces (one graph each), keys, and the RPC endpoint connected hooks call |
+| [`server/src/airspace/remote.py`](server/src/airspace/remote.py) | The client side: `airspace connect`, and hooks that send engine calls to the hosted server |
 | [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness |
 | [`web`](web) | The site and Tower: live radar, activity, collisions, pause, message and release, replay, playground (Vite, React) |
 | [`docs/notes.md`](docs/notes.md) | Research, plan and decisions |
@@ -200,7 +202,8 @@ Every run is in [`server/bench/results/final`](server/bench/results/final): both
 | --- | --- | --- |
 | 30 s | Open [**Tower**](https://airspace.sushans.dev/tower) and replay a recorded run of two real Claude Code sessions. Click a collision for its path. | A browser |
 | 2 min | [**Playground**](https://airspace.sushans.dev/playground): pick what two agents will change in a sample repo and get the verdict and the path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
-| 15 min | Index any Python repo, install the hooks, open two Claude Code sessions ([Quick start](#quick-start)) | Docker, Claude Code |
+| 5 min | Sign in, create a workspace, `airspace connect` your repo, open two Claude Code sessions ([hosted Tower](#or-use-the-hosted-tower)) | Claude Code |
+| 15 min | Index any Python repo locally, install the hooks, open two Claude Code sessions ([Quick start](#quick-start)) | Docker, Claude Code |
 
 ## Quick start
 
@@ -214,6 +217,18 @@ uv run airspace status --root /path/to/your/repo         # agents, claims and re
 ```
 
 Open two Claude Code sessions in that repo (set `AIRSPACE_AGENT=agent-a` and `agent-b` to name them) and let them work on the same feature. Every `Edit`, `Write` and `MultiEdit` on a Python file is checked first. Files written by shell commands are reconciled with git after each command. When a session stops, it waits while another agent is still working on something it calls (up to four minutes), and is sent back once if its calls do not fit the new signatures.
+
+### Or use the hosted Tower
+
+No FalkorDB on your machine: sign in at [airspace.sushans.dev](https://airspace.sushans.dev/app) with GitHub, create a workspace for the repo, and connect it with the key it shows you once:
+
+```sh
+cd server && uv sync
+uv run airspace connect --root /path/to/your/repo --server https://airspace.sushans.dev --key ask_...
+uv run airspace install-hooks --root /path/to/your/repo
+```
+
+Your sessions then show up live in that workspace's Tower. Parsing stays on your machine: the hooks send symbol names, signatures, call shapes and the one-line text of calls, never whole files. `airspace disconnect --root /path/to/your/repo` goes back to a local FalkorDB.
 
 Run the tests (FalkorDB must be running):
 

@@ -87,3 +87,6 @@ To clear old images afterwards: `docker image prune -f`.
 | `DOMAIN` | unset | Site address. Set it to a domain name for automatic HTTPS. |
 | `HTTP_PORT` | `8080` | Host port for HTTP. |
 | `HTTPS_PORT` | `8443` | Host port for HTTPS (TCP and UDP). |
+| `AIRSPACE_PUBLIC_URL` | unset | The site's address, for the GitHub callback (`{AIRSPACE_PUBLIC_URL}/auth/github/callback`). |
+| `AIRSPACE_SECRET` | unset | Signs session cookies. 32 bytes or more: `openssl rand -hex 32`. |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | unset | The GitHub OAuth app. With any of these four unset, the site works and sign-in says it is not configured. |
