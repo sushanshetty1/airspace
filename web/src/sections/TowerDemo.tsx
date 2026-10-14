@@ -17,13 +17,7 @@ const baseLines: TermLine[] = [
         <Sign kind="HOLD">Hold</Sign> Airspace held this edit
       </>
     ),
-    lines: [
-      'utils.text.slugify is changing in agent-a',
-      'path   render_post → slugify',
-      <>
-        tower  <span className="text-accent underline decoration-accent/50 underline-offset-4">localhost:4173/c/0007</span>
-      </>,
-    ],
+    lines: ['utils.text.slugify is being changed by agent-a', 'path   render_post -> slugify'],
   },
 ]
 

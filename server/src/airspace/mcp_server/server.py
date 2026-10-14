@@ -61,7 +61,8 @@ def file_flight_plan(airspace: Any, agent: str, task: str, symbols: list[str], i
     state = airspace.state()
     mine = set(_claims_by_agent(state).get(agent, []))
     claimed = [s for s in symbols if s in mine]
-    lines = [f"Flight plan filed for {agent} on {len(symbols)} symbols, {len(claimed)} claimed."]
+    noun = "symbol" if len(symbols) == 1 else "symbols"
+    lines = [f"Flight plan filed for {agent} on {len(symbols)} {noun}, {len(claimed)} claimed."]
     lines.append(f"Claimed: {_join(claimed)}")
     for s in symbols:
         if s in mine:

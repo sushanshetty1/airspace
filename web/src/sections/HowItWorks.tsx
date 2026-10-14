@@ -11,17 +11,17 @@ type Step = { title: string; body: string; scope: number; agent: string; color: 
 const steps: Step[] = [
   {
     title: 'File a flight plan',
-    body: 'An agent says what it will change. Airspace maps everything that calls, imports or tests it.',
+    body: 'An agent says what it will change. Airspace maps everything that calls, overrides or tests it.',
     scope: 1,
     agent: 'agent-a',
     color: 'var(--agent-a)',
     lines: [
-      { kind: 'tool', text: 'airspace · file_flight_plan("utils.text.slugify")' },
+      { kind: 'tool', text: 'airspace · file_flight_plan(["utils.text.slugify"])' },
       {
         kind: 'result',
         head: (
           <>
-            <Sign kind="FILED">Plan filed</Sign> 5 symbols depend on it
+            <Sign kind="FILED">Plan filed</Sign> Impact cone: 6 symbols
           </>
         ),
       },

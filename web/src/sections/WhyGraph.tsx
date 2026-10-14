@@ -53,14 +53,15 @@ export function WhyGraph() {
 
           <Cell className="bg-accent text-accent-ink [&_p]:text-accent-ink/75" title="A query, not a model call." body="Clearance is Cypher and a few rules. Fast, repeatable, and it never guesses." delay={0.08}>
             <pre className="overflow-x-auto px-6 pb-8 font-mono text-[12.5px] leading-[1.75] text-accent-ink sm:px-8">
-              {`MATCH (t:Symbol {qualname: $q})
-MATCH (o:Task)-[:CONE|CLAIMS]->(t)
-WHERE o.id <> $task
-RETURN o.id, o.intent`}
+              {`MATCH (a:Agent)-[:FLYING]->(o:Task)
+      -[c:CLAIMS]->(:Symbol {qualname: $q})
+WHERE a.id <> $agent
+  AND c.lease_until > $now
+RETURN o.id, a.id`}
             </pre>
           </Cell>
 
-          <Cell className="bg-surface" title="Parallel by default." body="Connected components split tasks into groups. Groups run at once; only tasks that touch wait for each other." delay={0.04}>
+          <Cell className="bg-surface" title="Parallel by default." body="Agents only wait when their work meets. Connected components over the conflict graph show who must coordinate and who is free to run." delay={0.04}>
             <div className="grid gap-2 px-6 pb-8 sm:px-8">
               <Group
                 hot
@@ -77,7 +78,7 @@ RETURN o.id, o.intent`}
             </div>
           </Cell>
 
-          <Cell className="bg-surface lg:col-span-2" title="It remembers." body="Holds and contract changes stay in the graph. Next session, the planner knows the hot zones and splits work around them." delay={0.12}>
+          <Cell className="bg-surface lg:col-span-2" title="It remembers." body="Holds and contract changes stay in the graph. Hot zones rank the symbols where agents collide most, by collisions and betweenness." delay={0.12}>
             <div className="grid border-t border-line sm:grid-cols-2">
               <div className="px-6 py-6 sm:border-r sm:border-line sm:px-8">
                 <div className="flex items-center gap-2.5">
@@ -94,7 +95,7 @@ RETURN o.id, o.intent`}
                   <Sign kind="CLEARED">Cleared</Sign>
                 </div>
                 <p className="mt-2.5 text-[15px] leading-relaxed text-muted">
-                  The planner gives <span className="font-mono text-text">slugify</span> and its callers to one agent. No collision.
+                  Hot zones list <span className="font-mono text-text">slugify</span> first. You give it and its callers to one agent. No collision.
                 </p>
               </div>
             </div>
