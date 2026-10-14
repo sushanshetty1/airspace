@@ -225,7 +225,7 @@ Indexing, hook install and radar commands land here as they're built.
 
 ## FalkorDB Hackathon
 
-Built for the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb) (Oct 15–18, 2026), entering **Track 02 · Agent Memory and Coordination** and **Track 01 · Agents That Act on Connected Data**.
+Built for the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb) (October 15 to 18, 2026), entering **Track 02 · Agent Memory and Coordination** and **Track 01 · Agents That Act on Connected Data**.
 
 All product code is written during the event. Before it, this repo held only notes, diagrams and empty scaffolding.
 

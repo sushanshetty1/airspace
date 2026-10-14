@@ -8,7 +8,7 @@ Submission deadline: **Oct 18, 23:59 IST.** Internal target is Oct 18, 18:00 IST
 Every part of it had already been shown to these judges:
 
 - The **FalkorDB Memory Meets Motion** event (Aug 2026) had Continuum (people, projects and decisions), Drift (a decision graph with contradiction flags and an approval gate) and Hopper (dependency blast radius, where no path means safe).
-- The **WeMakeDevs × Cognee** event (Jun–Jul 2026, the same organiser, 1,200+ submissions) had:
+- The **WeMakeDevs × Cognee** event (June to July 2026, the same organiser, 1,200+ submissions) had:
   - Lethe, the grand winner: forgetting for on-call triage;
   - Rewind: a highlighted trail behind each answer;
   - MemOps: a blast-radius simulator;
@@ -16,7 +16,7 @@ Every part of it had already been shown to these judges:
   - Smriti: incident memory.
 - Commercial tools already cover it: Unblocked's Social Graph Builder (who knows what, bus factor), Edge Delta (time-aware blast radius), Atlassian Teamwork Graph, and Faulkner DB (an ADR graph on FalkorDB).
 
-## 2. What wins (research across Neo4j, FalkorDB, WeMakeDevs and Anthropic events, 2025–26)
+## 2. What wins (research across Neo4j, FalkorDB, WeMakeDevs and Anthropic events, 2025 and 2026)
 
 1. **One hero feature, not a platform.** Setups with a cast of named agents placed as standouts, not winners.
 2. **A measured before/after against a baseline.** Korca went from 72% to 93.4% and placed third at Neo4j; GroundTruth scored 0/20 against a baseline's 18/20; Lethe was blind-judged against RAG.
@@ -101,7 +101,7 @@ Every part of it had already been shown to these judges:
 ## 5. Benchmark plan
 
 - **Target repo:** a real, well-tested Python repo with dense internal call graphs. First choice is Django, matching the paper's helpers. Fallback is a smaller library (e.g. `httpx` or `rich`) if Django's test suite is too slow.
-- **Task sets:** N sets of 2–4 parallel tasks, each built around a real helper whose interface one task must change while the others add callers. This follows the paper's constructed tier. Add a few "natural" sets: one real feature request split by a planner.
+- **Task sets:** N sets of 2 to 4 parallel tasks, each built around a real helper whose interface one task must change while the others add callers. This follows the paper's constructed tier. Add a few "natural" sets: one real feature request split by a planner.
 - **Conditions:** worktrees only / broadcast / Airspace.
 - **Grading:** run each patch alone and the merged result; count only failures caused by merging.
 - **Agents:** Claude Code headless, the same model and effort in every condition.
