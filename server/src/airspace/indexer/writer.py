@@ -111,53 +111,69 @@ def known_qualnames(graph) -> set[str]:
     return {row[0] for row in graph.query("MATCH (s:Symbol) RETURN s.qualname").result_set}
 
 
+def index_facts(graph, facts_list: list[ModuleFacts], reset: bool = False) -> IndexStats:
+    """Write parsed modules to the graph, as index_repo does after parsing. The hosted server indexes this way.
+
+    reset clears the code layer (File and Symbol nodes) first, so files deleted since the last index disappear.
+    A remote client sends a large repo in batches (symbols for every file first, then full facts), so calls and
+    bases resolve against every symbol already in the graph as well as this batch's.
+    """
+    return _index(graph, facts_list, reset, known=None)
+
+
+def _index(graph, facts_list: list[ModuleFacts], reset: bool, known: set[str] | None) -> IndexStats:
+    """known=None resolves against the graph after this batch's symbols are written; a set resolves against it."""
+    ensure_schema(graph)
+    if reset:
+        graph.query("MATCH (s:Symbol) DETACH DELETE s")
+        graph.query("MATCH (f:File) DETACH DELETE f")
+    # All nodes first, then edges, so every edge finds both ends.
+    for facts in facts_list:
+        _write_symbols(graph, facts)
+        _delete_stale(graph, facts)
+    if known is None:
+        known = known_qualnames(graph)
+    calls = unresolved = 0
+    for facts in facts_list:
+        c, u = _write_edges(graph, facts, known)
+        calls += c
+        unresolved += u
+    return IndexStats(
+        files=len(facts_list),
+        symbols=sum(len(f.symbols) for f in facts_list),
+        calls=calls,
+        unresolved=unresolved,
+    )
+
+
 def index_repo(graph, repo_root: Path) -> IndexStats:
     """Index every Python file under repo_root. Unparseable files are skipped."""
     repo_root = Path(repo_root)
-    ensure_schema(graph)
-    # Pass 1: parse everything so calls into files later in the walk still resolve.
+    # Parse everything before writing, so calls into files later in the walk still resolve.
     parsed: list[ModuleFacts] = []
     for rel in _python_files(repo_root):
         source = _read(repo_root / rel)
         facts = parse_module(rel, source) if source is not None else None
         if facts is not None:
             parsed.append(facts)
-    known = {s.qualname for f in parsed for s in f.symbols}
-    # Pass 2: all nodes first, then edges, so every edge finds both ends.
-    for facts in parsed:
-        _write_symbols(graph, facts)
-        _delete_stale(graph, facts)
-    calls = unresolved = 0
-    for facts in parsed:
-        c, u = _write_edges(graph, facts, known)
-        calls += c
-        unresolved += u
-    return IndexStats(
-        files=len(parsed),
-        symbols=sum(len(f.symbols) for f in parsed),
-        calls=calls,
-        unresolved=unresolved,
-    )
+    # The whole repo is here, so calls resolve against it alone, not against symbols of files since deleted.
+    return _index(graph, parsed, reset=False, known={s.qualname for f in parsed for s in f.symbols})
 
 
-def reindex_file(graph, repo_root: Path, rel_path: str) -> list[SignatureChange]:
-    """Bring one file's part of the graph up to date with disk. Returns the signatures that changed."""
-    rel_path = Path(rel_path).as_posix()
-    path = Path(repo_root) / rel_path
-    if not path.exists():
-        graph.query("MATCH (s:Symbol {file: $file}) DETACH DELETE s", {"file": rel_path})
-        graph.query("MATCH (f:File {path: $file}) DETACH DELETE f", {"file": rel_path})
-        return []
-    source = _read(path)
-    facts = parse_module(rel_path, source) if source is not None else None
+def reindex_facts(graph, rel: str, facts: ModuleFacts | None) -> list[SignatureChange]:
+    """Bring one file's part of the graph up to date with its parsed facts, None when the file was deleted.
+
+    Returns the signatures that changed. The facts may come from disk (reindex_file) or from a remote client.
+    """
+    rel = Path(rel).as_posix()
     if facts is None:
-        # Half-written code: keep the last good picture of this file.
+        graph.query("MATCH (s:Symbol {file: $file}) DETACH DELETE s", {"file": rel})
+        graph.query("MATCH (f:File {path: $file}) DETACH DELETE f", {"file": rel})
         return []
-
     old = {
         q: (sig, h)
         for q, sig, h in graph.query(
-            "MATCH (s:Symbol {file: $file}) RETURN s.qualname, s.signature, s.sig_hash", {"file": rel_path}
+            "MATCH (s:Symbol {file: $file}) RETURN s.qualname, s.signature, s.sig_hash", {"file": rel}
         ).result_set
     }
     changes = [
@@ -170,3 +186,17 @@ def reindex_file(graph, repo_root: Path, rel_path: str) -> list[SignatureChange]
     _delete_stale(graph, facts)
     _write_edges(graph, facts, known)
     return changes
+
+
+def reindex_file(graph, repo_root: Path, rel_path: str) -> list[SignatureChange]:
+    """Bring one file's part of the graph up to date with disk. Returns the signatures that changed."""
+    rel_path = Path(rel_path).as_posix()
+    path = Path(repo_root) / rel_path
+    if not path.exists():
+        return reindex_facts(graph, rel_path, None)
+    source = _read(path)
+    facts = parse_module(rel_path, source) if source is not None else None
+    if facts is None:
+        # Half-written code: keep the last good picture of this file.
+        return []
+    return reindex_facts(graph, rel_path, facts)

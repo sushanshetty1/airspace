@@ -13,7 +13,7 @@ from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, StringConstraints
@@ -33,6 +33,15 @@ class MessageBody(BaseModel):
 
 class EngineUnavailable(Exception):
     pass
+
+
+class ApiError(Exception):
+    """A refusal with a status and a short sentence for the client, answered as {"error": text}."""
+
+    def __init__(self, status: int, text: str):
+        super().__init__(text)
+        self.status = status
+        self.text = text
 
 
 def open_airspace(root: Path):
@@ -60,41 +69,19 @@ def _sse(event: dict) -> str:
     return f"event: airspace\ndata: {json.dumps(event)}\n\n"
 
 
-def create_app(
-    airspace_factory: Callable[[], Any],
+def tower_routes(
+    engine: Callable[[Request], Any],
     *,
     poll_interval: float = 0.5,
     ping_interval: float = 15.0,
     max_seconds: float | None = None,
-) -> FastAPI:
-    """The API over an engine built by airspace_factory on first use (and again after a failed attempt).
+) -> APIRouter:
+    """Tower's read models, controls and event stream, with paths relative to where the router is mounted.
 
-    max_seconds ends each event stream after that long; None streams until the client disconnects.
+    `engine(request)` returns the Airspace the request is about, or raises ApiError or EngineUnavailable. The demo
+    mounts this at /api with its one engine; each hosted workspace is served at /api/w/{workspace_id} with its own.
     """
-    app = FastAPI(title="Airspace", docs_url=None, redoc_url=None)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=TOWER_ORIGINS,
-        allow_methods=["GET", "POST"],
-        allow_headers=["*"],
-    )
-
-    lock = threading.Lock()
-    built: list[Any] = []
-
-    def engine() -> Any:
-        with lock:
-            if not built:
-                try:
-                    built.append(airspace_factory())
-                except Exception as e:
-                    detail = " ".join(str(e).split()) or type(e).__name__
-                    raise EngineUnavailable(f"FalkorDB unavailable ({detail})") from e
-            return built[0]
-
-    @app.exception_handler(EngineUnavailable)
-    async def _unavailable(request: Request, exc: EngineUnavailable) -> JSONResponse:
-        return JSONResponse(status_code=503, content={"error": str(exc)})
+    r = APIRouter()
 
     def act(name: str, call: Callable[[], Any], reply: Callable[[Any], dict]) -> dict:
         """Run a control. The engine treats unknown or finished agents as a no-op; a refusal it raises is reported."""
@@ -105,50 +92,52 @@ def create_app(
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
         return reply(result)
 
-    @app.get("/api/state")
-    def state() -> dict:
-        return engine().state()
+    @r.get("/state")
+    def state(request: Request) -> dict:
+        return engine(request).state()
 
-    @app.get("/api/radar")
-    def radar() -> dict:
-        return engine().radar()
+    @r.get("/radar")
+    def radar(request: Request) -> dict:
+        return engine(request).radar()
 
-    @app.get("/api/events")
-    def events(since: float = 0.0) -> dict:
-        return {"events": engine().events(since)}
+    @r.get("/events")
+    def events(request: Request, since: float = 0.0) -> dict:
+        return {"events": engine(request).events(since)}
 
-    @app.get("/api/collisions/{collision_id}")
-    def collision(collision_id: str):
-        found = engine().collision(collision_id)
+    @r.get("/collisions/{collision_id}")
+    def collision(request: Request, collision_id: str):
+        found = engine(request).collision(collision_id)
         if found is None:
             return JSONResponse(status_code=404, content={"error": "not found"})
         return found
 
-    @app.get("/api/insights")
-    def insights() -> dict:
-        return engine().insights()
+    @r.get("/insights")
+    def insights(request: Request) -> dict:
+        return engine(request).insights()
 
-    @app.post("/api/agents/{agent}/pause")
-    def pause(agent: str) -> dict:
-        return act("pause", lambda: engine().pause(agent), lambda _: {"ok": True})
+    @r.post("/agents/{agent}/pause")
+    def pause(request: Request, agent: str) -> dict:
+        air = engine(request)
+        return act("pause", lambda: air.pause(agent), lambda _: {"ok": True})
 
-    @app.post("/api/agents/{agent}/resume")
-    def resume(agent: str) -> dict:
-        return act("resume", lambda: engine().resume(agent), lambda _: {"ok": True})
+    @r.post("/agents/{agent}/resume")
+    def resume(request: Request, agent: str) -> dict:
+        air = engine(request)
+        return act("resume", lambda: air.resume(agent), lambda _: {"ok": True})
 
-    @app.post("/api/agents/{agent}/message")
-    def message(agent: str, body: MessageBody) -> dict:
-        return act(
-            "message", lambda: engine().message(agent, body.text, sender="Tower"), lambda mid: {"ok": True, "id": mid}
-        )
+    @r.post("/agents/{agent}/message")
+    def message(request: Request, agent: str, body: MessageBody) -> dict:
+        air = engine(request)
+        return act("message", lambda: air.message(agent, body.text, sender="Tower"), lambda mid: {"ok": True, "id": mid})
 
-    @app.post("/api/collisions/{collision_id}/release")
-    def release(collision_id: str) -> dict:
-        return act("release", lambda: engine().release_collision(collision_id), lambda done: {"ok": bool(done)})
+    @r.post("/collisions/{collision_id}/release")
+    def release(request: Request, collision_id: str) -> dict:
+        air = engine(request)
+        return act("release", lambda: air.release_collision(collision_id), lambda done: {"ok": bool(done)})
 
-    @app.get("/api/events/stream")
+    @r.get("/events/stream")
     async def stream(request: Request, since: float = 0.0) -> StreamingResponse:
-        airspace = await asyncio.to_thread(engine)
+        airspace = await asyncio.to_thread(engine, request)
         return StreamingResponse(
             _event_stream(request, airspace, since),
             media_type="text/event-stream",
@@ -178,12 +167,64 @@ def create_app(
                 yield ": ping\n\n"
             await asyncio.sleep(poll_interval)
 
+    return r
+
+
+def create_app(
+    airspace_factory: Callable[[], Any],
+    *,
+    poll_interval: float = 0.5,
+    ping_interval: float = 15.0,
+    max_seconds: float | None = None,
+    cloud: Any = None,
+) -> FastAPI:
+    """The API over an engine built by airspace_factory on first use (and again after a failed attempt).
+
+    max_seconds ends each event stream after that long; None streams until the client disconnects.
+    cloud, an airspace.cloud.Cloud, adds sign-in, workspaces and the RPC endpoint remote hooks call.
+    """
+    app = FastAPI(title="Airspace", docs_url=None, redoc_url=None)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=TOWER_ORIGINS,
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["*"],
+    )
+
+    lock = threading.Lock()
+    built: list[Any] = []
+
+    def engine() -> Any:
+        with lock:
+            if not built:
+                try:
+                    built.append(airspace_factory())
+                except Exception as e:
+                    detail = " ".join(str(e).split()) or type(e).__name__
+                    raise EngineUnavailable(f"FalkorDB unavailable ({detail})") from e
+            return built[0]
+
+    @app.exception_handler(EngineUnavailable)
+    async def _unavailable(request: Request, exc: EngineUnavailable) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"error": str(exc)})
+
+    @app.exception_handler(ApiError)
+    async def _refused(request: Request, exc: ApiError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status, content={"error": exc.text})
+
+    timing = {"poll_interval": poll_interval, "ping_interval": ping_interval, "max_seconds": max_seconds}
+    app.include_router(tower_routes(lambda request: engine(), **timing), prefix="/api")
+
     from airspace.api import playground, replay_routes
     app.include_router(replay_routes.router(engine))
     app.include_router(playground.router())
+    if cloud is not None:
+        cloud.mount(app, **timing)
     return app
 
 
 def default_app(root: Path) -> FastAPI:
-    """The API for one repository on the configured FalkorDB."""
-    return create_app(lambda: open_airspace(root))
+    """The API for one repository on the configured FalkorDB, plus hosted accounts and workspaces."""
+    from airspace.cloud import Cloud
+
+    return create_app(lambda: open_airspace(root), cloud=Cloud.from_env())
