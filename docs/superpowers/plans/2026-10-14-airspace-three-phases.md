@@ -185,12 +185,12 @@ The fixture repo, `tests/fixtures/blog`, mirrors the website story:
 - `tags/views.py` defines `tag_create` (calls `Tag.save` via `Tag(...).save()`).
 - `tests/test_text.py`, `tests/test_models.py` and `tests/test_views.py` hold the tests.
 
-- [ ] Write `tests/test_db.py`:
+- [x] Write `tests/test_db.py`:
   - `graph_name` is stable and starts with `airspace_`;
   - `ensure_schema` can run twice;
-  - `seed_blog_graph` creates 12 `Symbol` nodes and `CALLS` from `blog.models.Post.save` to `utils.text.slugify`.
-- [ ] Implement until green: `cd server && uv run pytest tests/test_db.py -q`.
-- [ ] Commit `Phase 1 foundation: types, db layer, fixture repo, test harness`.
+  - `seed_blog_graph` creates 17 `Symbol` nodes and `CALLS` from `blog.models.Post.save` to `utils.text.slugify`.
+- [x] Implement until green: `cd server && uv run pytest tests/test_db.py -q`.
+- [x] Commit `Phase 1 foundation: types, db layer, fixture repo, test harness`.
 
 ---
 
