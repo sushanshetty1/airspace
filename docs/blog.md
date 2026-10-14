@@ -36,7 +36,21 @@ The first benchmark run showed Airspace barely better than nothing: 1 of 18 merg
 - **The write never goes through the edit tools.** One agent wrote its file with `cat > views.py <<EOF`. No edit hook fired. After every shell command, and again before landing, Airspace now compares the working copy with the version it last saw (git `HEAD` when it has seen none) and treats any difference as an edit.
 - **A rename is not a removal.** When a method disappears and exactly one new method with the same parameters appears beside it, the hold names the new one.
 
-## Results
+## Results on Flask
+
+A small repo proves the mechanism; a real one proves it holds up. On [Flask](https://github.com/pallets/flask) (83 files, 894 symbols), agent A changes part of Flask's public API while agent B adds a feature that uses it: a renamed keyword on `get_flashed_messages`, a renamed `get_debug_flag`, a renamed keyword on `send_file`. Each pair is graded with Flask's own 491 tests plus a hidden test per agent.
+
+| Condition | Merged build green |
+| --- | --- |
+| Worktrees only | 0 of 9 |
+| Broadcast | 5 of 9 |
+| Airspace | 9 of 9 |
+
+The first Flask run scored 7 of 9, and the two misses were a real bug. Agents on separate worktrees share one graph. When agent B edited its own copy of `helpers.py`, which never had agent A's rename, re-indexing that file read as B renaming the parameter back, and A was held for a change nobody made. The fix: a re-index only counts changes to symbols the agent's own edits touched, and the graph keeps the newest contract. Both runs are published.
+
+Getting the graph right on a real repo took work too. Flask keeps its code under `src/`, re-exports its public names from `flask/__init__.py`, and puts half of `Flask`'s methods on base classes. Handling those, plus instances made in the same function, took resolved calls from 194 to 845. Indexing all of Flask takes under half a second, and a hook adds about 190 ms to an edit.
+
+## Results on a sample repo
 
 Two real Claude Code agents per pair, at the same time, on the same small repo. Six kinds of contract change, three conditions, three runs each, graded on the merge of both branches with both agents' hidden tests.
 
@@ -51,6 +65,10 @@ The one miss is worth telling. Agent B was held, understood the hold, wrote noth
 Airspace is slower per pair, 43 seconds against 25, because a held agent waits for the change it depends on. That is the trade: a little waiting for a merge that works.
 
 These are constructed tasks on a small repo. The same paper found interference in only 1 of 417 pairs of real merged pull requests. Constructed tasks show that a coordination method works, not how often the problem happens in practice.
+
+## Pre-flight
+
+Holds are the safety net. Pre-flight is the plan. Before any agent starts, you list the tasks and the symbols each will change, and Airspace answers from the graph: which tasks can run in parallel, which must coordinate, and the path between them. Impact cones are Cypher traversals, the explanation is `shortestPath`, the groups are `algo.WCC`, and hot spots are `algo.betweenness`. On Flask, five tasks come back as three groups in about 20 ms: routing and rule registration must coordinate (`Scaffold.route` calls `Scaffold.add_url_rule`), error handlers and error lookup must coordinate (`Flask.handle_user_exception` calls `App._find_error_handler`, across Flask's class hierarchy), and the debug flag task is free. Try it at airspace.sushans.dev/preflight.
 
 ## Tower
 

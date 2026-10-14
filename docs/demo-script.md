@@ -43,8 +43,9 @@ agent-b's ticket was written against the old API, which is how this happens in r
 | 1:30 | agent-b retries with `unicode=True`; Tower shows Cleared and the call edge across both airspaces | "agent-b adapts on its own. The retry fits, so it is cleared, and the collision resolves." |
 | 1:45 | Both agents land; merge both branches; tests pass | "Both land. We merge the two branches, and the build is green." |
 | 2:00 | FalkorDB Browser: the path query on the code graph | "Everything lives in one FalkorDB graph: symbols, calls with their argument shapes, tasks, claims, contract changes and collisions." |
-| 2:20 | The results section of the site: 0, 3 and 17 of 18 | "We ran 54 pairs of real agents. Worktrees: 0 of 18 merges green. Telling each agent the other's task: 3 of 18. Airspace: 17 of 18." |
-| 2:40 | The playground on the site | "You can try it without installing anything. Pick a change and a call, and get the verdict and the path." |
+| 2:10 | The Pre-flight page on Flask: three groups, two paths | "Before agents even start, pre-flight plans the work on the graph. On Flask, five tasks: two pairs must coordinate, and here is the path for each. One task is free to run." |
+| 2:25 | The results section, Flask tab: 0, 5 and 9 of 9 | "On the real Flask repo, graded by Flask's own test suite: worktrees 0 of 9 merges green, broadcast 5 of 9, Airspace 9 of 9. On our sample repo, 17 of 18." |
+| 2:45 | The playground on the site | "You can try it without installing anything. Pick a change and a call, and get the verdict and the path." |
 | 2:55 | Wordmark | "Airspace. Air-traffic control for coding agents." |
 
 ## Notes
