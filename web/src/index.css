@@ -1,111 +1,194 @@
+@import "tailwindcss";
+
+/*
+  Airspace visual language
+  - Archivo for text, set wide and uppercase for display.
+  - B612 Mono for labels, signs and callsigns: the face Airbus designed for cockpit displays.
+  - JetBrains Mono for code, where parentheses must read as parentheses.
+  - International orange marks a collision, a hold, the primary action. Nothing else.
+  - Agents get radar colours: agent-a cyan, agent-b violet.
+  - Square corners, hard 1px rules, no soft glows.
+*/
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --bg: #0a0c0e;
+  --surface: #101317;
+  --surface-2: #161a1f;
+  --line: #20262c;
+  --line-strong: #2d353c;
+  --text: #edeff1;
+  --muted: #8f979f;
+  --faint: #5c646c;
+  --accent: #ff5a1f;
+  --accent-ink: #170700;
+  --accent-soft: rgb(255 90 31 / 0.13);
+  --agent-a: #45c4e6;
+  --agent-a-soft: rgb(69 196 230 / 0.08);
+  --agent-b: #b18cff;
+  --agent-b-soft: rgb(177 140 255 / 0.08);
+  --ok: #3ccf8e;
+  --ok-soft: rgb(60 207 142 / 0.12);
+  --bad: #ff5d5d;
+  --bad-soft: rgb(255 93 93 / 0.1);
+  --ink: #0a0c0e;
+  color-scheme: dark;
+}
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f3f4f2;
+    --surface: #fbfbfa;
+    --surface-2: #ebedea;
+    --line: #dcdfda;
+    --line-strong: #c6cac4;
+    --text: #101214;
+    --muted: #5a6067;
+    --faint: #8e939a;
+    --accent: #f2531a;
+    --accent-ink: #170700;
+    --accent-soft: rgb(242 83 26 / 0.1);
+    --agent-a: #0a86a8;
+    --agent-a-soft: rgb(10 134 168 / 0.07);
+    --agent-b: #7a4fe0;
+    --agent-b-soft: rgb(122 79 224 / 0.07);
+    --ok: #10865a;
+    --ok-soft: rgb(16 134 90 / 0.1);
+    --bad: #d63535;
+    --bad-soft: rgb(214 53 53 / 0.08);
+    color-scheme: light;
+  }
+}
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
+:root[data-theme="light"] {
+  --bg: #f3f4f2;
+  --surface: #fbfbfa;
+  --surface-2: #ebedea;
+  --line: #dcdfda;
+  --line-strong: #c6cac4;
+  --text: #101214;
+  --muted: #5a6067;
+  --faint: #8e939a;
+  --accent: #f2531a;
+  --accent-ink: #170700;
+  --accent-soft: rgb(242 83 26 / 0.1);
+  --agent-a: #0a86a8;
+  --agent-a-soft: rgb(10 134 168 / 0.07);
+  --agent-b: #7a4fe0;
+  --agent-b-soft: rgb(122 79 224 / 0.07);
+  --ok: #10865a;
+  --ok-soft: rgb(16 134 90 / 0.1);
+  --bad: #d63535;
+  --bad-soft: rgb(214 53 53 / 0.08);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-agent-a: var(--agent-a);
+  --color-agent-a-soft: var(--agent-a-soft);
+  --color-agent-b: var(--agent-b);
+  --color-agent-b-soft: var(--agent-b-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-ink: var(--ink);
+  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-label: "B612 Mono", ui-monospace, monospace;
+}
+
+html {
   background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+  scroll-behavior: smooth;
+  scroll-padding-top: 72px;
 }
 
 body {
-  margin: 0;
+  font-family: var(--font-sans);
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
+@layer components {
+/* Airfield signs: the status language of the whole product. */
+.sign {
   display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  align-items: center;
+  gap: 0.4em;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 2px;
+  font-family: var(--font-label);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.sign-hold { background: var(--accent); color: var(--accent-ink); }
+.sign-cleared { color: var(--ok); box-shadow: inset 0 0 0 1.5px var(--ok); }
+.sign-briefed { background: var(--text); color: var(--bg); }
+.sign-filed { color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.sign-contract { color: var(--text); box-shadow: inset 0 0 0 1.5px var(--text); }
+.sign-location { background: var(--ink); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+.display {
+  font-stretch: 125%;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 0.98;
+}
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.logo-mask {
+  background-color: currentColor;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+}
+
+@keyframes blink {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Scope labels: readable on desktop, only the essentials on phones. */
+.scope-minor { font-size: 15px; }
+.scope-major { font-size: 18px; }
+.scope-caps { font-family: var(--font-label); }
+@media (max-width: 639px) {
+  .scope-minor { display: none; }
+  .scope-major { font-size: 30px; }
+  .scope-hide-sm { display: none; }
 }

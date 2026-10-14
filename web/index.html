@@ -2,9 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>web</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Airspace. Air-traffic control for coding agents.</title>
+    <meta name="description" content="Run several coding agents on one codebase. Airspace keeps a live graph of how your code connects and holds the edit that would break another agent's work." />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      try {
+        var t = localStorage.getItem('airspace-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
