@@ -1,216 +1,172 @@
-# Cairn
+# Airspace
 
-**Your engineering org's memory, as a graph that agents can follow.**
+**Air-traffic control for parallel coding agents.**
 
-Ask what breaks, who actually knows, and why a decision was made. Every answer comes with the trail behind it.
+Run four coding agents at once and each one passes its tests on its own. Merge them, and the build breaks. Airspace sees the collision coming before the code is written, because it knows how your code connects.
 
 > **Status:** pre-hackathon. This repo holds only design notes, the graph model sketch and empty scaffolding.
 > All FalkorDB and agent code gets written during the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb)
 > (Oct 15–18, 2026 IST), per rule 8.
 
-**Tracks entered:** Track 01 (Agents That Act on Connected Data) · Track 02 (Agent Memory and Coordination) · Track 03 (Company Brain)
+**Tracks:** Track 02 (Agent Memory and Coordination) · Track 01 (Agents That Act on Connected Data)
 
 ---
 
-## The problem
+## The problem: passes alone, fails together
 
-A service starts failing at 2 a.m. The on-call engineer needs three answers fast:
+Developers in 2026 split a feature across several Claude Code or Codex sessions, each in its own git worktree. Worktrees stop agents overwriting each other's files. They don't stop this:
 
-1. **What breaks?** Which services call this one, directly or several hops away?
-2. **Who knows it?** CODEOWNERS says `@org/approvers` for everything. Who has actually changed this code in the last six months?
-3. **Why is it built this way?** The decision behind the setup sits in a PR thread from two years ago.
+- Agent A changes `slugify(value, allow_unicode=False)` to `slugify(value, *, unicode=False)`.
+- At the same moment, agent B adds three new calls to `slugify(title, True)` in another package.
+- Both branches pass their tests, and git merges them without a conflict.
+- `main` is broken.
 
-Each answer lives somewhere different: compose files and protobuf contracts, git history, PR and issue threads. Agents that work from chunked text see fragments. They forget what they learned yesterday, and they can't show their reasoning.
+Git sees lines. It doesn't see that B's new code depends on the function A is rewriting, across files, through imports and calls. The 2026 benchmark [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396) found this interference in **97%** of runs on constructed Django tasks. A [study of 33,596 agent pull requests](https://codex.danielvaughan.com/2026/07/28/agent-pr-merge-conflicts-concurrent-coding-agents-codex-cli-worktree-isolation-coordination-defence/) puts the merge-conflict rate for agent PRs at **27.67%**, and says the semantic layer is the part nobody measures.
 
-## What Cairn does
+## What Airspace does
 
-Cairn reads a software organisation's **public** engineering record (service contracts, deployment files, commits, PRs, issues, changelogs) and writes it into **FalkorDB** as a time-aware graph. A small team of agents then works from that graph:
+Airspace keeps a **live code graph in FalkorDB** (symbols, calls, imports, inheritance, test coverage) and puts every agent's work into the same graph:
 
-| Agent | Job | Graph work |
-|---|---|---|
-| **Scout** | Ingests sources and extracts entities, facts and decisions | Episodes for provenance, entity resolution, two-timeline fact edges, contradiction retirement |
-| **Navigator** | Answers questions about the company: who knows what, why a decision was made | Multi-hop traversal, vector and full-text index lookups, decision chains |
-| **Sentinel** | Investigates incidents and risky changes, then acts | `algo.bfs` blast radius, `algo.SPpaths`, `algo.betweenness` choke points, routing to owners, gated actions |
-| **Curator** | Keeps memory accurate over time | Confidence decay, stale-owner detection, playbook consolidation, `algo.WCC` and `algo.labelPropagation` silo checks |
+1. **File a flight plan.** When an agent starts a task, it declares the symbols it intends to change. Airspace computes the task's **impact cone**: everything that calls, imports, overrides or tests those symbols, several hops out.
+2. **Clearance before every write.** A Claude Code `PreToolUse` hook asks Airspace before each `Edit` or `Write`. The check is deterministic, with no LLM in the decision:
+   - **cleared** when the edit stays inside the agent's airspace;
+   - **hold** when it enters another agent's cone;
+   - **contract change** when it alters a signature others depend on.
+3. **Handoffs, not surprises.** When agent A changes a contract, Airspace finds every active agent whose cone reaches it. It delivers a briefing into their next tool call, with the exact path that connects their work to the change.
+4. **Memory across sessions.** Leases, collisions and contract changes stay in the graph. Next time, the planner knows which symbols are hot zones and splits work around them.
 
-Cairn leaves a marker for every answer. The answer is saved as a node, linked to the exact nodes, edges and source episodes it relied on, and drawn in the UI as a highlighted path. Ask again next week, or ask from a different agent, and the earlier investigation is still there to build on.
+The **radar** UI shows the code graph with each agent's cone as a coloured region. Collisions flash, and each one comes with the shortest path that explains it.
 
-## Why a graph, and why FalkorDB
+## Why this needs a graph
 
-The questions are about connections, so the graph is the product, not a side store:
+The questions are about connections: "Can A and B work at the same time?" really means "do their cones overlap?"
 
-- **Blast radius** means walking `CALLS` edges up to N hops.
-- **Who knows X** is a time-weighted walk from `Person` through `PullRequest` and `File` to `Service`.
-- **Why did we decide Y** follows `Decision → SUPERSEDES → Decision → EVIDENCED_BY → Episode`.
-- **Bus factor and knowledge silos** come from betweenness and connected components on the people–system graph.
-- **Agent coordination** runs on `Task`, `Claim` and `Handoff` nodes that every agent reads and writes.
+| Question | Graph work |
+|---|---|
+| What does this edit affect? | Reverse traversal over `CALLS`, `IMPORTS`, `INHERITS` and `COVERS`, or `algo.bfs` |
+| Do two agents collide, and why? | Intersection of their cones, plus `algo.SPpaths` for the explaining path |
+| Which tasks can run in parallel? | `algo.WCC` over the conflict graph; each component is serialised, components run concurrently |
+| Which symbols are risky to touch? | `algo.betweenness` / `algo.pageRank` on the call graph, plus collision history |
+| Who has to hear about this contract change? | Active `CLAIMS` whose cone reaches the changed symbol |
 
 FalkorDB features in use:
 
-- one isolated graph per organisation (multi-tenant);
-- built-in algorithms (`algo.bfs`, `algo.SPpaths`, `algo.betweenness`, `algo.pageRank`, `algo.WCC`, `algo.labelPropagation`);
-- vector index (HNSW, cosine) on chunks, facts and playbooks;
-- full-text index on titles and names;
-- range indexes on IDs and time fields.
-
-## Architecture
-
-```mermaid
-flowchart LR
-  subgraph Sources[Public sources]
-    GH[GitHub API<br/>PRs · issues · commits]
-    REPO[Repo files<br/>demo.proto · compose · CHANGELOG]
-  end
-  subgraph Agents
-    S[Scout]
-    N[Navigator]
-    SE[Sentinel]
-    C[Curator]
-  end
-  subgraph Tools[Graph tool layer · returns Trace]
-    T1[blast_radius]
-    T2[who_knows]
-    T3[trace_decision]
-    T4[recall / remember]
-    T5[claim / handoff]
-  end
-  FDB[(FalkorDB<br/>graph per org)]
-  MCP[MCP server]
-  API[FastAPI]
-  WEB[Web UI<br/>trail view]
-
-  GH & REPO --> S --> FDB
-  N & SE & C --> Tools --> FDB
-  Tools --> MCP
-  API --> Agents
-  WEB --> API
-```
-
-Every graph tool returns a **Trace**: the Cypher it ran, the nodes and edges it touched, and the source episode behind each edge. Agents pass traces along, answers cite them, and the UI draws them.
+- **6.0 MVCC**, so many agents read while admission writes;
+- **one graph per repo** (multi-graph);
+- built-in **`algo.*`** procedures;
+- vector index over symbol docstrings for planning;
+- full-text index over symbol names.
 
 ## Graph data model (draft)
 
-**Knowledge layer:**
+**Code graph:**
 
 ```
-(:Person {login, name})        -[:MEMBER_OF]->     (:Team)
-(:Person)                      -[:AUTHORED {at}]-> (:PullRequest)
-(:Person)                      -[:REVIEWED {at}]-> (:PullRequest)
-(:PullRequest)                 -[:TOUCHES]->       (:File) -[:PART_OF]-> (:Service {name, language})
-(:PullRequest)                 -[:RESOLVES]->      (:Issue)
-(:Service)                     -[:CALLS {rpc, protocol}]-> (:Service)
-(:Service)                     -[:USES]->          (:Datastore)
-(:Decision {title, status})    -[:AFFECTS]->       (:Service)
-(:Decision)                    -[:SUPERSEDES]->    (:Decision)
-(:Person)                      -[:DECIDED]->       (:Decision)
-(:Doc|:Issue|:PullRequest)     -[:HAS_CHUNK]->     (:Chunk {text, embedding})
-(any fact edge)                .source_episode  →  (:Episode {kind, url, observed_at})
+(:Repo)-[:HAS]->(:File {path})-[:DEFINES]->(:Symbol {qualname, kind, signature, sig_hash})
+(:Symbol)-[:CALLS]->(:Symbol)
+(:File)-[:IMPORTS]->(:Symbol)
+(:Symbol)-[:INHERITS]->(:Symbol)
+(:Test)-[:COVERS]->(:Symbol)
 ```
 
-Fact edges carry **two timelines**:
-
-- `valid_from` / `valid_to`: when the fact was true in the world.
-- `recorded_at` / `retired_at` / `retired_by`: when Cairn learned it and why it stopped believing it.
-
-Nothing is deleted. A superseded fact is retired, and the record says which episode retired it.
-
-**Memory and coordination layer:**
+**Airspace layer (coordination and memory):**
 
 ```
-(:Agent {name, role})  -[:RAN]->       (:Task {status, lease_until, claimed_by})
-(:Task)                -[:HANDED_OFF_TO {reason}]-> (:Agent)
-(:Session {user})      -[:ASKED]->     (:Answer {question, text})
-(:Answer)              -[:CITES]->     (node or path elements)
-(:Answer)              -[:USED]->      (:Playbook {intent, steps, wins, losses, intent_embedding})
-(:Finding)             -[:ABOUT]->     (:Service|:Person|:Decision)
+(:Agent {id, harness})-[:FLYING]->(:Task {intent, status, base_commit})
+(:Task)-[:CLAIMS {mode: 'write'|'contract', lease_until, fence}]->(:Symbol)
+(:Task)-[:CONE {depth}]->(:Symbol)
+(:Collision {at, resolution})-[:BETWEEN]->(:Task)
+(:Collision)-[:AT]->(:Symbol)
+(:ContractChange {old_sig, new_sig, at})-[:ON]->(:Symbol)
+(:ContractChange)-[:BRIEFED]->(:Task)
+(:Session)-[:RAN]->(:Task)
+(:Symbol).collision_count            // hot-zone memory across sessions
 ```
-
-- **Episodic** memory is sessions, tasks and answers.
-- **Semantic** memory is the knowledge layer.
-- **Procedural** memory is playbooks: tool sequences that answered a kind of question, reinforced by feedback.
 
 ## Key Cypher (sketches, verified and finalised during the event)
 
 ```cypher
-// Blast radius: who calls this service, up to 4 hops, with paths for the trail
-MATCH p = (caller:Service)-[:CALLS*1..4]->(s:Service {name: $service})
-RETURN p
+// Impact cone: everything that depends on the symbols a task claims, up to 3 hops
+MATCH (t:Task {id: $task})-[:CLAIMS]->(s:Symbol)
+MATCH (dep)-[:CALLS|IMPORTS|INHERITS|COVERS*1..3]->(s)
+MERGE (t)-[:CONE]->(dep)
 ```
 
 ```cypher
-// Who actually knows a service: recent, time-decayed authorship and review
-MATCH (p:Person)-[a:AUTHORED|REVIEWED]->(:PullRequest)-[:TOUCHES]->(:File)-[:PART_OF]->(s:Service {name: $service})
-WITH p, sum(CASE type(a) WHEN 'AUTHORED' THEN 1.0 ELSE 0.5 END
-            * exp(-($now - a.at) / $half_life)) AS score
-RETURN p.login AS person, score ORDER BY score DESC LIMIT 5
+// Clearance: does this edit land inside another active task's cone?
+MATCH (target:Symbol {qualname: $qualname})
+MATCH (other:Task {status: 'active'})-[:CONE|CLAIMS]->(target)
+WHERE other.id <> $task
+RETURN other.id, other.intent
 ```
 
 ```cypher
-// Bus factor: people who hold the knowledge graph together
-CALL algo.betweenness({nodeLabels: ['Person', 'Service'], relationshipTypes: ['KNOWS']})
-YIELD node, score
-RETURN node.login AS person, score ORDER BY score DESC LIMIT 10
+// Explain a collision: shortest path from my claimed symbol to theirs
+MATCH (a:Symbol {qualname: $mine}), (b:Symbol {qualname: $theirs})
+CALL algo.SPpaths({sourceNode: a, targetNode: b, relTypes: ['CALLS', 'IMPORTS', 'INHERITS'], maxLen: 4})
+YIELD path
+RETURN path
 ```
 
 ```cypher
-// Decision trace: why is a service built this way, and what did it replace
-MATCH (d:Decision)-[:AFFECTS]->(:Service {name: $service})
-OPTIONAL MATCH chain = (d)-[:SUPERSEDES*1..5]->(:Decision)
-OPTIONAL MATCH (d)-[:EVIDENCED_BY]->(e:Episode)
-RETURN d, chain, collect(e.url) AS sources
+// Atomic lease (writes to a graph are serialised)
+MATCH (s:Symbol {qualname: $qualname})
+OPTIONAL MATCH (other:Task)-[c:CLAIMS]->(s) WHERE other.id <> $task AND c.lease_until > $now
+WITH s, count(c) AS held WHERE held = 0
+MATCH (t:Task {id: $task})
+MERGE (t)-[c:CLAIMS]->(s)
+SET c.mode = $mode, c.lease_until = $now + $ttl, c.fence = coalesce(c.fence, 0) + 1
+RETURN c.fence
 ```
 
-```cypher
-// Coordination: claim a task atomically (writes to a graph are serialised)
-MATCH (t:Task {id: $id})
-WHERE t.status = 'open' OR t.lease_until < $now
-SET t.status = 'claimed', t.claimed_by = $agent, t.lease_until = $now + $ttl
-RETURN t
-```
+## How we'll prove it works
 
-```cypher
-// Semantic recall over chunks
-CALL db.idx.vector.queryNodes('Chunk', 'embedding', 8, vecf32($query_vector)) YIELD node, score
-MATCH (src)-[:HAS_CHUNK]->(node)
-RETURN src, node.text, score
-```
+We'll run the same parallel-agent workload under three conditions, using the benchmark method from *Passes Alone, Fails Together*:
 
-## Demo dataset
+1. **Worktrees only** (today's default).
+2. **Broadcast:** each agent is told what the others changed. The paper reports this recovers 82%.
+3. **Airspace:** graph-scoped clearance plus targeted briefings.
 
-The demo uses [open-telemetry/opentelemetry-demo](https://github.com/open-telemetry/opentelemetry-demo) (Apache-2.0, fully public). It has about 25 services in more than 10 languages, a gRPC contract (`pb/demo.proto`), compose deployments, over 3,000 PRs, over 600 issues and over 100 contributors. A second organisation, [GoogleCloudPlatform/microservices-demo](https://github.com/GoogleCloudPlatform/microservices-demo), runs as a separate tenant graph to show isolation.
+Metrics:
 
-No private, login-protected or personal data is loaded (rule 6). People are identified only by public GitHub handles.
+- **interference rate:** tests pass on each patch alone, fail when merged;
+- **parallelism kept**, compared with running every task one after another;
+- **wall-clock time**;
+- **tokens**.
+
+The results table goes here once it's measured. We won't publish numbers we haven't run.
+
+## Integrations
+
+- **Claude Code:** `PreToolUse` and `PostToolUse` hooks give deterministic clearance and re-index after edits.
+- **Any MCP client:** tools `file_flight_plan`, `request_clearance`, `report_change`, `briefings`, `radar`.
 
 ## Stack
 
-- **Graph:** FalkorDB (Docker), FalkorDB Browser for inspection.
-- **Backend:** Python 3.12, FastAPI, the `falkordb` client, `mcp` (FastMCP).
-- **Models:** Claude via the Anthropic SDK: `claude-opus-5-5` for the reasoning agents and `claude-haiku-5-5` for bulk extraction.
-- **Embeddings:** local `fastembed` (bge-small, 384 dimensions), so there is no extra API.
-- **Web:** Vite, React, TypeScript, with the graph trail drawn by sigma.js.
+- **Graph:** FalkorDB (Docker), FalkorDB Browser.
+- **Backend:** Python 3.12, FastAPI, the `falkordb` client, `mcp`. The code graph is built from Python `ast`.
+- **Agents under test:** Claude Code (headless), using the Anthropic API.
+- **Web:** Vite, React, TypeScript, with the radar drawn by sigma.js.
 
 ## Running locally
 
 ```bash
-cp .env.example .env            # add ANTHROPIC_API_KEY and GITHUB_TOKEN
+cp .env.example .env            # add ANTHROPIC_API_KEY
 docker compose up -d falkordb   # FalkorDB on :6379, Browser on :3000
-cd server && uv sync            # Python deps
-cd ../web && npm install        # web deps
+cd server && uv sync
+cd ../web && npm install
 ```
 
-Ingestion, API and UI commands get added here as they're built.
+Indexing, hook install and radar commands get added here as they're built.
 
-## Prior art we studied
+## Prior art
 
-We read these projects to learn from their designs. Every line of Cairn is our own implementation.
-
-- **[Graphiti](https://github.com/getzep/graphiti)** (Apache-2.0): episodes as provenance, edges with two timelines, layered entity resolution.
-  - Cairn adds deterministic reasons for retiring facts, and uses FalkorDB's native vector index and algorithms where Graphiti does brute-force cosine and Python label propagation.
-- **[Cognee](https://github.com/topoteretes/cognee)** (Apache-2.0): supersession for single-valued relations, and memory passes that run after ingestion.
-- **[FalkorDB code-graph](https://github.com/FalkorDB/code-graph)** (MIT) and **[CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext)** (MIT): code graphs as agent tools.
-  - Neither connects code to the people who own it or the decisions behind it.
-- **[neo4j-contrib/gds-agent](https://github.com/neo4j-contrib/gds-agent)** (MIT): graph algorithms exposed as typed MCP tools, for Neo4j only.
-- **[Cartography](https://github.com/cartography-cncf/cartography)** (Apache-2.0): pairing every finding query with a query that returns the path explaining it.
+- [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396) (Xia, Wu, Park, 2026): the benchmark method and the broadcast baseline.
+- [*Claim Plane*](https://arxiv.org/abs/2607.21909) (Nikolaev, 2026): admitting change intents before any write.
+  - Airspace computes scope from a live graph instead of making agents declare every resource.
+- [FalkorDB code-graph](https://github.com/FalkorDB/code-graph) (MIT) and [CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext) (MIT): code graphs as agent tools.
+  - Both serve a single agent. We studied their schemas; Airspace's indexer is our own.
+- [Aura agent collision detection](https://auravcs.com/learn/agent-collision-detection): a description of file, symbol and dependency-level collision detection.
 
 ## AI assistance disclosure
 

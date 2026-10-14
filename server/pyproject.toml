@@ -1,7 +1,7 @@
 [project]
-name = "cairn"
+name = "airspace"
 version = "0.1.0"
-description = "Engineering org memory as a FalkorDB graph that agents can follow"
+description = "Air-traffic control for parallel coding agents, on a FalkorDB code graph"
 authors = [
     { name = "sushanshetty1", email = "sushanshetty1470@gmail.com" }
 ]
