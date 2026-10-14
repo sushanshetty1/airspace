@@ -1,5 +1,5 @@
-"""The airspace command: index | hook pre|post|any|stop | install-hooks | status | serve | mcp | insights | connect |
-disconnect."""
+"""The airspace command: index | hook pre|post|any|stop | install-hooks | status | serve | mcp | insights | preflight |
+connect | disconnect."""
 
 import argparse
 import os
@@ -294,6 +294,60 @@ def _cmd_insights(root: Path) -> int:
     return 0
 
 
+def _parse_task(text: str) -> dict:
+    """A "Name: sym1, sym2" argument as {"name", "symbols"}. Qualnames hold no colon, so the last one ends the name."""
+    name, colon, symbols = text.rpartition(":")
+    if not colon or not name.strip():
+        raise ValueError(f'Write each task as "Name: symbol, symbol", not {text!r}.')
+    return {"name": name.strip(), "symbols": [s.strip() for s in symbols.split(",") if s.strip()]}
+
+
+def _cmd_preflight(root: Path, task_texts: list[str], depth: int) -> int:
+    """Which tasks can run in parallel and which must coordinate, on the local graph or the connected workspace."""
+    from airspace.admission.preflight import PreflightError, as_text, preflight
+
+    try:
+        tasks = [_parse_task(t) for t in task_texts]
+    except ValueError as e:
+        print(f"airspace: {e}", file=sys.stderr)
+        return 1
+    try:
+        client = _remote(root)
+    except Exception as e:
+        return _server_down(e)
+    if client is not None:
+        from airspace.remote import remote_preflight
+
+        def plan() -> dict:
+            return remote_preflight(client, tasks, depth)
+    else:
+        try:
+            graph = _graph(root)
+        except Exception as e:
+            return _db_down(e)
+
+        def plan() -> dict:
+            return preflight(graph, tasks, depth)
+    try:
+        answer = plan()
+    except PreflightError as e:
+        print(f"airspace: {e.message}", file=sys.stderr)
+        if e.suggestions:
+            print("Did you mean:", file=sys.stderr)
+            for s in e.suggestions:
+                print(f"  {s}", file=sys.stderr)
+        return 1
+    except Exception as e:
+        return _server_down(e) if client is not None else _db_down(e)
+    print(as_text(answer))
+    return 0
+
+
+def _db_down(e: Exception) -> int:
+    print(f"airspace: FalkorDB unavailable ({e})", file=sys.stderr)
+    return 1
+
+
 def _cmd_connect(root: Path, server: str, key: str) -> int:
     """Check the key, store it for this repository, index the repository into the workspace and say what is next."""
     from airspace.remote import Remote, RemoteError, remote_index, remotes_path, set_remote
@@ -355,6 +409,7 @@ def main(argv: list[str] | None = None) -> int:
         ("status", "show active tasks, their claims and recent collisions"),
         ("mcp", "run the Airspace MCP server over stdio"),
         ("insights", "show hot zones and the groups of agents that can fly in parallel"),
+        ("preflight", "before agents start: which planned tasks can run in parallel and which must coordinate"),
         ("serve", "run the HTTP API for Tower"),
         ("connect", "send this repository's hooks to a hosted Airspace workspace"),
         ("disconnect", "send this repository's hooks to FalkorDB on this machine again"),
@@ -369,6 +424,11 @@ def main(argv: list[str] | None = None) -> int:
     connect = sub.choices["connect"]
     connect.add_argument("--server", required=True, help="the Airspace server, such as https://airspace.sushans.dev")
     connect.add_argument("--key", required=True, help="the workspace key (ask_...)")
+
+    pre = sub.choices["preflight"]
+    pre.add_argument("--task", action="append", required=True, metavar='"NAME: SYMBOL, SYMBOL"',
+                     help="a task and the symbols it will change; give 2 to 6")
+    pre.add_argument("--depth", type=int, default=2, help="hops of callers, tests and subclasses in a cone (1 to 4)")
 
     hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
     hook.add_argument("event", choices=list(_HANDLERS))
@@ -396,6 +456,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "insights":
         return _cmd_insights(root)
+    if args.command == "preflight":
+        return _cmd_preflight(root, args.task, args.depth)
     if args.command == "connect":
         return _cmd_connect(root, args.server, args.key)
     if args.command == "disconnect":

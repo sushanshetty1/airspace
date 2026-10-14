@@ -11,6 +11,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from airspace.api import preflight_routes
 from airspace.api.app import ApiError, tower_routes
 from airspace.cloud.accounts import LimitReached
 from airspace.cloud.auth import require_user
@@ -79,6 +80,7 @@ def tower_router(cloud, **timing) -> APIRouter:
         return cloud.engine(workspace_id)
 
     r = tower_routes(engine, **timing)
+    preflight_routes.workspace_routes(r, cloud)
 
     @r.get("/mode")
     def mode(request: Request, workspace_id: str) -> dict:

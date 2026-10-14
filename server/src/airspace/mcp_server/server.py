@@ -8,7 +8,7 @@ import os
 import threading
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from mcp.server.mcpserver import MCPServer
 
@@ -19,8 +19,14 @@ DEFAULT_AGENT = "agent-mcp"
 INSTRUCTIONS = (
     "Airspace coordinates parallel coding agents on one repository. These tools file a flight plan for symbols, "
     "report which symbols other agents claim, deliver contract briefings and messages, explain the dependency path "
-    "between two symbols and list the hot zones where agents have collided."
+    "between two symbols and list the hot zones where agents have collided. Before work starts, preflight says which "
+    "planned tasks can run in parallel and which must coordinate."
 )
+
+
+class PlannedTask(TypedDict):
+    name: str
+    symbols: list[str]
 
 
 def _join(items: list[str]) -> str:
@@ -116,6 +122,16 @@ def hot_zones(airspace: Any) -> str:
     return "\n".join(lines)
 
 
+def preflight(airspace: Any, tasks: list[dict]) -> str:
+    """The same text as `airspace preflight`, or the reason the tasks cannot be planned."""
+    from airspace.admission.preflight import PreflightError, as_text, error_text, plan_for
+
+    try:
+        return as_text(plan_for(airspace, [dict(t) for t in tasks]))
+    except PreflightError as e:
+        return error_text(e)
+
+
 # Server
 
 
@@ -164,6 +180,12 @@ def build_server(
         """Symbols where agents collide most, with collision counts and call-graph betweenness."""
         return hot_zones(engine())
 
+    def preflight_tool(tasks: list[PlannedTask]) -> str:
+        """Before agents start: for 2 to 6 planned tasks, each a name and the symbols it will change (qualnames or
+        unique suffixes such as "helpers.url_for"), which can run in parallel and which must coordinate, with the
+        dependency path that links them and the hot spots in play."""
+        return preflight(engine(), tasks)
+
     server = MCPServer("airspace", instructions=INSTRUCTIONS)
     for name, fn in (
         ("file_flight_plan", file_flight_plan_tool),
@@ -171,6 +193,7 @@ def build_server(
         ("briefings", briefings_tool),
         ("explain", explain_tool),
         ("hot_zones", hot_zones_tool),
+        ("preflight", preflight_tool),
     ):
         server.add_tool(fn, name=name)
     return server
