@@ -115,12 +115,20 @@ export interface TowerApi {
   stream(since: number, handlers: { onEvent: (e: AirEvent) => void; onOpen: () => void; onError: () => void }): () => void
 }
 
-async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+/**
+ * A JSON request. Every POST and DELETE carries `X-Airspace: 1`: the hosted server
+ * refuses cookie-authenticated writes without it, which blocks cross-site form posts.
+ */
+export async function request<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (method !== 'GET') headers['X-Airspace'] = '1'
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
   let res: Response
   try {
     res = await fetch(path, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers,
+      credentials: 'same-origin',
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
@@ -142,43 +150,52 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown):
 
 const enc = encodeURIComponent
 
-export const httpApi: TowerApi = {
-  state: () => request<StateData>('GET', '/api/state'),
-  radar: () => request<RadarData>('GET', '/api/radar'),
-  events: async (since) => (await request<{ events: AirEvent[] }>('GET', `/api/events?since=${since}`)).events,
-  collision: async (id) => {
-    try {
-      return await request<CollisionDetail>('GET', `/api/collisions/${enc(id)}`)
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return null
-      throw e
-    }
-  },
-  pause: async (agent) => {
-    await request('POST', `/api/agents/${enc(agent)}/pause`)
-  },
-  resume: async (agent) => {
-    await request('POST', `/api/agents/${enc(agent)}/resume`)
-  },
-  message: async (agent, text) => (await request<{ ok: boolean; id: string }>('POST', `/api/agents/${enc(agent)}/message`, { text })).id,
-  release: async (id) => (await request<{ ok: boolean }>('POST', `/api/collisions/${enc(id)}/release`)).ok,
-  stream: (since, { onEvent, onOpen, onError }) => {
-    const es = new EventSource(`/api/events/stream?since=${since}`)
-    es.onopen = onOpen
-    es.addEventListener('airspace', (m) => {
+/**
+ * The HTTP client for a Tower API rooted at `base`: `/api` for the server's own graph,
+ * `/api/w/<id>` for a hosted workspace.
+ */
+export function createHttpApi(base: string): TowerApi {
+  return {
+    state: () => request<StateData>('GET', `${base}/state`),
+    radar: () => request<RadarData>('GET', `${base}/radar`),
+    events: async (since) => (await request<{ events: AirEvent[] }>('GET', `${base}/events?since=${since}`)).events,
+    collision: async (id) => {
       try {
-        onEvent(JSON.parse((m as MessageEvent<string>).data) as AirEvent)
-      } catch {
-        // A malformed frame is skipped; the next refetch catches up.
+        return await request<CollisionDetail>('GET', `${base}/collisions/${enc(id)}`)
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return null
+        throw e
       }
-    })
-    es.onerror = () => {
-      es.close()
-      onError()
-    }
-    return () => es.close()
-  },
+    },
+    pause: async (agent) => {
+      await request('POST', `${base}/agents/${enc(agent)}/pause`)
+    },
+    resume: async (agent) => {
+      await request('POST', `${base}/agents/${enc(agent)}/resume`)
+    },
+    message: async (agent, text) => (await request<{ ok: boolean; id: string }>('POST', `${base}/agents/${enc(agent)}/message`, { text })).id,
+    release: async (id) => (await request<{ ok: boolean }>('POST', `${base}/collisions/${enc(id)}/release`)).ok,
+    stream: (since, { onEvent, onOpen, onError }) => {
+      const es = new EventSource(`${base}/events/stream?since=${since}`)
+      es.onopen = onOpen
+      es.addEventListener('airspace', (m) => {
+        try {
+          onEvent(JSON.parse((m as MessageEvent<string>).data) as AirEvent)
+        } catch {
+          // A malformed frame is skipped; the next refetch catches up.
+        }
+      })
+      es.onerror = () => {
+        es.close()
+        onError()
+      }
+      return () => es.close()
+    },
+  }
 }
+
+/** The server's own graph, as the demo Tower at /tower shows it. */
+export const httpApi: TowerApi = createHttpApi('/api')
 
 /** Event time as 10:42:31, local, 24 hour. */
 export function clock(at: number) {
