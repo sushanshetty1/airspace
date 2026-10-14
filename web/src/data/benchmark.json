@@ -1,0 +1,132 @@
+{
+  "conditions": {
+    "worktrees": {
+      "pairs": 18,
+      "merged_pass": 0,
+      "merged_pass_rate": 0.0,
+      "median_wall_seconds": 24.6,
+      "cost_usd": 4.82,
+      "holds": 0
+    },
+    "broadcast": {
+      "pairs": 18,
+      "merged_pass": 3,
+      "merged_pass_rate": 0.167,
+      "median_wall_seconds": 27.5,
+      "cost_usd": 4.83,
+      "holds": 0
+    },
+    "airspace": {
+      "pairs": 18,
+      "merged_pass": 17,
+      "merged_pass_rate": 0.944,
+      "median_wall_seconds": 43.0,
+      "cost_usd": 5.55,
+      "holds": 19
+    }
+  },
+  "sets": {
+    "slugify-keyword-only": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        false,
+        false,
+        false
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    },
+    "truncate-words-limit": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        false,
+        false,
+        false
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    },
+    "rename-absolute-url": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        false,
+        false,
+        false
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    },
+    "render-post-show-body": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        false,
+        false,
+        false
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    },
+    "post-requires-author": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        false,
+        false,
+        false
+      ],
+      "airspace": [
+        false,
+        true,
+        true
+      ]
+    },
+    "tag-save-returns-none": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        true,
+        true,
+        true
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    }
+  }
+}
