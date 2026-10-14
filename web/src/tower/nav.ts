@@ -7,15 +7,28 @@ export function navigate(path: string) {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
-/** The collision id in /tower/collisions/:id, or null. */
-export function collisionIdFrom(pathname: string) {
-  const m = /^\/tower\/collisions\/([^/]+)\/?$/.exec(pathname)
-  if (!m) return null
+function decode(part: string) {
   try {
-    return decodeURIComponent(m[1])
+    return decodeURIComponent(part)
   } catch {
-    return m[1]
+    return part
   }
 }
 
-export const collisionPath = (id: string) => `/tower/collisions/${encodeURIComponent(id)}`
+/** The collision id in /tower/collisions/:id or /w/:workspace/collisions/:id, or null. */
+export function collisionIdFrom(pathname: string) {
+  const m = /^\/(?:tower|w\/[^/]+)\/collisions\/([^/]+)\/?$/.exec(pathname)
+  return m ? decode(m[1]) : null
+}
+
+/** The workspace id in /w/:id and the paths under it, or null. */
+export function workspaceIdFrom(pathname: string) {
+  const m = /^\/w\/([^/]+)(?:\/.*)?$/.exec(pathname)
+  return m ? decode(m[1]) : null
+}
+
+/** A workspace's Tower. */
+export const workspacePath = (id: string) => `/w/${encodeURIComponent(id)}`
+
+/** A collision, under the demo Tower at /tower or under a workspace's Tower. */
+export const collisionPath = (id: string, base = '/tower') => `${base}/collisions/${encodeURIComponent(id)}`
