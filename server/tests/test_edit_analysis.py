@@ -1,7 +1,7 @@
 from helpers import BLOG_SYMBOLS
 
 from airspace.hooks.edit_analysis import analyze_edit, apply_tool_input
-from airspace.types import EditAnalysis
+from airspace.types import CallSite, EditAnalysis, SignatureChange
 
 KNOWN = {row[0] for row in BLOG_SYMBOLS}
 
@@ -149,3 +149,86 @@ def test_ambiguous_bare_name_is_not_guessed(blog_repo):
     }
     analysis = analyze_edit(blog_repo, "Edit", tool_input, _known())
     assert all(callee.rsplit(".", 1)[1] != "save" for _, callee in analysis.new_calls)
+
+
+# Call shapes, signature changes and the clearance-only resolution of method and constructor calls.
+
+SLUGIFY = "utils.text.slugify"
+RENDER = "blog.views.render_post"
+
+
+def test_analysis_reports_call_shapes(blog_repo):
+    tool_input = {"file_path": "blog/views.py", "edits": ADD_SLUGIFY_CALL}
+    analysis = analyze_edit(blog_repo, "MultiEdit", tool_input, KNOWN)
+    assert analysis.call_shapes == {SLUGIFY: [CallSite(RENDER, 2, (), False, False)]}
+    assert analysis.signature_changes == []
+
+
+def test_reshaped_call_counts_as_new(blog_repo):
+    tool_input = {
+        "file_path": "blog/models.py",
+        "old_string": "self.slug = slugify(self.title)",
+        "new_string": "self.slug = slugify(self.title, unicode=True)",
+    }
+    analysis = analyze_edit(blog_repo, "Edit", tool_input, KNOWN)
+    assert analysis.new_calls == [("blog.models.Post.save", SLUGIFY)]
+    assert analysis.call_shapes == {SLUGIFY: [CallSite("blog.models.Post.save", 1, ("unicode",), False, False)]}
+
+
+def test_changed_signature_is_reported(blog_repo):
+    tool_input = {
+        "file_path": "utils/text.py",
+        "old_string": "def slugify(value, allow_unicode=False):",
+        "new_string": "def slugify(value, *, unicode=False):",
+    }
+    analysis = analyze_edit(blog_repo, "Edit", tool_input, KNOWN)
+    assert analysis.signature_changes == [
+        SignatureChange(SLUGIFY, "slugify(value, allow_unicode=False)", "slugify(value, *, unicode=False)")
+    ]
+
+
+def test_removed_symbol_is_reported_with_an_empty_signature(blog_repo):
+    tool_input = {"file_path": "blog/models.py", "old_string": "def get_absolute_url(self):", "new_string": "def url(self):"}
+    analysis = analyze_edit(blog_repo, "Edit", tool_input, KNOWN)
+    assert analysis.touched == ["blog.models.Post.url"]
+    assert analysis.signature_changes == [SignatureChange("blog.models.Post.get_absolute_url", "get_absolute_url(self)", "")]
+
+
+FEEDS_ANCHOR = "        return truncate_words(render_post(post), 40)\n"
+
+
+def _add_feeds_method(body: str) -> dict:
+    return {"file_path": "blog/feeds.py", "old_string": FEEDS_ANCHOR, "new_string": FEEDS_ANCHOR + "\n    def item_link(self, post):\n" + body}
+
+
+def test_attribute_call_resolves_by_unique_method_name(blog_repo):
+    analysis = analyze_edit(blog_repo, "Edit", _add_feeds_method("        return post.get_absolute_url()\n"), KNOWN)
+    url = "blog.models.Post.get_absolute_url"
+    assert ("blog.feeds.LatestPosts.item_link", url) in analysis.new_calls
+    assert analysis.call_shapes[url] == [CallSite("blog.feeds.LatestPosts.item_link", 0, (), False, True)]
+
+
+def test_ambiguous_method_name_is_not_guessed(blog_repo):
+    # Post.save and Tag.save share the name, so post.save() resolves to neither.
+    analysis = analyze_edit(blog_repo, "Edit", _add_feeds_method("        return post.save()\n"), KNOWN)
+    assert all(not callee.endswith(".save") for _, callee in analysis.new_calls)
+
+
+def test_constructor_call_pairs_with_init(blog_repo):
+    content = "from blog.models import Post\n\n\ndef test_it():\n    assert Post('Hi', 'x').save()\n"
+    analysis = analyze_edit(blog_repo, "Write", {"file_path": "tests/test_new.py", "content": content}, KNOWN)
+    caller = "tests.test_new.test_it"
+    assert (caller, "blog.models.Post") in analysis.new_calls
+    assert (caller, "blog.models.Post.__init__") in analysis.new_calls
+    assert analysis.call_shapes["blog.models.Post.__init__"] == [CallSite(caller, 2, (), False, True)]
+    assert analysis.call_shapes["blog.models.Post"] == [CallSite(caller, 2, (), False, False)]
+    assert analysis.call_shapes["blog.models.Post.save"] == [CallSite(caller, 0, (), False, True)]
+
+
+def test_removed_symbol_in_known_still_resolves(blog_repo):
+    # After a rename the old name is gone from the code graph, but the hook adds removed names to `known`.
+    known = KNOWN | {"blog.models.Post.url"}
+    models = blog_repo / "blog" / "models.py"
+    models.write_text(models.read_text().replace("def get_absolute_url(self):", "def url(self):"))
+    analysis = analyze_edit(blog_repo, "Edit", _add_feeds_method("        return post.get_absolute_url()\n"), known)
+    assert ("blog.feeds.LatestPosts.item_link", "blog.models.Post.get_absolute_url") in analysis.new_calls

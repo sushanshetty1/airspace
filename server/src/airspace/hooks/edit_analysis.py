@@ -1,15 +1,16 @@
 """What a Claude Code Edit, Write or MultiEdit would do to a Python file, before it is written.
 
-The pre hook needs two facts: which symbols the edit touches, and which calls it adds. Both come from
-diffing the file on disk against the content the tool call would produce, so nothing is written to find out.
+The pre hook needs three facts: which symbols the edit touches, which calls it adds (with their argument
+shapes), and which signatures it changes or removes. All come from diffing the file on disk against the content
+the tool call would produce, so nothing is written to find out.
 """
 
 import difflib
 from pathlib import Path
 
 from airspace.indexer.parse import parse_module
-from airspace.indexer.resolve import resolve_calls, resolve_target
-from airspace.types import EditAnalysis, ModuleFacts, SymbolFact
+from airspace.indexer.resolve import is_bound, resolve_target
+from airspace.types import CallSite, EditAnalysis, ModuleFacts, SignatureChange, SymbolFact
 
 
 def _replace(current: str, edit: dict) -> str | None:
@@ -82,23 +83,59 @@ def _empty(rel: str) -> ModuleFacts:
     return ModuleFacts(module="", file=rel, symbols=[], calls=[], imports={}, bases=[])
 
 
-def _clearance_calls(facts: ModuleFacts, universe: set[str]) -> set[tuple[str, str]]:
-    """Resolved calls, plus bare names that match exactly one symbol in the repo.
+Site = tuple[int, tuple[str, ...], bool, bool]  # (nargs, sorted kwargs, star, bound)
 
-    The stored graph never guesses. Clearance is stricter: an agent often writes a call before its import,
-    and that call must still count, so a bare name with a single possible target is taken to mean it.
+
+def _clearance_sites(facts: ModuleFacts, universe: set[str]) -> dict[tuple[str, str], set[Site]]:
+    """(caller, callee) -> the shapes of its call sites, resolved more widely than the stored graph.
+
+    The stored graph never guesses. Clearance is stricter, because a missed call lets a collision through:
+    - an agent often writes a call before its import, so a bare name with a single possible target means it;
+    - x.name(...) means the method `name` when exactly one method in the repo has that name (bound);
+    - a call to a class is also a call to its __init__ (bound), which is what the arguments bind to.
     """
-    pairs = set(resolve_calls(facts, universe))
     by_name: dict[str, list[str]] = {}
+    methods: dict[str, list[str]] = {}
     for q in universe:
-        by_name.setdefault(q.rsplit(".", 1)[-1], []).append(q)
+        parent, _, name = q.rpartition(".")
+        by_name.setdefault(name, []).append(q)
+        if parent in universe:
+            methods.setdefault(name, []).append(q)
+
+    sites: dict[tuple[str, str], set[Site]] = {}
+
+    def add(caller: str, callee: str, call, bound: bool) -> None:
+        sites.setdefault((caller, callee), set()).add((call.nargs, tuple(sorted(call.kwargs)), call.star, bound))
+        init = f"{callee}.__init__"
+        if init in universe and init != caller:
+            sites.setdefault((caller, init), set()).add((call.nargs, tuple(sorted(call.kwargs)), call.star, True))
+
     for c in facts.calls:
-        if "." in c.target or resolve_target(c.target, facts, c.caller, universe) is not None:
+        callee = resolve_target(c.target, facts, c.caller, universe)
+        if callee is not None:
+            add(c.caller, callee, c, is_bound(c))
             continue
-        matches = by_name.get(c.target, [])
+        if "." in c.target:
+            matches = methods.get(c.target.rsplit(".", 1)[1], [])
+            bound = True
+        else:
+            matches = by_name.get(c.target, [])
+            bound = False
         if len(matches) == 1 and matches[0] != c.caller:
-            pairs.add((c.caller, matches[0]))
-    return pairs
+            add(c.caller, matches[0], c, bound)
+    return sites
+
+
+def _signature_changes(old: ModuleFacts, new: ModuleFacts) -> list[SignatureChange]:
+    """Symbols whose signature differs between the two sources, and symbols the edit removes (signature "")."""
+    after = {s.qualname: s.signature for s in new.symbols}
+    changes = []
+    for s in old.symbols:
+        if s.qualname not in after:
+            changes.append(SignatureChange(s.qualname, s.signature, ""))
+        elif after[s.qualname] != s.signature:
+            changes.append(SignatureChange(s.qualname, s.signature, after[s.qualname]))
+    return changes
 
 
 def analyze_edit(repo_root: Path, tool_name: str, tool_input: dict, known: set[str]) -> EditAnalysis | None:
@@ -131,8 +168,16 @@ def analyze_edit(repo_root: Path, tool_name: str, tool_input: dict, known: set[s
     touched = [s.qualname for s in new.symbols if s.qualname in hit]
 
     universe = known | new_names | {s.qualname for s in old.symbols}
-    # Any call that exists after the edit and not before is new, wherever it sits in the file:
-    # adding an import can turn an existing call into a real dependency.
-    before = _clearance_calls(old, universe)
-    new_calls = sorted(_clearance_calls(new, universe) - before)
-    return EditAnalysis(rel, touched, new_calls, parse_ok=True)
+    # A call that exists after the edit and not before is new, wherever it sits in the file: adding an import
+    # can turn an existing call into a real dependency. So is one whose shapes change: its arguments are new.
+    before = _clearance_sites(old, universe)
+    after = _clearance_sites(new, universe)
+    new_calls = sorted(pair for pair, shapes in after.items() if before.get(pair) != shapes)
+    call_shapes: dict[str, list[CallSite]] = {}
+    for caller, callee in new_calls:
+        for nargs, kwargs, star, bound in sorted(after[(caller, callee)]):
+            call_shapes.setdefault(callee, []).append(CallSite(caller, nargs, kwargs, star, bound))
+    return EditAnalysis(
+        rel, touched, new_calls, parse_ok=True, call_shapes=call_shapes,
+        signature_changes=_signature_changes(old, new),
+    )

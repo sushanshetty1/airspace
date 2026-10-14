@@ -107,3 +107,41 @@ def test_parse_is_test_flags():
     assert {s.name: s.is_test for s in other.symbols} == {"test_thing": True, "helper": False}
     nested = parse_module("app/tests/util.py", "def helper():\n    pass\n")
     assert nested.symbols[0].is_test is True
+
+
+def _call(facts, caller, target):
+    return next(c for c in facts.calls if c.caller == caller and c.target == target)
+
+
+def test_parse_records_call_shapes():
+    src = (
+        "def f(xs, kw):\n"
+        "    slugify(xs, True)\n"
+        "    slugify(xs, unicode=True)\n"
+        "    g(*xs)\n"
+        "    h(1, **kw)\n"
+        "    k()\n"
+    )
+    facts = parse_module("m.py", src)
+    shapes = [(c.target, c.nargs, c.kwargs, c.star) for c in facts.calls]
+    assert shapes == [
+        ("slugify", 2, (), False),
+        ("slugify", 1, ("unicode",), False),
+        ("g", 0, (), True),
+        ("h", 1, (), True),
+        ("k", 0, (), False),
+    ]
+
+
+def test_parse_marks_calls_on_a_constructed_instance():
+    facts = _parse("tags/views.py")
+    assert _call(facts, "tags.views.tag_create", "Tag.save").via_instance is True
+    assert _call(facts, "tags.views.tag_create", "Tag").via_instance is False
+    assert _call(facts, "tags.views.tag_create", "Tag").nargs == 1
+
+
+def test_call_fact_shape_fields_default():
+    from airspace.types import CallFact
+
+    c = CallFact("m.f", "g", 3)
+    assert (c.nargs, c.kwargs, c.star, c.via_instance) == (0, (), False, False)

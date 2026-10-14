@@ -1,4 +1,4 @@
-"""The airspace command: index | hook pre|post | install-hooks | status | serve | mcp | insights."""
+"""The airspace command: index | hook pre|post|any | install-hooks | status | serve | mcp | insights."""
 
 import argparse
 import json
@@ -8,10 +8,14 @@ import sys
 import time
 from pathlib import Path
 
-from airspace.hooks.handlers import Deps, default_deps, handle_post, handle_pre
+from airspace.hooks.handlers import Deps, default_deps, handle_any, handle_post, handle_pre
 
 MATCHER = "Edit|Write|MultiEdit"
-_EVENTS = {"PreToolUse": "pre", "PostToolUse": "post"}
+# Every other tool an agent uses between edits, so a briefing reaches an agent that only runs tests or reads.
+ANY_MATCHER = "Bash|Read|Grep|Glob|Task|WebFetch|WebSearch|NotebookEdit"
+# (Claude Code hook event, airspace hook, matcher)
+_HOOKS = [("PreToolUse", "pre", MATCHER), ("PreToolUse", "any", ANY_MATCHER), ("PostToolUse", "post", MATCHER)]
+_HANDLERS = {"pre": handle_pre, "post": handle_post, "any": handle_any}
 
 
 # Providers. Module level so tests can swap them.
@@ -82,8 +86,7 @@ def _cmd_hook(event: str) -> int:
         print(f"airspace: hook input is not a JSON object ({e})", file=sys.stderr)
         return 0
     try:
-        handler = handle_pre if event == "pre" else handle_post
-        out = handler(payload, _deps())
+        out = _HANDLERS[event](payload, _deps())
     except Exception as e:
         print(f"airspace: hook failed, edit not checked ({type(e).__name__}: {e})", file=sys.stderr)
         return 0
@@ -116,14 +119,14 @@ def _cmd_install_hooks(root: Path) -> int:
             return 1
     hooks = settings.setdefault("hooks", {})
     report = []
-    for hook_event, event in _EVENTS.items():
+    for hook_event, event, matcher in _HOOKS:
         entries = hooks.setdefault(hook_event, [])
         if _has_airspace_hook(entries, event):
             report.append(f"  {hook_event}: airspace hook {event} already present")
             continue
         command = _hook_command(event)
-        entries.append({"matcher": MATCHER, "hooks": [{"type": "command", "command": command}]})
-        report.append(f"  {hook_event} ({MATCHER}): {command}")
+        entries.append({"matcher": matcher, "hooks": [{"type": "command", "command": command}]})
+        report.append(f"  {hook_event} ({matcher}): {command}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2) + "\n")
     print(f"Wrote {path}")
@@ -213,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--port", type=int, default=8787, help="port to listen on (default: 8787)")
 
     hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
-    hook.add_argument("event", choices=["pre", "post"])
+    hook.add_argument("event", choices=["pre", "post", "any"])
 
     args = parser.parse_args(argv)
     if args.command == "hook":

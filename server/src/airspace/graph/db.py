@@ -16,6 +16,7 @@ _INDEXES = [
     ("Agent", "id"),
     ("Task", "id"),
     ("ContractChange", "id"),
+    ("ContractChange", "qualname"),
     ("Collision", "id"),
     ("Event", "at"),
     ("Message", "id"),
