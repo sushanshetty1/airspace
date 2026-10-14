@@ -5,8 +5,8 @@ import { ButtonLink, Container, REPO_URL } from '../ui'
 const commands = [
   'docker compose up -d falkordb',
   'cd server && uv sync',
-  'uv run airspace index --root ~/your-repo',
-  'uv run airspace install-hooks --root ~/your-repo',
+  'uv run airspace index --root ~/repo',
+  'uv run airspace install-hooks --root ~/repo',
 ]
 
 function CopyButton({ text }: { text: string }) {
@@ -62,9 +62,9 @@ export function GetStarted() {
                 <span className="font-mono text-[12px] text-faint">~/airspace</span>
                 <CopyButton text={commands.join('\n')} />
               </div>
-              <pre className="overflow-x-auto px-5 py-6 font-mono text-[14px] leading-[2]">
+              <pre className="overflow-x-auto px-5 py-6 font-mono text-[12.5px] leading-[2] whitespace-pre-wrap sm:text-[14px] sm:whitespace-pre">
                 {commands.map((c) => (
-                  <span key={c} className="block">
+                  <span key={c} className="block pl-[2ch] -indent-[2ch]">
                     <span className="text-accent select-none">$ </span>
                     <span className="text-text">{c}</span>
                   </span>

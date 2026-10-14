@@ -52,10 +52,11 @@ export function WhyGraph() {
           </Cell>
 
           <Cell className="bg-accent text-accent-ink [&_p]:text-accent-ink/75" title="A query, not a model call." body="Clearance is Cypher and a few rules. Fast, repeatable, and it never guesses." delay={0.08}>
-            <pre className="overflow-x-auto px-6 pb-8 font-mono text-[12.5px] leading-[1.75] text-accent-ink sm:px-8">
+            <pre className="overflow-x-auto px-6 pb-8 font-mono text-[12.5px] leading-[1.75] text-accent-ink sm:px-8 lg:px-6 lg:text-[12px] xl:px-8 xl:text-[12.5px]">
               {`MATCH (a:Agent)-[:FLYING]->(o:Task)
-      -[c:CLAIMS]->(:Symbol {qualname: $q})
-WHERE a.id <> $agent
+      -[c:CLAIMS]->(s:Symbol)
+WHERE s.qualname = $q
+  AND a.id <> $agent
   AND c.lease_until > $now
 RETURN o.id, a.id`}
             </pre>
