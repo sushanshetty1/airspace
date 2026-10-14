@@ -171,7 +171,7 @@ def test_collision_detail(airspace, contract_hold, clock):
     assert airspace.collision(contract_hold) == {
         "id": contract_hold, "at": 1002.0, "kind": "contract", "symbol": SLUGIFY, "caller": RENDER,
         "path": [RENDER, SLUGIFY], "held_agent": "agent-b", "held_task": "task-b", "owner_agent": "agent-a",
-        "owner_task": "task-a", "old_sig": OLD_SIG, "new_sig": NEW_SIG, "resolution": "held",
+        "owner_task": "task-a", "old_sig": OLD_SIG, "new_sig": NEW_SIG, "resolution": "held", "fix": None,
     }
 
     clock.now += 1
@@ -179,6 +179,6 @@ def test_collision_detail(airspace, contract_hold, clock):
     assert airspace.collision(claim_id) == {
         "id": claim_id, "at": 1003.0, "kind": "claim", "symbol": SLUGIFY, "caller": None, "path": [SLUGIFY],
         "held_agent": "agent-b", "held_task": "task-b", "owner_agent": "agent-a", "owner_task": "task-a",
-        "old_sig": None, "new_sig": None, "resolution": "held",
+        "old_sig": None, "new_sig": None, "resolution": "held", "fix": None,
     }
     assert airspace.collision("no-such-collision") is None

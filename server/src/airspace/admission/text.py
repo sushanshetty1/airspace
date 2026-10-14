@@ -4,6 +4,8 @@ Every message is a factual statement, never an imperative: Claude Code treats im
 possible prompt injection. No em or en dashes.
 """
 
+import time
+
 from airspace.types import Briefing
 
 
@@ -128,4 +130,52 @@ EVENT_TEXT = {
     "resolved": "cleared the collision at",
     "holding": "is holding for",
     "landed": "landed",
+    "noted": "added a note on",
 }
+
+
+# Memory. One line per item, newest first, so the block reads like the briefings above it.
+MEMORY_PREFIX = "Airspace memory: "
+MEMORY_MAX_CHARS = 1200
+MEMORY_ITEM_CHARS = 360
+
+
+def _day(at: float | None) -> str:
+    if not isinstance(at, (int, float)):
+        return ""
+    t = time.localtime(at)
+    return f"{time.strftime('%b', t)} {t.tm_mday}"
+
+
+def memory_line(item: dict) -> str:
+    """One remembered item: "Airspace memory: <symbol>: <text> (<kind>, <day>)"."""
+    body = " ".join(str(item.get("text") or "").split())
+    if len(body) > MEMORY_ITEM_CHARS:
+        body = body[: MEMORY_ITEM_CHARS - 3].rstrip() + "..."
+    if body and body[-1] not in ".!?":
+        body += "."
+    kind, agent, day = item.get("kind"), item.get("agent") or "", _day(item.get("at"))
+    if kind == "fix":
+        tag = "fix"
+    elif kind == "contract":
+        tag = f"changed by {agent}" if agent else "contract"
+    else:
+        tag = f"note by {agent}" if agent else "note"
+    tag = f"{tag}, {day}" if day else tag
+    return f"{MEMORY_PREFIX}{item.get('symbol')}: {body} ({tag})"
+
+
+def memory_block(items: list[dict], max_chars: int = MEMORY_MAX_CHARS) -> str:
+    """The items as lines, newest first, cut to max_chars by leaving out the oldest."""
+    lines: list[str] = []
+    size = 0
+    for item in items:
+        line = memory_line(item)
+        extra = len(line) + (1 if lines else 0)
+        if size + extra > max_chars:
+            if not lines:
+                lines.append(line[: max_chars - 3].rstrip() + "...")
+            break
+        lines.append(line)
+        size += extra
+    return "\n".join(lines)

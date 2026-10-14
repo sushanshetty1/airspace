@@ -13,8 +13,8 @@ import time
 import uuid
 from typing import Callable
 
-from airspace.admission import insights as memory
-from airspace.admission import text
+from airspace.admission import insights as graph_insights
+from airspace.admission import memory, text
 from airspace.admission.compat import call_fits, parse_shape
 from airspace.graph.db import ensure_schema
 from airspace.types import Briefing, CallSite, SignatureChange, Verdict
@@ -68,7 +68,7 @@ def _label(qualname: str, kind: str | None) -> str:
 READ_INTEREST_SECONDS = 900
 _TOKEN = re.compile(r"[A-Za-z_][\w./]*")
 
-class Airspace:
+class Airspace(memory.Memory):
     def __init__(self, graph, lease_seconds: int = 900, cone_depth: int = 2, clock: Callable[[], float] = time.time):
         self.graph = graph
         self.lease_seconds = lease_seconds
@@ -240,8 +240,11 @@ class Airspace:
                 self._brief(b.id, task_id, now)
             other_task, other_agent = last[4], last[5]
             old_sig, new_sig = first[2], last[3]
+            # The call as written, for the fix note when it clears: the first that does not fit, else the first.
+            unfit = [x for x in sites if new_sig and not call_fits(new_sig, x.nargs, x.kwargs, x.star, x.bound, x.used)]
+            held_call = next((x.text for x in unfit + sites if x.text), "")
             cid = self._contract_collision(
-                now, me, task_id, other_agent, other_task, callee, caller, old_sig, new_sig, last[0]
+                now, me, task_id, other_agent, other_task, callee, caller, old_sig, new_sig, last[0], held_call
             )
             self._event("hold", me, task_id, caller, now)
             if briefings:
@@ -298,7 +301,7 @@ class Airspace:
         if subject:
             self._event("cleared", me, task_id, subject, now)
         names = touched + [caller for caller, _ in new_calls] + callees
-        self._resolve(me, task_id, names, now, None if call_shapes is None else new_calls)
+        self._resolve(me, task_id, names, now, None if call_shapes is None else new_calls, call_shapes)
         return Verdict(kind="cleared", reason="")
 
     def _judgeable(self, qualname: str, new_sig: str) -> bool:
@@ -311,11 +314,13 @@ class Airspace:
     def _resolve(
         self, agent: str, task_id: str, qualnames: list[str], now: float,
         cleared_calls: list[tuple[str, str]] | None = None,
+        call_shapes: dict[str, list[CallSite]] | None = None,
     ) -> None:
         """A cleared edit by the held task on the contested symbol means the collision has been worked out.
 
         When the check carried call shapes, a contract collision is resolved only by a cleared call on the same
-        (caller, symbol) pair: that call was checked and fits, so the broken call has been fixed.
+        (caller, symbol) pair: that call was checked and fits, so the broken call has been fixed. That fix is written
+        to memory as a `fix` note about the changed symbol and the caller, for every later agent that touches them.
         """
         if not qualnames:
             return
@@ -332,11 +337,29 @@ class Airspace:
             f"""MATCH (x:Collision {{held_task: $task, resolution: 'held'}})
             WHERE {where}
             SET x.resolution = 'resolved', x.resolved_at = $now
-            RETURN x.symbol ORDER BY x.at, x.seq""",
+            RETURN x.symbol, x.id, x.kind, x.caller, x.held_agent, x.owner_agent, x.new_sig, x.held_call
+            ORDER BY x.at, x.seq""",
             params,
         )
-        for (symbol,) in rows:
+        for symbol, cid, kind, caller, held_agent, owner_agent, new_sig, held_call in rows:
             self._event("resolved", agent, task_id, symbol, now)
+            if kind == "contract" and cleared_calls is not None:
+                fixed = next((x.text for x in (call_shapes or {}).get(symbol, []) if x.caller == caller and x.text), "")
+                self._fix_note(cid, held_agent or agent, task_id, owner_agent or "another agent", symbol, caller,
+                               new_sig or "", held_call or "", fixed, now)
+
+    def _fix_note(
+        self, collision_id: str, held_agent: str, task_id: str, owner_agent: str, symbol: str, caller: str | None,
+        new_sig: str, held_call: str, fixed_call: str, now: float,
+    ) -> None:
+        """The note a resolved contract collision leaves, about the changed symbol and the caller that was fixed."""
+        text_ = memory.fix_text(held_agent, owner_agent, symbol, new_sig, held_call, fixed_call)
+        about = [symbol] + ([caller] if caller and caller != symbol else [])
+        nid = self._write_note(held_agent, task_id, about, text_, "fix", now)
+        self._q(
+            "MATCH (x:Collision {id: $id}) SET x.fixed_call = $fixed, x.fix_note = $note",
+            {"id": collision_id, "fixed": fixed_call, "note": nid},
+        )
 
     def _brief(self, change_id: str, task_id: str, now: float) -> None:
         self._q(
@@ -349,7 +372,7 @@ class Airspace:
     def _collide(
         self, kind: str, now: float, held_agent: str, held_task: str, owner_agent: str, owner_task: str, symbol: str,
         caller: str | None = None, old_sig: str | None = None, new_sig: str | None = None,
-        change_id: str | None = None,
+        change_id: str | None = None, held_call: str = "",
     ) -> str:
         # Append-only: collisions are history the planner learns hot zones from.
         cid = uuid.uuid4().hex
@@ -358,11 +381,13 @@ class Airspace:
             {_NEXT_SEQ}
             CREATE (x:Collision {{id: $id, at: $now, seq: n.value, kind: $kind, resolution: 'held',
                     held_agent: $held_agent, held_task: $held_task, owner_agent: $owner_agent, owner_task: $owner_task,
-                    symbol: $symbol, caller: $caller, old_sig: $old_sig, new_sig: $new_sig, change_id: $change_id}})
+                    symbol: $symbol, caller: $caller, old_sig: $old_sig, new_sig: $new_sig, change_id: $change_id,
+                    held_call: $held_call}})
             CREATE (x)-[:BETWEEN]->(me), (x)-[:BETWEEN]->(o)""",
             {"seq_name": "collision", "id": cid, "now": now, "kind": kind, "held_agent": held_agent,
              "held_task": held_task, "owner_agent": owner_agent, "owner_task": owner_task, "symbol": symbol,
-             "caller": caller, "old_sig": old_sig, "new_sig": new_sig, "change_id": change_id},
+             "caller": caller, "old_sig": old_sig, "new_sig": new_sig, "change_id": change_id,
+             "held_call": held_call or None},
         )
         # A removed symbol may already be gone from the code graph; the collision is recorded all the same.
         self._q(
@@ -373,20 +398,25 @@ class Airspace:
 
     def _contract_collision(
         self, now: float, held_agent: str, held_task: str, owner_agent: str, owner_task: str, symbol: str,
-        caller: str, old_sig: str, new_sig: str, change_id: str,
+        caller: str, old_sig: str, new_sig: str, change_id: str, held_call: str = "",
     ) -> str:
-        """The open collision for this call and signature, or a new one: a call held again is the same collision."""
+        """The open collision for this call and signature, or a new one: a call held again is the same collision.
+
+        `held_call` is the call as written; the first one known stays on the collision for its fix note.
+        """
         rows = self._q(
             """MATCH (x:Collision {kind: 'contract', resolution: 'held', held_task: $task, symbol: $symbol,
                                    caller: $caller, new_sig: $new_sig})
-            RETURN x.id ORDER BY x.at, x.seq LIMIT 1""",
-            {"task": held_task, "symbol": symbol, "caller": caller, "new_sig": new_sig},
+            WITH x ORDER BY x.at, x.seq LIMIT 1
+            SET x.held_call = coalesce(x.held_call, $call)
+            RETURN x.id""",
+            {"task": held_task, "symbol": symbol, "caller": caller, "new_sig": new_sig, "call": held_call or None},
         )
         if rows:
             return rows[0][0]
         return self._collide(
             "contract", now, held_agent, held_task, owner_agent, owner_task, symbol,
-            caller=caller, old_sig=old_sig, new_sig=new_sig, change_id=change_id,
+            caller=caller, old_sig=old_sig, new_sig=new_sig, change_id=change_id, held_call=held_call,
         )
 
     # Contract changes and briefings
@@ -660,7 +690,7 @@ class Airspace:
         for v in {(v["caller"], v["symbol"]): v for v in violations}.values():
             self._contract_collision(
                 now, me, task_id, v["agent"], v["task"], v["symbol"], v["caller"], v["old_sig"], v["new_sig"],
-                v["change_id"],
+                v["change_id"], v["call"],
             )
             self._brief(v["change_id"], task_id, now)
 
@@ -1014,10 +1044,12 @@ class Airspace:
         detail["path"] = [detail["caller"], detail["symbol"]] if detail["caller"] else [detail["symbol"]]
         order = ("id", "at", "kind", "symbol", "caller", "path", "held_agent", "held_task", "owner_agent",
                  "owner_task", "old_sig", "new_sig", "resolution")
-        return {k: detail[k] for k in order}
+        # The note a resolved contract collision left, or None.
+        return {**{k: detail[k] for k in order}, "fix": memory.note_for_collision(self.graph, collision_id)}
 
     def insights(self) -> dict:
         return {
-            "hot_zones": memory.hot_zones(self.graph),
-            "parallel_groups": memory.parallel_groups(self.graph, self.clock()),
+            "hot_zones": graph_insights.hot_zones(self.graph),
+            "parallel_groups": graph_insights.parallel_groups(self.graph, self.clock()),
+            "notes": memory.recent(self.graph, 5),
         }

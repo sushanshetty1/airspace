@@ -313,6 +313,30 @@ def _summary(groups: list[dict], n_tasks: int) -> str:
     return f"{head} {'; '.join(parts)}."
 
 
+def _past(graph, planned: list[dict]) -> tuple[list[dict], str]:
+    """Each task's history over its symbols and cone, and one sentence naming the symbol in play that collided most
+    before (ties to the earlier task, then the name), or "" when nothing in play has collided."""
+    from airspace.admission import memory
+
+    histories = []
+    worst: tuple[int, int, str, str] | None = None  # (-collisions, task index, qualname, task name)
+    for i, t in enumerate(planned):
+        qs = [*t["symbols"], *t["_cone"]]
+        found = memory.history(graph, qs)
+        histories.append({k: found[k] for k in ("collisions", "notes", "changes")})
+        for q, n in memory.collision_counts(graph, qs).items():
+            key = (-n, i, q, t["name"])
+            if n > 0 and (worst is None or key < worst):
+                worst = key
+    if worst is None:
+        return histories, ""
+    return histories, f"{worst[3]} touches {worst[2]}, which collided {_times(-worst[0])} before."
+
+
+def _times(n: int) -> str:
+    return {1: "once", 2: "twice"}.get(n, f"{n} times")
+
+
 def preflight(graph, tasks: list[dict], depth: int = 2) -> dict:
     """Plan `tasks` ([{"name", "symbols"}], 2 to 6, each 1 to 10 symbols) on the code graph. Raises PreflightError.
 
@@ -338,16 +362,18 @@ def preflight(graph, tasks: list[dict], depth: int = 2) -> dict:
     groups = [{"tasks": g, "coordinate": len(g) > 1} for g in _groups(graph, names, meets)]
 
     in_play = {q for t in planned for q in (*t["symbols"], *t["_cone"])}
+    histories, past = _past(graph, planned)
+    summary = _summary(groups, len(planned))
     return {
         "tasks": [
             {"name": t["name"], "symbols": t["symbols"], "cone": len(t["_cone"]),
-             "cone_sample": _nearest(t["_cone"])[:SAMPLE]}
-            for t in planned
+             "cone_sample": _nearest(t["_cone"])[:SAMPLE], "history": h}
+            for t, h in zip(planned, histories)
         ],
         "pairs": pairs,
         "groups": groups,
         "hot": _hot(graph, in_play),
-        "summary": _summary(groups, len(planned)),
+        "summary": f"{summary} {past}" if past else summary,
     }
 
 
@@ -376,7 +402,7 @@ def as_text(answer: dict) -> str:
     lines.append("")
     lines.append("Tasks")
     for t in answer["tasks"]:
-        lines.append(f"  {t['name']}: {', '.join(t['symbols'])} (cone {t['cone']})")
+        lines.append(f"  {t['name']}: {', '.join(t['symbols'])} (cone {t['cone']}){_earlier(t.get('history'))}")
     lines.append("")
     lines.append(f"Pairs ({len(answer['pairs'])})")
     for p in answer["pairs"]:
@@ -392,6 +418,15 @@ def as_text(answer: dict) -> str:
     for h in answer["hot"]:
         lines.append(f"  {h['qualname']}  betweenness {h['betweenness']}")
     return "\n".join(lines)
+
+
+def _earlier(history: dict | None) -> str:
+    """", from earlier sessions: 3 collisions, 2 notes" for a task with a past, else ""."""
+    if not history:
+        return ""
+    names = {"collisions": ("collision", "collisions"), "notes": ("note", "notes"), "changes": ("change", "changes")}
+    parts = [f"{history[k]} {names[k][history[k] != 1]}" for k in names if history.get(k)]
+    return f", from earlier sessions: {', '.join(parts)}" if parts else ""
 
 
 def error_text(e: PreflightError) -> str:

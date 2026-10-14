@@ -145,6 +145,20 @@ class Agent:
         self._note(out)
         return out
 
+    def prompt(self, text: str):
+        """UserPromptSubmit: the task the agent was given."""
+        from airspace.hooks.handlers import handle_prompt
+
+        payload = {"session_id": self.session, "cwd": str(self.repo), "hook_event_name": "UserPromptSubmit",
+                   "prompt": text}
+        out = handle_prompt(payload, self.deps, self.env)
+        self._note(out)
+        return out
+
+    def read(self, rel: str):
+        """PreToolUse Read of a file of the repo."""
+        return self.other_tool("Read", {"file_path": str(self.repo / rel)})
+
     def other_tool(self, tool: str = "Bash", tool_input: dict | None = None):
         from airspace.hooks.handlers import handle_any
 

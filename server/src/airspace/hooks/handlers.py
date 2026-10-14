@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from airspace.admission.text import BRANCH_NOTE, LOCAL_NOTE, NOT_HERE_NOTE, briefing_line, landing_hold
+from airspace.admission.text import BRANCH_NOTE, LOCAL_NOTE, NOT_HERE_NOTE, briefing_line, landing_hold, memory_block
 from airspace.remote import RemoteError
 from airspace.types import Briefing, CallSite, EditAnalysis, SignatureChange
 
@@ -22,6 +22,10 @@ EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
 UNAVAILABLE = "airspace: FalkorDB unavailable, edit not checked"
 ANY_UNAVAILABLE = "airspace: FalkorDB unavailable, briefings not delivered"
 STOP_UNAVAILABLE = "airspace: FalkorDB unavailable, landing not checked"
+
+# How many remembered items one delivery carries. A Read gets fewer: it is the most frequent tool call.
+MEMORY_ITEMS = 8
+MEMORY_ITEMS_READ = 5
 
 # The holding pattern. Inside the 300 s timeout install-hooks gives the Stop hook.
 STOP_WAIT_SECONDS = 240.0
@@ -120,6 +124,22 @@ def _messages(airspace, agent: str, task: str) -> list[str]:
         return []
 
 
+def _memory(airspace, task: str, names: list[str], limit: int = MEMORY_ITEMS) -> str:
+    """The memory block for these symbols or files: what the graph remembers that this task has not heard yet.
+
+    Like messages, a failure is noted and skipped: memory never costs a hold its deny or changes a verdict.
+    """
+    names = [n for n in dict.fromkeys(names) if n]
+    if not names:
+        return ""
+    try:
+        return memory_block(list(airspace.memory_for_task(task, names, limit)))
+    except Exception as e:
+        detail = " ".join(str(e).split()) or type(e).__name__
+        _note(f"airspace: {type(e).__name__} ({detail}), memory not delivered")
+        return ""
+
+
 def _on_disk(root: Path, qualname: str, new_sig: str) -> bool:
     """Whether this working copy already has a contract change: the new signature, or the symbol gone if removed."""
     from airspace.indexer.parse import parse_module
@@ -161,8 +181,8 @@ def _rename_hint(text: str, airspace, symbols: list[str]) -> str:
     return text + ("\n" + " ".join(hints) if hints else "")
 
 
-def _context(event: str, briefings: list[Briefing], messages: list[str]) -> dict | None:
-    parts = [p for p in (briefing_context(briefings), message_context(messages)) if p]
+def _context(event: str, briefings: list[Briefing], messages: list[str], memory: str = "") -> dict | None:
+    parts = [p for p in (briefing_context(briefings), message_context(messages), memory) if p]
     if not parts:
         return None
     return {"hookSpecificOutput": {"hookEventName": event, "additionalContext": "\n".join(parts)}}
@@ -194,9 +214,12 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
             # Recorded before the file is written, so a concurrent agent sees the change at once.
             # The post hook reports it again and record_changes skips the repeat.
             airspace.record_changes(task, changes)
+        # What the graph remembers about the code this edit touches and calls, after the briefings it was given.
+        about = analysis.touched + removed + [callee for _, callee in analysis.new_calls]
         if verdict.kind == "hold":
             # A message sent while the agent is held reaches it in this deny reason, not only on a later clear.
             messages = message_context(_messages(airspace, agent, task))
+            memory = _memory(airspace, task, about)
             return {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
@@ -205,10 +228,13 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
                         _localize(verdict.reason, root, [(b.symbol, b.new_signature) for b in verdict.briefings]),
                         airspace, [b.symbol for b in verdict.briefings] + verdict.path[-1:],
                     )
-                    + ("\n" + messages if messages else ""),
+                    + ("\n" + messages if messages else "")
+                    + ("\n" + memory if memory else ""),
                 }
             }
-        return _context("PreToolUse", airspace.pending_briefings(task), _messages(airspace, agent, task))
+        briefings = airspace.pending_briefings(task)
+        messages = _messages(airspace, agent, task)
+        return _context("PreToolUse", briefings, messages, _memory(airspace, task, about))
     except Exception as e:
         _failed(e)
         return None
@@ -271,11 +297,13 @@ def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
     except Exception as e:
         _unavailable(ANY_UNAVAILABLE, e)
         return None
+    read = None
     if payload.get("tool_name") == "Read":
         rel = _rel_path(root, str((payload.get("tool_input") or {}).get("file_path") or ""))
         if rel and rel.endswith(".py"):
             try:
                 airspace.note_reading(agent, task, rel)
+                read = rel
             except Exception as e:
                 _failed(e)
     try:
@@ -284,7 +312,10 @@ def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
         detail = " ".join(str(e).split()) or type(e).__name__
         _note(f"airspace: {type(e).__name__} ({detail}), briefings not delivered")
         briefings = []
-    return _context("PreToolUse", briefings, _messages(airspace, agent, task))
+    messages = _messages(airspace, agent, task)
+    # Reading a file: what the graph remembers about the symbols it defines.
+    memory = _memory(airspace, task, [read], MEMORY_ITEMS_READ) if read else ""
+    return _context("PreToolUse", briefings, messages, memory)
 
 
 def _note_seen(airspace, root: Path, rel: str) -> None:
@@ -326,7 +357,8 @@ def handle_reconcile(payload: dict, deps: Deps, env: Mapping[str, str] = os.envi
 
 
 def handle_prompt(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -> dict | None:
-    """UserPromptSubmit: note the files the task names as interest, so agents landing early wait for this one."""
+    """UserPromptSubmit: note the files the task names as interest, so agents landing early wait for this one, and
+    tell the agent what the graph remembers about that code before it starts."""
     prompt = payload.get("prompt")
     if not isinstance(prompt, str) or not prompt.strip():
         return None
@@ -337,10 +369,11 @@ def handle_prompt(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ
         _unavailable(UNAVAILABLE.replace("edit not checked", "task not noted"), e)
         return None
     try:
-        airspace.note_interest_from_text(agent, task, prompt)
+        files = list(airspace.note_interest_from_text(agent, task, prompt))
     except Exception as e:
         _failed(e, "task not noted")
-    return None
+        return None
+    return _context("UserPromptSubmit", [], [], _memory(airspace, task, files))
 
 
 def _fingerprint(violations: list[dict]) -> str:

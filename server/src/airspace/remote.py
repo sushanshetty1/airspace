@@ -278,6 +278,26 @@ class RemoteAirspace:
     def insights(self) -> dict:
         return self._call("insights")
 
+    # Memory
+
+    def remember(self, agent_id: str, task_id: str | None, qualnames: list[str], text: str, kind: str = "note") -> str:
+        return self._call("remember", agent_id, task_id, qualnames, text, kind)
+
+    def recall(self, qualnames: list[str], exclude_task: str | None = None, limit: int = 8) -> list[dict]:
+        return self._call("recall", qualnames, exclude_task, limit)
+
+    def memory_for_task(self, task_id: str, qualnames: list[str], limit: int = 8) -> list[dict]:
+        return self._call("memory_for_task", task_id, qualnames, limit)
+
+    def history(self, qualnames: list[str]) -> dict:
+        return self._call("history", qualnames)
+
+    def recent_notes(self, limit: int = 20) -> list[dict]:
+        return self._call("recent_notes", limit)
+
+    def lookup_symbols(self, names: list[str]) -> dict:
+        return self._call("lookup_symbols", names)
+
     def preflight(self, tasks: list[dict], depth: int = 2) -> dict:
         """Pre-flight on the workspace graph. Raises PreflightError, with the server's suggestions, as locally."""
         return remote_preflight(self.client, tasks, depth)
