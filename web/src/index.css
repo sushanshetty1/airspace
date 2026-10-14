@@ -171,6 +171,54 @@ body {
   }
 }
 
+/* The replay scrubber: a hairline track, filled in orange up to the thumb (--p). */
+.scrub {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+.scrub::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--p, 0%), var(--line-strong) var(--p, 0%));
+}
+.scrub::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--p, 0%), var(--line-strong) var(--p, 0%));
+}
+.scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 0;
+}
+.scrub::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 0;
+}
+/* Keyboard focus rings the thumb, not the whole track. */
+.scrub:focus-visible {
+  outline: none;
+}
+.scrub:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.scrub:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .display {
   font-weight: 600;
   letter-spacing: -0.035em;

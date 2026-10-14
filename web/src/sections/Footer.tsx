@@ -1,5 +1,5 @@
 import { ArrowRight, ArrowUpRight } from '@phosphor-icons/react'
-import { ButtonLink, Container, REPO_URL, Wordmark } from '../ui'
+import { ButtonLink, Container, REPO_URL, sectionHref, Wordmark } from '../ui'
 
 const columns = [
   {
@@ -9,6 +9,7 @@ const columns = [
       { label: 'Tower', href: '#tower' },
       { label: 'Why a graph', href: '#graph' },
       { label: 'Results', href: '#proof' },
+      { label: 'Playground', href: '/playground' },
     ],
   },
   {
@@ -35,14 +36,14 @@ export function Footer() {
       <Container className="py-20 sm:py-28">
         <div className="flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
           <h2 className="display max-w-[720px] text-[40px] text-balance sm:text-[60px]">Let your agents fly together.</h2>
-          <ButtonLink href="#start" className="self-start lg:self-auto">
+          <ButtonLink href={sectionHref('start')} className="self-start lg:self-auto">
             Get started <ArrowRight size={16} weight="bold" className="transition-transform group-hover:translate-x-0.5" />
           </ButtonLink>
         </div>
 
         <div className="mt-20 grid gap-12 border-t border-line pt-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
-            <a href="#top">
+            <a href={sectionHref('top')}>
               <Wordmark />
             </a>
             <p className="mt-5 max-w-[300px] text-[14px] leading-relaxed text-muted">
@@ -55,7 +56,7 @@ export function Footer() {
               <ul className="mt-4 space-y-3">
                 {col.links.map((l) => (
                   <li key={l.label}>
-                    <a href={l.href} className="group inline-flex items-center gap-1.5 text-[15px] text-muted transition-colors hover:text-text">
+                    <a href={l.href.startsWith('#') ? sectionHref(l.href.slice(1)) : l.href} className="group inline-flex items-center gap-1.5 text-[15px] text-muted transition-colors hover:text-text">
                       {l.label}
                       {'external' in l && l.external && <ArrowUpRight size={13} weight="bold" className="opacity-0 transition-opacity group-hover:opacity-100" />}
                     </a>
