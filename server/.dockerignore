@@ -1,0 +1,17 @@
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.claude
+node_modules
+dist
+build
+*.egg-info
+.env
+.DS_Store
+
+# Tests are not shipped, except the demo repository the image indexes.
+tests
+!tests/fixtures/blog
