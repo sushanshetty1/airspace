@@ -63,7 +63,8 @@ def write_summary(out_dir: Path) -> dict:
 
 
 SET_ORDER = ("slugify-keyword-only", "truncate-words-limit", "rename-absolute-url", "render-post-show-body",
-             "post-requires-author", "tag-save-returns-none")
+             "post-requires-author", "tag-save-returns-none",
+             "flask-flash-categories", "flask-debug-rename", "flask-send-file-name")
 
 
 def web_summary(out_dir: Path) -> dict:

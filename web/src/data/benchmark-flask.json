@@ -1,0 +1,81 @@
+{
+  "conditions": {
+    "worktrees": {
+      "pairs": 9,
+      "merged_pass": 0,
+      "merged_pass_rate": 0.0,
+      "median_wall_seconds": 34.9,
+      "cost_usd": 3.24,
+      "holds": 0
+    },
+    "broadcast": {
+      "pairs": 9,
+      "merged_pass": 5,
+      "merged_pass_rate": 0.556,
+      "median_wall_seconds": 40.2,
+      "cost_usd": 3.35,
+      "holds": 0
+    },
+    "airspace": {
+      "pairs": 9,
+      "merged_pass": 9,
+      "merged_pass_rate": 1.0,
+      "median_wall_seconds": 40.5,
+      "cost_usd": 3.73,
+      "holds": 9
+    }
+  },
+  "sets": {
+    "flask-flash-categories": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        true,
+        true,
+        true
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    },
+    "flask-debug-rename": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        false,
+        false,
+        false
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    },
+    "flask-send-file-name": {
+      "worktrees": [
+        false,
+        false,
+        false
+      ],
+      "broadcast": [
+        true,
+        true,
+        false
+      ],
+      "airspace": [
+        true,
+        true,
+        true
+      ]
+    }
+  }
+}

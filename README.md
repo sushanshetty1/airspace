@@ -61,6 +61,22 @@ Your agents work in their own Claude Code terminals. **Tower** is the web app wh
 
 Hot zones, the symbols where agents collide most across sessions, come from `airspace insights` and the `hot_zones` MCP tool.
 
+### Pre-flight: plan parallel work before any agent starts
+
+Write the tasks you are about to hand out and the symbols each will change. Pre-flight answers from the graph, before anyone edits anything: which tasks can run in parallel, which must coordinate, and the path between them. On Flask, five tasks give three groups:
+
+```text
+$ airspace preflight --root flask \
+    --task "Routing: Scaffold.route" --task "Rule registration: Scaffold.add_url_rule" \
+    --task "Error handlers: Flask.handle_user_exception" --task "Error lookup: App._find_error_handler" \
+    --task "Debug flag: get_debug_flag"
+
+Three groups. Routing and Rule registration must coordinate; Error handlers and Error lookup must coordinate;
+Debug flag can run in parallel.
+```
+
+Each task's impact cone is a Cypher traversal over `CALLS|COVERS|INHERITS`; the explanation is `shortestPath`; the groups are `algo.WCC` over the pairs that meet; hot spots are `algo.betweenness`. Try it on Flask at [airspace.sushans.dev/preflight](https://airspace.sushans.dev/preflight), from the CLI, or from an orchestrator through the `preflight` MCP tool.
+
 ### Why a graph
 
 | | |
@@ -154,6 +170,38 @@ RETURN k.fence
 
 ## Does it work?
 
+### On Flask
+
+Real code, real agents: [Flask](https://github.com/pallets/flask) at a pinned commit (83 Python files, 894 symbols), graded with Flask's own 491 tests plus a hidden test for each agent. Agent A changes part of Flask's public API while agent B, on its own branch, adds a feature that uses it.
+
+| Condition | Merged build green | Median time per pair | Cost per pair |
+| --- | --- | --- | --- |
+| Worktrees only | **0 of 9** | 35 s | $0.36 |
+| Broadcast | **5 of 9** | 40 s | $0.37 |
+| Airspace | **9 of 9** | 41 s | $0.41 |
+
+| What agent A changes while agent B calls it | Worktrees | Broadcast | Airspace |
+| --- | --- | --- | --- |
+| `get_flashed_messages` renames `category_filter` to `categories` | 0 / 3 | 3 / 3 | 3 / 3 |
+| `get_debug_flag` is renamed to `get_debug_env` | 0 / 3 | 0 / 3 | 3 / 3 |
+| `send_file` renames `download_name` to `filename` | 0 / 3 | 2 / 3 | 3 / 3 |
+
+Every run is in [`server/bench/results/flask`](server/bench/results/flask). The first Flask run ([`flask-v1`](server/bench/results/flask-v1), 7 of 9) found a real bug: with agents on separate worktrees sharing one graph, re-indexing a file from a worktree that never had the other agent's change read as a change back to the old signature. A re-index now only counts changes to symbols the agent's own edits touched, and the graph keeps the newest contract.
+
+**On a real repo, the graph holds up.**
+
+| | Flask |
+| --- | --- |
+| Index the whole repo | 0.44 s |
+| Calls resolved to a symbol in the repo | 845 (up from 194 before src layouts, package re-exports, base classes and local instances were handled) |
+| Test coverage edges | 434 |
+| Hook latency, as Claude Code runs it (a new process per edit) | 193 ms median before an edit, 181 ms after |
+| Pre-flight plan for five tasks | about 20 ms |
+
+What stays unresolved is mostly calls into the standard library, third-party packages and builtins, which are not part of the repo, and calls on pytest fixtures, whose type Airspace does not guess.
+
+### On a sample repo, six kinds of change
+
 Two real Claude Code agents work at the same time on one small repo. Agent A changes a contract (a keyword argument, a parameter, a method name, a constructor, a return value) while agent B writes new code that calls it. Each pair runs under three conditions, three times each, graded after [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396): both agents' hidden tests run on the merge of their branches.
 
 | Condition | Merged build green | Median time per pair | Cost per pair |
@@ -188,11 +236,11 @@ Every run is in [`server/bench/results/final`](server/bench/results/final): both
 | [`server/src/airspace/graph`](server/src/airspace/graph) | FalkorDB connection, schema, indexes and the Cypher above |
 | [`server/src/airspace/admission`](server/src/airspace/admission) | Claims, cones, clearance, call-shape checks, briefings, the landing check, insights |
 | [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code hooks: clearance before an edit, reindex after it, git reconcile after shell commands, briefings on every tool call, the holding pattern at `Stop` |
-| [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `check_symbols`, `briefings`, `explain`, `hot_zones` |
+| [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `check_symbols`, `briefings`, `explain`, `hot_zones`, `preflight` |
 | [`server/src/airspace/api`](server/src/airspace/api) | HTTP, server-sent events, Tower actions, replay and the playground |
 | [`server/src/airspace/cloud`](server/src/airspace/cloud) | GitHub sign-in, workspaces (one graph each), keys, and the RPC endpoint connected hooks call |
 | [`server/src/airspace/remote.py`](server/src/airspace/remote.py) | The client side: `airspace connect`, and hooks that send engine calls to the hosted server |
-| [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness |
+| [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness, on the sample repo or Flask (`--suite flask`) |
 | [`web`](web) | The site and Tower: live radar, activity, collisions, pause, message and release, replay, playground (Vite, React) |
 | [`docs/notes.md`](docs/notes.md) | Research, plan and decisions |
 
@@ -261,6 +309,8 @@ The website lives in `web/` (`npm install && npm run dev`).
 - [x] Tower playground and replay mode
 - [x] Hot-zone memory across sessions
 - [x] Benchmark: worktrees vs broadcast vs Airspace
+- [x] A real repo: Flask indexed, benchmarked with real agents, and planned with pre-flight
+- [x] Hosted workspaces with GitHub sign-in
 - [x] Live deployment at [airspace.sushans.dev](https://airspace.sushans.dev)
 - [ ] Demo video and write-up
 - [ ] TypeScript and Go through tree-sitter

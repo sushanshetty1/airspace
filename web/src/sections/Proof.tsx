@@ -1,5 +1,7 @@
 import { ArrowUpRight } from '@phosphor-icons/react'
-import bench from '../data/benchmark.json'
+import { useState } from 'react'
+import blogBench from '../data/benchmark.json'
+import flaskBench from '../data/benchmark-flask.json'
 import { Container, PAPER_URL, REPO_URL, SectionHeading } from '../ui'
 
 type Condition = 'worktrees' | 'broadcast' | 'airspace'
@@ -18,9 +20,32 @@ const setNames: Record<string, string> = {
   'render-post-show-body': 'A required parameter is added',
   'post-requires-author': 'A constructor gains an argument',
   'tag-save-returns-none': 'A method stops returning a value',
+  'flask-flash-categories': 'get_flashed_messages renames a keyword',
+  'flask-debug-rename': 'get_debug_flag is renamed',
+  'flask-send-file-name': 'send_file renames a keyword',
 }
 
-const RESULTS_URL = `${REPO_URL}/tree/main/server/bench/results/final`
+type Totals = { pairs: number; merged_pass: number; median_wall_seconds: number; cost_usd: number }
+type Bench = { conditions: Record<Condition, Totals>; sets: Record<string, Record<Condition, boolean[]>> }
+
+const suites: { id: string; label: string; data: Bench; results: string; where: string; note: string }[] = [
+  {
+    id: 'flask',
+    label: 'Flask',
+    data: flaskBench,
+    results: 'flask',
+    where: 'on Flask',
+    note: "Flask's real code: 83 files, graded with its own 491 tests plus a hidden test for each agent. Agent A changes part of Flask's public API while agent B adds a feature that uses it.",
+  },
+  {
+    id: 'blog',
+    label: 'Sample blog',
+    data: blogBench,
+    results: 'final',
+    where: 'on the sample blog',
+    note: 'A small blog app with six kinds of contract change. Constructed tasks show that coordination works, not how often the problem happens in practice.',
+  },
+]
 
 function Runs({ runs, ours }: { runs: boolean[]; ours?: boolean }) {
   return (
@@ -36,6 +61,10 @@ function Runs({ runs, ours }: { runs: boolean[]; ours?: boolean }) {
 }
 
 export function Proof() {
+  const [suiteId, setSuiteId] = useState('flask')
+  const suite = suites.find((x) => x.id === suiteId) ?? suites[0]
+  const bench = suite.data
+  const RESULTS_URL = `${REPO_URL}/tree/main/server/bench/results/${suite.results}`
   const c = bench.conditions
   const ours = c.airspace
   return (
@@ -46,7 +75,22 @@ export function Proof() {
           lede="Two real Claude Code agents per task, at the same time, on the same repo. Each pair runs three ways, three times. What counts is whether the merged build passes its tests."
         />
 
-        <div className="mt-12 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <div role="tablist" aria-label="Benchmark repo" className="mt-10 inline-flex rounded-[10px] p-1 shadow-[inset_0_0_0_1px_var(--line)]">
+          {suites.map((x) => (
+            <button
+              key={x.id}
+              type="button"
+              role="tab"
+              aria-selected={x.id === suite.id}
+              onClick={() => setSuiteId(x.id)}
+              className={`h-9 rounded-[7px] px-4 text-[14px] font-semibold transition-colors ${x.id === suite.id ? 'bg-surface-2 text-text' : 'text-muted hover:text-text'}`}
+            >
+              {x.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
           <div className="flex flex-col justify-between rounded-[14px] border border-line bg-surface p-7 sm:p-9">
             <div>
               <p className="display text-[88px] sm:text-[112px]">
@@ -54,7 +98,7 @@ export function Proof() {
                 <span className="text-faint">/{ours.pairs}</span>
               </p>
               <p className="mt-4 max-w-[34ch] text-[16px] leading-relaxed text-muted text-pretty">
-                parallel pairs merged green with Airspace. {c.worktrees.merged_pass} of {c.worktrees.pairs} with worktrees alone,{' '}
+                parallel pairs {suite.where} merged green with Airspace. {c.worktrees.merged_pass} of {c.worktrees.pairs} with worktrees alone,{' '}
                 {c.broadcast.merged_pass} of {c.broadcast.pairs} when each agent knew the other's task.
               </p>
             </div>
@@ -126,8 +170,7 @@ export function Proof() {
           ))}
         </div>
         <p className="mt-5 max-w-[760px] text-[14px] leading-relaxed text-muted text-pretty">
-          Each square is one run of two agents; filled means the merge passed every test, both agents' hidden tests included. These are constructed tasks on a
-          small repo. They show that coordination works, not how often the problem happens in practice.
+          Each square is one run of two agents; filled means the merge passed every test, both agents' hidden tests included. {suite.note}
         </p>
       </Container>
     </section>
