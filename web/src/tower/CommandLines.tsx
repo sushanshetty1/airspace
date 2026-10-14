@@ -14,6 +14,8 @@ export function CommandLines({ lines }: { lines: string[] }) {
               <span className={word.length > 24 ? '[overflow-wrap:anywhere]' : 'whitespace-nowrap'}>{word}</span>
             </span>
           ))}
+          {/* A real line break, so selecting the commands and copying them gives one command per line. */}
+          <br />
         </span>
       ))}
     </>
