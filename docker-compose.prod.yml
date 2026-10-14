@@ -23,6 +23,11 @@ services:
     environment:
       FALKORDB_HOST: falkordb
       FALKORDB_PORT: "6379"
+      # Sign-in and workspaces. Unset, the site works and sign-in says it is not configured.
+      AIRSPACE_PUBLIC_URL: ${AIRSPACE_PUBLIC_URL:-}
+      AIRSPACE_SECRET: ${AIRSPACE_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
     depends_on:
       falkordb:
         condition: service_healthy
