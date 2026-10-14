@@ -1,3 +1,4 @@
+import { ArrowRight } from '@phosphor-icons/react'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { Container, SectionHeading, Sign } from '../ui'
@@ -76,6 +77,13 @@ RETURN o.id, a.id`}
                 <Group name="Free to run" tasks={[{ id: 'agent-c', color: 'var(--text)' }]} />
                 <Group name="Free to run" tasks={[{ id: 'agent-d', color: 'var(--text)' }]} />
               </div>
+              <a
+                href="/preflight"
+                className="group mt-3 inline-flex items-center gap-1.5 justify-self-start text-[15px] font-semibold text-text underline decoration-line-strong underline-offset-4 hover:decoration-text"
+              >
+                Plan your own tasks
+                <ArrowRight size={14} weight="bold" className="transition-transform group-hover:translate-x-0.5" />
+              </a>
             </div>
           </Cell>
 

@@ -9,6 +9,7 @@ const columns = [
       { label: 'Tower', href: '#tower' },
       { label: 'Why a graph', href: '#graph' },
       { label: 'Results', href: '#proof' },
+      { label: 'Pre-flight', href: '/preflight' },
       { label: 'Playground', href: '/playground' },
     ],
   },
