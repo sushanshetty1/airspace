@@ -8,18 +8,20 @@ export type LogEntry = {
   time: string
   verdict: Verdict
   agent: AgentKey
-  subject: string
+  /** What happened, as a sentence after the agent's name. Code in `code`. */
+  text: string
+  code: string
 }
 
 // One run, start to finish. Step n shows everything up to and including entry n.
 export const log: LogEntry[] = [
-  { step: 1, time: '10:42:03', verdict: 'FILED', agent: 'a', subject: 'utils.text.slugify' },
-  { step: 2, time: '10:42:05', verdict: 'FILED', agent: 'b', subject: 'blog.views.render_post' },
-  { step: 3, time: '10:42:19', verdict: 'CLEARED', agent: 'a', subject: 'utils/text.py' },
-  { step: 4, time: '10:42:20', verdict: 'CONTRACT', agent: 'a', subject: 'slugify(value, *, unicode=False)' },
-  { step: 5, time: '10:42:31', verdict: 'HOLD', agent: 'b', subject: 'blog/views.py calls slugify' },
-  { step: 6, time: '10:42:31', verdict: 'BRIEFED', agent: 'b', subject: 'new signature for slugify' },
-  { step: 7, time: '10:42:44', verdict: 'CLEARED', agent: 'b', subject: 'blog/views.py' },
+  { step: 1, time: '10:42:03', verdict: 'FILED', agent: 'a', text: 'filed a plan for', code: 'slugify' },
+  { step: 2, time: '10:42:05', verdict: 'FILED', agent: 'b', text: 'filed a plan for', code: 'render_post' },
+  { step: 3, time: '10:42:19', verdict: 'CLEARED', agent: 'a', text: 'was cleared to edit', code: 'utils/text.py' },
+  { step: 4, time: '10:42:20', verdict: 'CONTRACT', agent: 'a', text: 'changed the signature of', code: 'slugify' },
+  { step: 5, time: '10:42:31', verdict: 'HOLD', agent: 'b', text: 'was held editing', code: 'blog/views.py' },
+  { step: 6, time: '10:42:31', verdict: 'BRIEFED', agent: 'b', text: 'got the new signature of', code: 'slugify' },
+  { step: 7, time: '10:42:44', verdict: 'CLEARED', agent: 'b', text: 'was cleared to edit', code: 'blog/views.py' },
 ]
 
 export const FINAL_STEP = 7

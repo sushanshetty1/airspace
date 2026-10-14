@@ -6,7 +6,7 @@ export type AgentKey = 'a' | 'b'
 export type NodeKind = 'fn' | 'test'
 
 // The drawing area actually used, so the scope renders as large as possible.
-export const VIEW = { x: 20, y: 28, w: 910, h: 500 }
+export const VIEW = { x: 20, y: 46, w: 910, h: 480 }
 export const RING = [0, 104, 186] as const
 export const SCOPE_R = 206
 

@@ -11,36 +11,15 @@ function trimmed(a: ScopeNode, b: ScopeNode, ra: number, rb: number) {
   return `M${a.x + (dx / len) * ra} ${a.y + (dy / len) * ra} L${b.x - (dx / len) * rb} ${b.y - (dy / len) * rb}`
 }
 
-function Bezel({ agent, on }: { agent: AgentKey; on: boolean }) {
+function Airspace({ agent, on }: { agent: AgentKey; on: boolean }) {
   const c = agents[agent]
-  const ticks = []
-  for (let d = 0; d < 360; d += 6) {
-    const major = d % 30 === 0
-    const p1 = polar(c.cx, c.cy, SCOPE_R, d)
-    const p2 = polar(c.cx, c.cy, SCOPE_R + (major ? 11 : 5), d)
-    ticks.push(<line key={d} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} strokeWidth={major ? 1.4 : 1} />)
-  }
   const stroke = on ? c.color : 'var(--line-strong)'
   return (
-    <g style={{ transition: 'opacity 600ms' }}>
-      <circle cx={c.cx} cy={c.cy} r={SCOPE_R} fill={on ? c.soft : 'transparent'} stroke={stroke} strokeOpacity={on ? 0.75 : 1} strokeWidth={1.2} style={{ transition: 'fill 600ms, stroke 600ms' }} />
-      <g stroke={stroke} strokeOpacity={on ? 0.6 : 0.8} style={{ transition: 'stroke 600ms' }}>
-        {ticks}
-      </g>
-      {[RING[1], RING[2]].map((r, i) => (
-        <circle key={r} cx={c.cx} cy={c.cy} r={r} fill="none" stroke={stroke} strokeOpacity={on ? 0.4 : 0.7} strokeDasharray={i === 0 ? '2 5' : undefined} strokeWidth={1} style={{ transition: 'stroke 600ms' }} />
-      ))}
-      <text x={c.cx} y={c.cy + RING[1] - 9} textAnchor="middle" className="scope-caps scope-hide-sm" fontSize={11.5} letterSpacing={1.4} fill="var(--faint)">
-        1 HOP
-      </text>
-      <text x={c.cx} y={c.cy + RING[2] - 9} textAnchor="middle" className="scope-caps scope-hide-sm" fontSize={11.5} letterSpacing={1.4} fill="var(--faint)">
-        2 HOPS
-      </text>
-      <text x={c.cx} y={c.cy - SCOPE_R - 40} textAnchor="middle" className="scope-caps scope-major" fontWeight={700} letterSpacing={1.8} fill={on ? c.color : 'var(--faint)'} style={{ transition: 'fill 600ms' }}>
-        {c.id.toUpperCase()}
-      </text>
-      <text x={c.cx} y={c.cy - SCOPE_R - 19} textAnchor="middle" className="scope-caps scope-hide-sm" fontSize={13} letterSpacing={1.2} fill="var(--muted)">
-        {c.task.toUpperCase()}
+    <g>
+      <circle cx={c.cx} cy={c.cy} r={SCOPE_R} fill={on ? c.soft : 'transparent'} stroke={stroke} strokeOpacity={on ? 0.6 : 1} strokeWidth={1.2} style={{ transition: 'fill 600ms, stroke 600ms' }} />
+      <circle cx={c.cx} cy={c.cy} r={RING[1]} fill="none" stroke={stroke} strokeOpacity={on ? 0.3 : 0.6} strokeDasharray="2 6" strokeWidth={1} style={{ transition: 'stroke 600ms' }} />
+      <text x={c.cx} y={c.cy - SCOPE_R - 22} textAnchor="middle" className="scope-major font-mono" fontWeight={600} fill={on ? c.color : 'var(--faint)'} style={{ transition: 'fill 600ms' }}>
+        {c.id}
       </text>
     </g>
   )
@@ -76,7 +55,7 @@ export function Scope({ step, className = '' }: { step: number; className?: stri
   const a = agents.a
   const b = agents.b
   const lensOpacity = step === 5 ? 0.92 : step === 6 ? 0.6 : 0
-  const lensWord = step === 5 ? 'HOLD' : step === 6 ? 'BRIEFED' : step === 7 ? 'CLEARED' : null
+  const lensWord = step === 5 ? 'Hold' : step === 6 ? 'Briefed' : step === 7 ? 'Cleared' : null
   const slug = byId.slugify
   const render = byId.render_post
 
@@ -96,8 +75,8 @@ export function Scope({ step, className = '' }: { step: number; className?: stri
         </clipPath>
       </defs>
 
-      <Bezel agent="a" on={on.a} />
-      <Bezel agent="b" on={on.b} />
+      <Airspace agent="a" on={on.a} />
+      <Airspace agent="b" on={on.b} />
 
       {/* The overlap. It fills the way the logo does when the airspaces collide. */}
       <circle cx={b.cx} cy={b.cy} r={SCOPE_R} fill="var(--accent)" clipPath={`url(#${clip})`} style={{ opacity: lensOpacity, transition: 'opacity 500ms cubic-bezier(0.22, 1, 0.36, 1)' }} />
@@ -176,11 +155,10 @@ export function Scope({ step, className = '' }: { step: number; className?: stri
             x={500}
             y={258}
             textAnchor="middle"
-            className="scope-caps"
-            fontSize={lensWord === 'HOLD' ? 24 : 15}
-            fontWeight={700}
-            letterSpacing={2}
-            fill={lensWord === 'CLEARED' ? 'var(--ok)' : 'var(--ink)'}
+            fontSize={lensWord === 'Hold' ? 26 : 17}
+            fontWeight={650}
+            letterSpacing={-0.3}
+            fill={lensWord === 'Cleared' ? 'var(--ok)' : 'var(--ink)'}
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}

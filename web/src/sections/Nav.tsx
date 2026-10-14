@@ -1,7 +1,7 @@
 import { GithubLogo, List, Moon, Sun, X } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { ButtonLink, Container, LogoMark, REPO_URL } from '../ui'
+import { ButtonLink, Container, REPO_URL, Wordmark } from '../ui'
 
 type Theme = 'light' | 'dark'
 
@@ -71,11 +71,8 @@ export function Nav() {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/[0.97] backdrop-blur-md">
       <Container className="flex h-16 items-center justify-between gap-6">
-        <a href="#top" className="flex items-center gap-3 text-text" aria-label="Airspace home">
-          <LogoMark className="h-[20px] w-auto" />
-          <span className="text-[16px] font-bold tracking-[0.02em] uppercase" style={{ fontStretch: '125%' }}>
-            Airspace
-          </span>
+        <a href="#top" aria-label="Airspace home">
+          <Wordmark />
         </a>
 
         <nav className="hidden h-full items-stretch md:flex" aria-label="Sections">
@@ -86,7 +83,7 @@ export function Nav() {
                 key={l.id}
                 href={`#${l.id}`}
                 aria-current={on ? 'true' : undefined}
-                className={`relative flex items-center px-4 text-[14px] font-medium transition-colors ${on ? 'text-text' : 'text-muted hover:text-text'}`}
+                className={`relative flex items-center px-3.5 text-[14.5px] font-medium transition-colors ${on ? 'text-text' : 'text-muted hover:text-text'}`}
               >
                 {l.label}
                 {on && <motion.span layoutId="nav-active" className="absolute inset-x-4 -bottom-px h-[2px] bg-accent" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />}
@@ -100,7 +97,7 @@ export function Nav() {
           <a href={REPO_URL} className="grid size-9 place-items-center text-muted transition-colors hover:text-text" aria-label="View on GitHub">
             <GithubLogo size={19} weight="bold" />
           </a>
-          <ButtonLink href="#tower" className="ml-2 h-9 px-4 text-[14px] max-sm:hidden">
+          <ButtonLink href="#tower" className="ml-2 h-9 px-3.5 text-[14px] max-sm:hidden">
             See it run
           </ButtonLink>
           <button

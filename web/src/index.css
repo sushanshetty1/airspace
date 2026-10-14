@@ -2,12 +2,10 @@
 
 /*
   Airspace visual language
-  - Archivo for text, set wide and uppercase for display.
-  - B612 Mono for labels, signs and callsigns: the face Airbus designed for cockpit displays.
-  - JetBrains Mono for code, where parentheses must read as parentheses.
+  - One typeface, Schibsted Grotesk, in sentence case. Mono only inside real code.
   - International orange marks a collision, a hold, the primary action. Nothing else.
   - Agents get radar colours: agent-a cyan, agent-b violet.
-  - Square corners, hard 1px rules, no soft glows.
+  - The brand idea is the logo: two airspaces whose overlap turns orange when they collide.
 */
 
 :root {
@@ -103,9 +101,8 @@
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
   --color-ink: var(--ink);
-  --font-sans: "Archivo Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Schibsted Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-label: "B612 Mono", ui-monospace, monospace;
 }
 
 html {
@@ -132,35 +129,36 @@ body {
 }
 
 @layer components {
-/* Airfield signs: the status language of the whole product. */
-.sign {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 2px;
-  font-family: var(--font-label);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  /* Status badges, the way a real app shows them. */
+  .sign {
+    display: inline-flex;
+    align-items: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .sign-hold { background: var(--accent); color: var(--accent-ink); }
+  .sign-cleared { background: var(--ok-soft); color: var(--ok); }
+  .sign-briefed { background: var(--surface-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .sign-filed { background: var(--surface-2); color: var(--muted); }
+  .sign-contract { background: var(--surface-2); color: var(--text); }
+  .sign-location {
+    height: 26px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    background: var(--surface-2);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+  }
 }
-.sign-hold { background: var(--accent); color: var(--accent-ink); }
-.sign-cleared { color: var(--ok); box-shadow: inset 0 0 0 1.5px var(--ok); }
-.sign-briefed { background: var(--text); color: var(--bg); }
-.sign-filed { color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--line-strong); }
-.sign-contract { color: var(--text); box-shadow: inset 0 0 0 1.5px var(--text); }
-.sign-location { background: var(--ink); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
 
 .display {
-  font-stretch: 125%;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  line-height: 0.98;
-}
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
 }
 
 .logo-mask {
@@ -184,11 +182,10 @@ body {
 }
 
 /* Scope labels: readable on desktop, only the essentials on phones. */
-.scope-minor { font-size: 15px; }
-.scope-major { font-size: 18px; }
-.scope-caps { font-family: var(--font-label); }
+.scope-minor { font-size: 14px; }
+.scope-major { font-size: 16px; }
 @media (max-width: 639px) {
   .scope-minor { display: none; }
-  .scope-major { font-size: 30px; }
+  .scope-major { font-size: 28px; }
   .scope-hide-sm { display: none; }
 }

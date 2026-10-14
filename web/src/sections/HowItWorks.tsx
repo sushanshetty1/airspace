@@ -2,7 +2,7 @@ import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/rea
 import { useEffect, useRef, useState } from 'react'
 import { Scope } from '../radar/Scope'
 import { Terminal, type TermLine } from '../Terminal'
-import { Brackets, Container, Fig, SectionHeading, Sign } from '../ui'
+import { Container, SectionHeading, Sign } from '../ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
@@ -13,7 +13,7 @@ const holdLines: TermLine[] = [
     kind: 'result',
     head: (
       <>
-        <Sign kind="HOLD">HOLD</Sign> Airspace held this edit
+        <Sign kind="HOLD">Hold</Sign> Airspace held this edit
       </>
     ),
     lines: ['utils.text.slugify is changing in agent-a', 'path   render_post → slugify'],
@@ -25,7 +25,7 @@ const briefLines: TermLine[] = [
     kind: 'result',
     head: (
       <>
-        <Sign kind="BRIEFED">BRIEFED</Sign> slugify has a new signature
+        <Sign kind="BRIEFED">Briefed</Sign> slugify has a new signature
       </>
     ),
     lines: ['new    slugify(value, *, unicode=False)', 'Update your call, then try again.'],
@@ -36,26 +36,24 @@ const briefLines: TermLine[] = [
     kind: 'result',
     head: (
       <>
-        <Sign kind="CLEARED">CLEARED</Sign> Updated blog/views.py
+        <Sign kind="CLEARED">Cleared</Sign> Updated blog/views.py
       </>
     ),
   },
 ]
 
 const steps = [
-  { key: 'FILE', title: 'File a flight plan', body: 'An agent says what it will change. Airspace maps everything that calls, imports or tests it, ring by ring.' },
-  { key: 'ASK', title: 'Ask before every write', body: "A Claude Code hook checks each edit. Inside the agent's own airspace it is cleared. Inside another agent's, it is held." },
-  { key: 'BRIEF', title: "Brief, don't surprise", body: 'When a signature changes, every agent that depends on it gets the new one on its next step.' },
+  { title: 'File a flight plan', body: 'An agent says what it will change. Airspace maps everything that calls, imports or tests it, ring by ring.' },
+  { title: 'Ask before every write', body: "A Claude Code hook checks each edit. Inside the agent's own airspace it is cleared. Inside another agent's, it is held." },
+  { title: "Brief, don't surprise", body: 'When a signature changes, every agent that depends on it gets the new one on its next step.' },
 ]
 
 function Visual({ index }: { index: number }) {
   if (index === 0) {
     return (
-      <Brackets>
-        <div className="border border-line px-3 py-5 sm:px-6">
-          <Scope step={2} />
-        </div>
-      </Brackets>
+      <div className="rounded-[14px] border border-line bg-surface px-3 py-6 sm:px-8 sm:py-8">
+        <Scope step={2} />
+      </div>
     )
   }
   return <Terminal agent="agent-b" color="var(--agent-b)" lines={index === 1 ? holdLines : briefLines} />
@@ -95,8 +93,7 @@ export function HowItWorks() {
                   }}
                   className="group relative border-t border-line py-6 text-left last:border-b"
                 >
-                  <span className={`font-label text-[11px] tracking-[0.14em] transition-colors ${on ? 'text-accent' : 'text-faint'}`}>{s.key}</span>
-                  <span className={`mt-2 block text-[20px] font-semibold tracking-[-0.01em] transition-colors ${on ? 'text-text' : 'text-muted group-hover:text-text'}`}>{s.title}</span>
+                  <span className={`block text-[20px] font-semibold tracking-[-0.01em] transition-colors ${on ? 'text-text' : 'text-muted group-hover:text-text'}`}>{s.title}</span>
                   <AnimatePresence initial={false}>
                     {on && (
                       <motion.span
@@ -125,8 +122,7 @@ export function HowItWorks() {
           </div>
 
           <div className="min-w-0">
-            <Fig n="03">{steps[active].title}</Fig>
-            <div className="mt-4">
+            <div>
               <AnimatePresence mode="wait">
                 <motion.div key={active} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.35, ease }}>
                   <Visual index={active} />

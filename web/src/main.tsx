@@ -1,6 +1,4 @@
-import '@fontsource-variable/archivo/standard.css'
-import '@fontsource/b612-mono/400.css'
-import '@fontsource/b612-mono/700.css'
+import '@fontsource-variable/schibsted-grotesk'
 import '@fontsource-variable/jetbrains-mono'
 import './index.css'
 import { StrictMode } from 'react'

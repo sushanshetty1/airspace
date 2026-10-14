@@ -50,13 +50,13 @@ export function Terminal({ agent, color, lines, className = '' }: { agent: strin
       className={className}
       title={
         <>
-          <span className="font-mono font-bold" style={{ color }}>
+          <span className="font-mono font-semibold" style={{ color }}>
             {agent}
           </span>
           <span className="truncate font-mono text-faint">~/blog-api</span>
         </>
       }
-      right={<span className="font-label text-[11px] tracking-[0.12em] text-faint">CLAUDE CODE</span>}
+      right={<span className="text-[12.5px] text-faint">Claude Code</span>}
     >
       <div className="space-y-3.5 overflow-x-auto px-5 py-5 font-mono text-[12.5px] leading-[1.7] sm:text-[13px]">
         <AnimatePresence initial={false}>

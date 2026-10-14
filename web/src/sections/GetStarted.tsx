@@ -1,6 +1,6 @@
 import { Check, Copy } from '@phosphor-icons/react'
 import { useState } from 'react'
-import { Brackets, ButtonLink, Container, Fig, REPO_URL } from '../ui'
+import { ButtonLink, Container, REPO_URL } from '../ui'
 
 const commands = ['docker compose up -d falkordb', 'uvx airspace install-hooks']
 
@@ -19,10 +19,10 @@ function CopyButton({ text }: { text: string }) {
         }
       }}
       aria-label={done ? 'Copied' : 'Copy commands'}
-      className="inline-flex items-center gap-1.5 font-label text-[11px] tracking-[0.12em] text-muted transition-colors hover:text-text"
+      className="inline-flex items-center gap-1.5 rounded-[6px] px-2 py-1 text-[13px] font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-text"
     >
       {done ? <Check size={14} weight="bold" className="text-ok" /> : <Copy size={14} weight="bold" />}
-      {done ? 'COPIED' : 'COPY'}
+      {done ? 'Copied' : 'Copy'}
     </button>
   )
 }
@@ -38,7 +38,7 @@ export function GetStarted() {
     <section id="start" className="border-t border-line py-24 sm:py-32">
       <Container className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16">
         <div>
-          <h2 className="display text-[34px] text-balance sm:text-[46px]">Two commands to start.</h2>
+          <h2 className="display text-[36px] text-balance sm:text-[48px]">Two commands to start.</h2>
           <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-muted sm:text-[18px]">Hooks for Claude Code today. The same tools work from any MCP client.</p>
           <ul className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-4" aria-label="Works with">
             {works.map((w) => (
@@ -51,10 +51,9 @@ export function GetStarted() {
         </div>
 
         <div>
-          <Fig n="07">Install</Fig>
-          <Brackets className="mt-4">
-            <div className="border border-line bg-surface">
-              <div className="flex h-11 items-center justify-between border-b border-line px-5">
+          <div>
+            <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
+              <div className="flex h-11 items-center justify-between border-b border-line pr-2 pl-5">
                 <span className="font-mono text-[12px] text-faint">~/your-repo</span>
                 <CopyButton text={commands.join('\n')} />
               </div>
@@ -67,7 +66,7 @@ export function GetStarted() {
                 ))}
               </pre>
             </div>
-          </Brackets>
+          </div>
           <ButtonLink href={REPO_URL} variant="secondary" className="mt-5">
             View on GitHub
           </ButtonLink>

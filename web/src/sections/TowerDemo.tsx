@@ -1,8 +1,8 @@
-import { ArrowCounterClockwise, ArrowRight, ChatCircleText, LockOpen, PauseCircle, PlayCircle } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ChatCircleText, LockOpen, PauseCircle, PlayCircle } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Terminal, type TermLine } from '../Terminal'
-import { Container, Fig, Frame, LogoMark, SectionHeading, Sign } from '../ui'
+import { Container, Frame, LogoMark, SectionHeading, Sign } from '../ui'
 
 type Outcome = 'held' | 'messaged' | 'released'
 
@@ -14,7 +14,7 @@ const baseLines: TermLine[] = [
     kind: 'result',
     head: (
       <>
-        <Sign kind="HOLD">HOLD</Sign> Airspace held this edit
+        <Sign kind="HOLD">Hold</Sign> Airspace held this edit
       </>
     ),
     lines: [
@@ -32,7 +32,7 @@ const messageLines: TermLine[] = [
     kind: 'result',
     head: (
       <>
-        <Sign kind="BRIEFED">MESSAGE</Sign> from Tower
+        <Sign kind="BRIEFED">Message</Sign> from Tower
       </>
     ),
     lines: ['Use slugify(post.title, unicode=True).'],
@@ -43,7 +43,7 @@ const messageLines: TermLine[] = [
     kind: 'result',
     head: (
       <>
-        <Sign kind="CLEARED">CLEARED</Sign> Updated blog/views.py
+        <Sign kind="CLEARED">Cleared</Sign> Updated blog/views.py
       </>
     ),
   },
@@ -54,7 +54,7 @@ const releaseLines: TermLine[] = [
     kind: 'result',
     head: (
       <>
-        <Sign kind="CLEARED">CLEARED</Sign> Hold released from Tower
+        <Sign kind="CLEARED">Cleared</Sign> Hold released from Tower
       </>
     ),
     lines: ['Updated blog/views.py'],
@@ -68,8 +68,8 @@ function Action({ onClick, disabled, primary, pressed, children }: { onClick: ()
       onClick={onClick}
       disabled={disabled}
       aria-pressed={pressed}
-      className={`inline-flex h-10 items-center gap-2 rounded-[3px] px-3.5 text-[14px] font-semibold transition-[transform,opacity,background-color,color] active:translate-y-px disabled:pointer-events-none disabled:opacity-35 ${
-        primary ? 'bg-accent text-accent-ink hover:bg-text hover:text-bg' : 'text-text shadow-[inset_0_0_0_1px_var(--line-strong)] hover:shadow-[inset_0_0_0_1px_var(--text)]'
+      className={`inline-flex h-10 items-center gap-2 rounded-[8px] px-3.5 text-[14px] font-semibold transition-[transform,opacity,background-color,color] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-35 ${
+        primary ? 'bg-accent text-accent-ink hover:brightness-[1.07]' : 'text-text shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-surface-2'
       }`}
     >
       {children}
@@ -109,14 +109,11 @@ export function TowerDemo() {
     <section id="tower" className="border-t border-line py-24 sm:py-32">
       <Container>
         <SectionHeading
-          title="Watch every agent. Step in from the browser."
+          title="See every agent. Step in from the browser."
           lede="Tower shows what each agent is doing and why it was held. What you decide there reaches the agent on its next step. Try it."
         />
 
-        <Fig n="04" className="mt-14">
-          A held edit, from both sides
-        </Fig>
-        <div className="mt-4 grid items-stretch gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="mt-12 grid items-stretch gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <Terminal agent="agent-b" color="var(--agent-b)" lines={[...baseLines, ...extra]} className="h-full" />
 
           <Frame
@@ -128,26 +125,15 @@ export function TowerDemo() {
                 <span className="truncate font-mono text-muted">collisions / c_0007</span>
               </>
             }
-            right={outcome === 'held' ? <Sign kind="HOLD">HOLD</Sign> : <Sign kind="CLEARED">{outcome === 'messaged' ? 'RESOLVED' : 'RELEASED'}</Sign>}
+            right={outcome === 'held' ? <Sign kind="HOLD">Hold</Sign> : <Sign kind="CLEARED">{outcome === 'messaged' ? 'Resolved' : 'Released'}</Sign>}
           >
             <div className="divide-y divide-line">
               <div className="px-5 py-5">
-                <p className="font-label text-[11px] tracking-[0.12em] text-faint">WHY IT WAS HELD</p>
-                <div className="mt-3.5 flex flex-wrap items-center gap-3">
-                  <span className="font-mono text-[13px] font-bold text-agent-b">agent-b</span>
-                  <span className="font-mono text-[11px] text-faint">EDITS</span>
-                  <Sign kind="LOCATION" className="h-7 px-2.5 text-[12px] normal-case tracking-normal">
-                    render_post
-                  </Sign>
-                  <span className="flex items-center gap-1 font-mono text-[11px] text-faint">
-                    CALLS <ArrowRight size={12} weight="bold" />
-                  </span>
-                  <Sign kind="LOCATION" className="h-7 px-2.5 text-[12px] normal-case tracking-normal">
-                    slugify
-                  </Sign>
-                  <span className="font-mono text-[11px] text-faint">CLAIMED BY</span>
-                  <span className="font-mono text-[13px] font-bold text-agent-a">agent-a</span>
-                </div>
+                <p className="text-[13px] font-semibold text-muted">Why it was held</p>
+                <p className="mt-2.5 text-[15px] leading-[2.1] text-muted">
+                  <span className="font-mono font-semibold text-agent-b">agent-b</span>'s edit makes <Sign kind="LOCATION">render_post</Sign> call{' '}
+                  <Sign kind="LOCATION">slugify</Sign>, which <span className="font-mono font-semibold text-agent-a">agent-a</span> is changing.
+                </p>
               </div>
 
               <dl className="grid grid-cols-[110px_minmax(0,1fr)] gap-x-4 gap-y-3 px-5 py-5 font-mono text-[12.5px]">
@@ -203,8 +189,8 @@ export function TowerDemo() {
                     </motion.p>
                   </AnimatePresence>
                   {resolved && (
-                    <button type="button" onClick={reset} className="mt-2 inline-flex items-center gap-1.5 font-label text-[12px] tracking-[0.1em] text-text hover:text-accent">
-                      <ArrowCounterClockwise size={14} weight="bold" /> REPLAY
+                    <button type="button" onClick={reset} className="mt-2 inline-flex items-center gap-1.5 text-[14px] font-semibold text-text hover:text-accent">
+                      <ArrowCounterClockwise size={14} weight="bold" /> Replay
                     </button>
                   )}
                 </div>
