@@ -1,0 +1,34 @@
+{
+  "set_id": "tag-save-returns-none",
+  "kind": "behaviour",
+  "condition": "broadcast",
+  "outcome": "clean",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": true,
+  "wall_seconds": 38.0,
+  "cost_usd": 0.261,
+  "holds": 0,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 38.0,
+      "cost_usd": 0.1425228,
+      "turns": 9,
+      "result": "`Tag.save` now returns `None`, `tag_create` in `tags/views.py` (the only caller that used the return value) now saves the tag and returns it itself, and all 3 tests pass; heads-up for the other branch: a one-line `tag_slug` like `Tag(name).save().slug` will break with an `AttributeError` once this lands, so it needs to save first and then read `tag.slug`.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 19.0,
+      "cost_usd": 0.11846200000000001,
+      "turns": 5,
+      "result": "I added `tag_slug(name)` in `tags/utils.py`; it saves the tag and returns its slug in one expression without using `save()`'s return value, so it will still work once the other engineer's change makes `save()` return `None`, and all 3 tests pass (though none of them exercises `tag_slug` itself).",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/tags/models.py b/tags/models.py\nindex 2b73135..12f5eb7 100644\n--- a/tags/models.py\n+++ b/tags/models.py\n@@ -8,4 +8,3 @@ class Tag:\n \n     def save(self):\n         self.slug = slugify(self.name)\n-        return self\ndiff --git a/tags/views.py b/tags/views.py\nindex 123c0c7..ea6b010 100644\n--- a/tags/views.py\n+++ b/tags/views.py\n@@ -2,4 +2,6 @@ from tags.models import Tag\n \n \n def tag_create(name):\n-    return Tag(name).save()\n+    tag = Tag(name)\n+    tag.save()\n+    return tag\n",
+  "diff_b": "diff --git a/tags/utils.py b/tags/utils.py\nnew file mode 100644\nindex 0000000..62fcf0d\n--- /dev/null\n+++ b/tags/utils.py\n@@ -0,0 +1,6 @@\n+from tags.models import Tag\n+\n+\n+def tag_slug(name):\n+    # Don't rely on save()'s return value; it may return None.\n+    return (tag := Tag(name), tag.save())[0].slug\n",
+  "detail": ""
+}

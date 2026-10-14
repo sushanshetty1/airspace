@@ -1,0 +1,34 @@
+{
+  "set_id": "render-post-show-body",
+  "kind": "signature",
+  "condition": "airspace",
+  "outcome": "interference",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": false,
+  "wall_seconds": 32.1,
+  "cost_usd": 0.2875,
+  "holds": 1,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 32.1,
+      "cost_usd": 0.18795860000000003,
+      "turns": 12,
+      "result": "`render_post` now has the signature `render_post(post, *, show_body)` and only includes the body paragraph when `show_body` is true; I updated all three callers (`post_list`, `blog/feeds.py` and `tests/test_views.py`) to pass `show_body=True`, and all 3 tests pass.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 13.6,
+      "cost_usd": 0.0995238,
+      "turns": 4,
+      "result": "I added `blog/index.py` with `render_index(posts)`, which wraps each post's `render_post` output in an `<li>` inside a `<ul>`, and all 3 tests pass, though none of them test `render_index` itself.",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/blog/feeds.py b/blog/feeds.py\nindex 0537800..c3e7352 100644\n--- a/blog/feeds.py\n+++ b/blog/feeds.py\n@@ -4,4 +4,4 @@ from utils.text import truncate_words\n \n class LatestPosts:\n     def item_description(self, post):\n-        return truncate_words(render_post(post), 40)\n+        return truncate_words(render_post(post, show_body=True), 40)\ndiff --git a/blog/views.py b/blog/views.py\nindex d824969..dd01732 100644\n--- a/blog/views.py\n+++ b/blog/views.py\n@@ -1,10 +1,11 @@\n from blog.models import Post\n \n \n-def render_post(post):\n+def render_post(post, *, show_body):\n     url = post.get_absolute_url()\n-    return f'<article><a href=\"{url}\">{post.title}</a><p>{post.body}</p></article>'\n+    body = f\"<p>{post.body}</p>\" if show_body else \"\"\n+    return f'<article><a href=\"{url}\">{post.title}</a>{body}</article>'\n \n \n def post_list(posts):\n-    return \"\\n\".join(render_post(p) for p in posts)\n+    return \"\\n\".join(render_post(p, show_body=True) for p in posts)\ndiff --git a/tests/test_views.py b/tests/test_views.py\nindex 956df9a..bc7277d 100644\n--- a/tests/test_views.py\n+++ b/tests/test_views.py\n@@ -3,5 +3,5 @@ from blog.views import render_post\n \n \n def test_render_post():\n-    html = render_post(Post(\"Hi\", \"x\").save())\n+    html = render_post(Post(\"Hi\", \"x\").save(), show_body=True)\n     assert \"/posts/hi/\" in html\n",
+  "diff_b": "diff --git a/blog/index.py b/blog/index.py\nnew file mode 100644\nindex 0000000..b2f02c6\n--- /dev/null\n+++ b/blog/index.py\n@@ -0,0 +1,6 @@\n+from blog.views import render_post\n+\n+\n+def render_index(posts):\n+    items = \"\".join(f\"<li>{render_post(p)}</li>\" for p in posts)\n+    return f\"<ul>{items}</ul>\"\n",
+  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n______________________________ test_render_index _______________________________\n\n    def test_render_index():\n>       html = render_index([Post('Hi', 'x').save(), Post('Yo', 'y').save()])\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:6: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \nblog/index.py:5: in render_index\n    items = \"\".join(f\"<li>{render_post(p)}</li>\" for p in posts)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n.0 = <list_iterator object at 0x10c69d7b0>\n\n>   items = \"\".join(f\"<li>{render_post(p)}</li>\" for p in posts)\n                           ^^^^^^^^^^^^^^\nE   TypeError: render_post() missing 1 required keyword-only argument: 'show_body'\n\nblog/index.py:5: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-render-post-show-body-airspace-7y31wnx5/repo/test_hidden_b.py::test_render_index\n1 failed, 4 passed in 1.07s\n"
+}

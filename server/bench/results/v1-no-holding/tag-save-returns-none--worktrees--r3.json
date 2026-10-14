@@ -1,0 +1,34 @@
+{
+  "set_id": "tag-save-returns-none",
+  "kind": "behaviour",
+  "condition": "worktrees",
+  "outcome": "interference",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": false,
+  "wall_seconds": 34.2,
+  "cost_usd": 0.279,
+  "holds": 0,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 34.2,
+      "cost_usd": 0.16596520000000003,
+      "turns": 10,
+      "result": "`Tag.save` now returns None and only sets the slug, I updated its one caller (`tag_create` in `tags/views.py`) to save the tag and then return it, and all 3 tests pass.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 17.7,
+      "cost_usd": 0.1130282,
+      "turns": 5,
+      "result": "I added `tags/utils.py` with `tag_slug(name)`, which returns `Tag(name).save().slug` (this works because `Tag.save()` returns the tag), and all 3 tests pass, though none of them call `tag_slug` and my one-off check of it needed approval so it didn't run.",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/tags/models.py b/tags/models.py\nindex 2b73135..12f5eb7 100644\n--- a/tags/models.py\n+++ b/tags/models.py\n@@ -8,4 +8,3 @@ class Tag:\n \n     def save(self):\n         self.slug = slugify(self.name)\n-        return self\ndiff --git a/tags/views.py b/tags/views.py\nindex 123c0c7..ea6b010 100644\n--- a/tags/views.py\n+++ b/tags/views.py\n@@ -2,4 +2,6 @@ from tags.models import Tag\n \n \n def tag_create(name):\n-    return Tag(name).save()\n+    tag = Tag(name)\n+    tag.save()\n+    return tag\n",
+  "diff_b": "diff --git a/tags/utils.py b/tags/utils.py\nnew file mode 100644\nindex 0000000..5ac245a\n--- /dev/null\n+++ b/tags/utils.py\n@@ -0,0 +1,5 @@\n+from tags.models import Tag\n+\n+\n+def tag_slug(name):\n+    return Tag(name).save().slug\n",
+  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_slug _________________________________\n\n    def test_tag_slug():\n>       assert tag_slug('Hello World') == 'hello-world'\n               ^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'Hello World'\n\n    def tag_slug(name):\n>       return Tag(name).save().slug\n               ^^^^^^^^^^^^^^^^^^^^^\nE       AttributeError: 'NoneType' object has no attribute 'slug'\n\ntags/utils.py:5: AttributeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-tag-save-returns-none-worktrees-fn7fjqw4/repo/test_hidden_b.py::test_tag_slug\n1 failed, 4 passed in 1.08s\n"
+}

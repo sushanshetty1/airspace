@@ -1,0 +1,34 @@
+{
+  "set_id": "post-requires-author",
+  "kind": "constructor",
+  "condition": "airspace",
+  "outcome": "interference",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": false,
+  "wall_seconds": 27.6,
+  "cost_usd": 0.3107,
+  "holds": 1,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 27.6,
+      "cost_usd": 0.169974,
+      "turns": 11,
+      "result": "`Post.__init__` is now `__init__(self, title, body, author)` and stores `self.author`; I updated the only two callers (the `Post(...)` calls in `tests/test_models.py` and `tests/test_views.py`), and all 3 tests pass.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 21.8,
+      "cost_usd": 0.1407484,
+      "turns": 10,
+      "result": "I added `tests/test_feeds.py`, which builds and saves a `Post` and checks that `LatestPosts().item_description` includes its title, and all 4 tests now pass.",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/blog/models.py b/blog/models.py\nindex d9dc4ef..f1c2e3a 100644\n--- a/blog/models.py\n+++ b/blog/models.py\n@@ -2,9 +2,10 @@ from utils.text import slugify\n \n \n class Post:\n-    def __init__(self, title, body):\n+    def __init__(self, title, body, author):\n         self.title = title\n         self.body = body\n+        self.author = author\n         self.slug = \"\"\n \n     def save(self):\ndiff --git a/tests/test_models.py b/tests/test_models.py\nindex 0c63513..e2790ad 100644\n--- a/tests/test_models.py\n+++ b/tests/test_models.py\n@@ -2,4 +2,4 @@ from blog.models import Post\n \n \n def test_post_save():\n-    assert Post(\"Hello World\", \"\").save().slug == \"hello-world\"\n+    assert Post(\"Hello World\", \"\", \"alice\").save().slug == \"hello-world\"\ndiff --git a/tests/test_views.py b/tests/test_views.py\nindex 956df9a..94fb394 100644\n--- a/tests/test_views.py\n+++ b/tests/test_views.py\n@@ -3,5 +3,5 @@ from blog.views import render_post\n \n \n def test_render_post():\n-    html = render_post(Post(\"Hi\", \"x\").save())\n+    html = render_post(Post(\"Hi\", \"x\", \"alice\").save())\n     assert \"/posts/hi/\" in html\n",
+  "diff_b": "diff --git a/tests/test_feeds.py b/tests/test_feeds.py\nnew file mode 100644\nindex 0000000..5973f86\n--- /dev/null\n+++ b/tests/test_feeds.py\n@@ -0,0 +1,7 @@\n+from blog.feeds import LatestPosts\n+from blog.models import Post\n+\n+\n+def test_item_description_contains_title():\n+    post = Post(\"Hello Feed\", \"body text\").save()\n+    assert \"Hello Feed\" in LatestPosts().item_description(post)\n",
+  "detail": "F.....                                                                   [100%]\n=================================== FAILURES ===================================\n_____________________ test_item_description_contains_title _____________________\n\n    def test_item_description_contains_title():\n>       post = Post(\"Hello Feed\", \"body text\").save()\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: Post.__init__() missing 1 required positional argument: 'author'\n\ntests/test_feeds.py:6: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-post-requires-author-airspace-r8e1894l/repo/test_feeds.py::test_item_description_contains_title\n1 failed, 5 passed in 1.08s\n"
+}

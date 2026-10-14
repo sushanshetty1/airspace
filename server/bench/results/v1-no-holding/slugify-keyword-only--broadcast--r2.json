@@ -1,0 +1,34 @@
+{
+  "set_id": "slugify-keyword-only",
+  "kind": "signature",
+  "condition": "broadcast",
+  "outcome": "interference",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": false,
+  "wall_seconds": 27.4,
+  "cost_usd": 0.24,
+  "holds": 0,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 21.6,
+      "cost_usd": 0.1330094,
+      "turns": 7,
+      "result": "The `slugify` signature in `utils/text.py` is now `slugify(value, *, unicode=False)` and the 3 tests pass (no existing caller passed the option), but the other engineer's `render_post` change needs to call `slugify(title, unicode=True)`, because passing `allow_unicode=True` will raise a TypeError once both branches are merged.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 27.4,
+      "cost_usd": 0.1070074,
+      "turns": 4,
+      "result": "I added `data-slug` to the `<article>` tag in `render_post` using `slugify(post.title, allow_unicode=True)`, and all 3 tests pass, but this call will break with a `TypeError` once the other engineer's branch renames the option to `unicode=` and makes it keyword-only, so it must change to `unicode=True` when the two branches are merged.",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/utils/text.py b/utils/text.py\nindex 3b5c079..0848b84 100644\n--- a/utils/text.py\n+++ b/utils/text.py\n@@ -2,9 +2,9 @@ import re\n import unicodedata\n \n \n-def slugify(value, allow_unicode=False):\n+def slugify(value, *, unicode=False):\n     value = str(value)\n-    if allow_unicode:\n+    if unicode:\n         value = unicodedata.normalize(\"NFKC\", value)\n     else:\n         value = unicodedata.normalize(\"NFKD\", value).encode(\"ascii\", \"ignore\").decode(\"ascii\")\n",
+  "diff_b": "diff --git a/blog/views.py b/blog/views.py\nindex d824969..3a85867 100644\n--- a/blog/views.py\n+++ b/blog/views.py\n@@ -1,9 +1,11 @@\n from blog.models import Post\n+from utils.text import slugify\n \n \n def render_post(post):\n     url = post.get_absolute_url()\n-    return f'<article><a href=\"{url}\">{post.title}</a><p>{post.body}</p></article>'\n+    slug = slugify(post.title, allow_unicode=True)\n+    return f'<article data-slug=\"{slug}\"><a href=\"{url}\">{post.title}</a><p>{post.body}</p></article>'\n \n \n def post_list(posts):\n",
+  "detail": "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npost = <blog.models.Post object at 0x109aed9a0>\n\n    def render_post(post):\n        url = post.get_absolute_url()\n>       slug = slugify(post.title, allow_unicode=True)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: slugify() got an unexpected keyword argument 'allow_unicode'\n\nblog/views.py:7: TypeError\n_______________________________ test_render_post _______________________________\n\n    def test_render_post():\n>       html = render_post(Post(\"Hi\", \"x\").save())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_views.py:6: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npost = <blog.models.Post object at 0x109aeeb70>\n\n    def render_post(post):\n        url = post.get_absolute_url()\n>       slug = slugify(post.title, allow_unicode=True)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: slugify() got an unexpected keyword argument 'allow_unicode'\n\nblog/views.py:7: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-slugify-keyword-only-broadcast-pbkuuv35/repo/test_hidden_b.py::test_render_post_has_unicode_slug\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-slugify-keyword-only-broadcast-pbkuuv35/repo/test_views.py::test_render_post\n2 failed, 3 passed in 1.06s\n"
+}

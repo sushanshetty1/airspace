@@ -1,0 +1,34 @@
+{
+  "set_id": "rename-absolute-url",
+  "kind": "rename",
+  "condition": "airspace",
+  "outcome": "interference",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": false,
+  "wall_seconds": 22.4,
+  "cost_usd": 0.2364,
+  "holds": 0,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 22.4,
+      "cost_usd": 0.1438816,
+      "turns": 9,
+      "result": "I renamed `Post.get_absolute_url` to `Post.url` in `blog/models.py`, updated its only caller in `blog/views.py`, and all 3 tests pass.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 13.4,
+      "cost_usd": 0.0925114,
+      "turns": 4,
+      "result": "I added `LatestPosts.item_link` to `blog/feeds.py`, which returns `post.get_absolute_url()`, and all 3 tests pass.",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/blog/models.py b/blog/models.py\nindex d9dc4ef..2a2fdbc 100644\n--- a/blog/models.py\n+++ b/blog/models.py\n@@ -11,5 +11,5 @@ class Post:\n         self.slug = slugify(self.title)\n         return self\n \n-    def get_absolute_url(self):\n+    def url(self):\n         return f\"/posts/{self.slug}/\"\ndiff --git a/blog/views.py b/blog/views.py\nindex d824969..3f35bf3 100644\n--- a/blog/views.py\n+++ b/blog/views.py\n@@ -2,7 +2,7 @@ from blog.models import Post\n \n \n def render_post(post):\n-    url = post.get_absolute_url()\n+    url = post.url()\n     return f'<article><a href=\"{url}\">{post.title}</a><p>{post.body}</p></article>'\n \n \n",
+  "diff_b": "diff --git a/blog/feeds.py b/blog/feeds.py\nindex 0537800..a5b5801 100644\n--- a/blog/feeds.py\n+++ b/blog/feeds.py\n@@ -5,3 +5,6 @@ from utils.text import truncate_words\n class LatestPosts:\n     def item_description(self, post):\n         return truncate_words(render_post(post), 40)\n+\n+    def item_link(self, post):\n+        return post.get_absolute_url()\n",
+  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n________________________________ test_item_link ________________________________\n\n    def test_item_link():\n>       assert LatestPosts().item_link(Post('Hi', 'x').save()) == '/posts/hi/'\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:6: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <blog.feeds.LatestPosts object at 0x107aed340>\npost = <blog.models.Post object at 0x107aec680>\n\n    def item_link(self, post):\n>       return post.get_absolute_url()\n               ^^^^^^^^^^^^^^^^^^^^^\nE       AttributeError: 'Post' object has no attribute 'get_absolute_url'\n\nblog/feeds.py:10: AttributeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-rename-absolute-url-airspace-v88vdlp3/repo/test_hidden_b.py::test_item_link\n1 failed, 4 passed in 1.06s\n"
+}
