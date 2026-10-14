@@ -10,7 +10,6 @@ dependencies = [
     "anthropic>=1.13.0",
     "falkordb>=1.7.1",
     "fastapi>=0.143.0",
-    "fastembed>=0.9.0",
     "httpx>=0.28.1",
     "mcp>=2.3.0",
     "pydantic-settings>=2.15.0",
