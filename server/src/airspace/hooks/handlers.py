@@ -1,7 +1,8 @@
 """Claude Code PreToolUse, PostToolUse and Stop hook logic: payload in, hook JSON out (or None to stay silent).
 
-Every handler fails open. If FalkorDB is unreachable or anything else goes wrong, it writes one line to stderr
-and returns None, so Claude Code carries on as if Airspace were not installed.
+Every handler fails open. If FalkorDB (or, for a connected repository, the Airspace server) is unreachable or
+anything else goes wrong, it writes one line to stderr and returns None, so Claude Code carries on as if Airspace
+were not installed.
 """
 
 import hashlib
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from airspace.admission.text import BRANCH_NOTE, LOCAL_NOTE, NOT_HERE_NOTE, briefing_line, landing_hold
+from airspace.remote import RemoteError
 from airspace.types import Briefing, CallSite, EditAnalysis, SignatureChange
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
@@ -82,6 +84,15 @@ def _target(payload: dict, env: Mapping[str, str]) -> tuple[Path, str, str, str]
 
 def _note(line: str) -> None:
     print(line, file=sys.stderr)
+
+
+def _unavailable(line: str, exc: Exception) -> None:
+    """The one line for an engine that cannot be opened. A hosted server says why: down, or the key refused."""
+    if isinstance(exc, RemoteError):
+        detail = " ".join(str(exc).split())
+        status = f"{exc.status} " if exc.status else ""
+        line = line.replace("FalkorDB unavailable", f"Airspace server unavailable ({status}{detail})")
+    _note(line)
 
 
 def _failed(exc: Exception, what: str = "edit not checked") -> None:
@@ -165,8 +176,8 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
     try:
         airspace = deps.airspace(root)
         known = deps.known(root)
-    except Exception:
-        _note(UNAVAILABLE)
+    except Exception as e:
+        _unavailable(UNAVAILABLE, e)
         return None
     try:
         analysis = deps.analyze(root, payload["tool_name"], payload.get("tool_input") or {}, known)
@@ -210,8 +221,8 @@ def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) 
     root, agent, task, rel = target
     try:
         airspace = deps.airspace(root)
-    except Exception:
-        _note(UNAVAILABLE)
+    except Exception as e:
+        _unavailable(UNAVAILABLE, e)
         return None
     try:
         changes = deps.reindex(root, rel)
@@ -240,8 +251,8 @@ def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
     root, agent, task = identity(payload, env)
     try:
         airspace = deps.airspace(root)
-    except Exception:
-        _note(ANY_UNAVAILABLE)
+    except Exception as e:
+        _unavailable(ANY_UNAVAILABLE, e)
         return None
     if payload.get("tool_name") == "Read":
         rel = _rel_path(root, str((payload.get("tool_input") or {}).get("file_path") or ""))
@@ -279,8 +290,8 @@ def handle_reconcile(payload: dict, deps: Deps, env: Mapping[str, str] = os.envi
     root, agent, task = identity(payload, env)
     try:
         airspace = deps.airspace(root)
-    except Exception:
-        _note(UNAVAILABLE)
+    except Exception as e:
+        _unavailable(UNAVAILABLE, e)
         return None
     try:
         reasons = _reconcile(root, agent, task, airspace, deps)
@@ -305,8 +316,8 @@ def handle_prompt(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ
     root, agent, task = identity(payload, env)
     try:
         airspace = deps.airspace(root)
-    except Exception:
-        _note(UNAVAILABLE.replace("edit not checked", "task not noted"))
+    except Exception as e:
+        _unavailable(UNAVAILABLE.replace("edit not checked", "task not noted"), e)
         return None
     try:
         airspace.note_interest_from_text(agent, task, prompt)
@@ -341,8 +352,8 @@ def handle_stop(
     root, agent, task = identity(payload, env)
     try:
         airspace = deps.airspace(root)
-    except Exception:
-        _note(STOP_UNAVAILABLE)
+    except Exception as e:
+        _unavailable(STOP_UNAVAILABLE, e)
         return None
     try:
         # Files written outside the edit tools count before the landing check, so none of them escapes it.
@@ -384,8 +395,23 @@ def handle_stop(
 
 
 def default_deps() -> Deps:
-    """The real indexer, engine and FalkorDB. Imports happen on first use, so this module loads without them."""
+    """The real indexer and engine. Imports happen on first use, so this module loads without them.
+
+    A repository connected to a hosted server (`airspace connect`) sends engine calls and parsed facts there over RPC.
+    Any other repository uses FalkorDB on this machine.
+    """
     graphs: dict[str, Any] = {}
+    remotes: dict[str, Any] = {}
+
+    def remote(root: Path):
+        """The RPC client for a connected repository, or None. remotes.json is read once per repository."""
+        key = os.path.realpath(root)
+        if key not in remotes:
+            from airspace.remote import client_for, remote_for
+
+            found = remote_for(root)
+            remotes[key] = client_for(found) if found is not None else None
+        return remotes[key]
 
     def graph(root: Path):
         key = os.path.realpath(root)
@@ -407,6 +433,15 @@ def default_deps() -> Deps:
         return graphs[key]
 
     def airspace(root: Path):
+        client = remote(root)
+        if client is not None:
+            from airspace.remote import RemoteAirspace, seen_dir
+
+            engine = RemoteAirspace(client, seen_dir())
+            # The ping: a server that is down or refuses the key fails here, as one line, like FalkorDB down does.
+            engine.agent_of("")
+            return engine
+
         from airspace.admission.engine import Airspace
         from airspace.config import settings
 
@@ -419,6 +454,12 @@ def default_deps() -> Deps:
         return analyze_edit(root, tool_name, tool_input, known)
 
     def known(root: Path) -> set[str]:
+        client = remote(root)
+        if client is not None:
+            from airspace.remote import remote_known
+
+            return remote_known(client)
+
         from airspace.admission.engine import removed_qualnames
         from airspace.indexer.writer import known_qualnames
 
@@ -427,6 +468,12 @@ def default_deps() -> Deps:
         return known_qualnames(g) | removed_qualnames(g)
 
     def reindex(root: Path, rel_path: str) -> list[SignatureChange]:
+        client = remote(root)
+        if client is not None:
+            from airspace.remote import remote_reindex
+
+            return remote_reindex(client, root, rel_path)
+
         from airspace.indexer.writer import reindex_file
 
         return reindex_file(graph(root), root, rel_path)
