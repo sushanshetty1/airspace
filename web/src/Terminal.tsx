@@ -9,7 +9,7 @@ export type TermLine =
   | { kind: 'diff'; text: ReactNode }
   | { kind: 'result'; head: ReactNode; lines?: ReactNode[] }
 
-function Line({ line }: { line: TermLine }) {
+export function Line({ line }: { line: TermLine }) {
   switch (line.kind) {
     case 'prompt':
       return (

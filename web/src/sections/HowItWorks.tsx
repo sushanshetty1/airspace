@@ -1,133 +1,157 @@
-import { AnimatePresence, motion, useInView, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { Scope } from '../radar/Scope'
-import { Terminal, type TermLine } from '../Terminal'
+import { Line, type TermLine } from '../Terminal'
 import { Container, SectionHeading, Sign } from '../ui'
 
 const ease = [0.22, 1, 0.36, 1] as const
 
-const holdLines: TermLine[] = [
-  { kind: 'tool', text: 'Update(blog/views.py)' },
-  { kind: 'diff', text: '+ slug = slugify(post.title, True)' },
+type Step = { title: string; body: string; scope: number; agent: string; color: string; lines: TermLine[] }
+
+const steps: Step[] = [
   {
-    kind: 'result',
-    head: (
-      <>
-        <Sign kind="HOLD">Hold</Sign> Airspace held this edit
-      </>
-    ),
-    lines: ['utils.text.slugify is changing in agent-a', 'path   render_post → slugify'],
+    title: 'File a flight plan',
+    body: 'An agent says what it will change. Airspace maps everything that calls, imports or tests it.',
+    scope: 1,
+    agent: 'agent-a',
+    color: 'var(--agent-a)',
+    lines: [
+      { kind: 'tool', text: 'airspace · file_flight_plan("utils.text.slugify")' },
+      {
+        kind: 'result',
+        head: (
+          <>
+            <Sign kind="FILED">Plan filed</Sign> 5 symbols depend on it
+          </>
+        ),
+      },
+    ],
+  },
+  {
+    title: 'Ask before every write',
+    body: "A Claude Code hook checks each edit. Inside the agent's own airspace it is cleared. Inside another agent's, it is held.",
+    scope: 5,
+    agent: 'agent-b',
+    color: 'var(--agent-b)',
+    lines: [
+      { kind: 'tool', text: 'Update(blog/views.py)' },
+      {
+        kind: 'result',
+        head: (
+          <>
+            <Sign kind="HOLD">Hold</Sign> slugify is changing in agent-a
+          </>
+        ),
+        lines: ['path   render_post → slugify'],
+      },
+    ],
+  },
+  {
+    title: "Brief, don't surprise",
+    body: 'When a signature changes, every agent that depends on it gets the new one on its next step.',
+    scope: 7,
+    agent: 'agent-b',
+    color: 'var(--agent-b)',
+    lines: [
+      {
+        kind: 'result',
+        head: (
+          <>
+            <Sign kind="BRIEFED">Briefed</Sign> slugify(value, *, unicode=False)
+          </>
+        ),
+      },
+      { kind: 'tool', text: 'Update(blog/views.py)' },
+      {
+        kind: 'result',
+        head: (
+          <>
+            <Sign kind="CLEARED">Cleared</Sign> Updated blog/views.py
+          </>
+        ),
+      },
+    ],
   },
 ]
 
-const briefLines: TermLine[] = [
-  {
-    kind: 'result',
-    head: (
-      <>
-        <Sign kind="BRIEFED">Briefed</Sign> slugify has a new signature
-      </>
-    ),
-    lines: ['new    slugify(value, *, unicode=False)', 'Update your call, then try again.'],
-  },
-  { kind: 'tool', text: 'Update(blog/views.py)' },
-  { kind: 'diff', text: '+ slug = slugify(post.title, unicode=True)' },
-  {
-    kind: 'result',
-    head: (
-      <>
-        <Sign kind="CLEARED">Cleared</Sign> Updated blog/views.py
-      </>
-    ),
-  },
-]
-
-const steps = [
-  { title: 'File a flight plan', body: 'An agent says what it will change. Airspace maps everything that calls, imports or tests it, ring by ring.' },
-  { title: 'Ask before every write', body: "A Claude Code hook checks each edit. Inside the agent's own airspace it is cleared. Inside another agent's, it is held." },
-  { title: "Brief, don't surprise", body: 'When a signature changes, every agent that depends on it gets the new one on its next step.' },
-]
-
-function Visual({ index }: { index: number }) {
-  if (index === 0) {
-    return (
-      <div className="rounded-[14px] border border-line bg-surface px-3 py-6 sm:px-8 sm:py-8">
-        <Scope step={2} />
+/** The airspaces at this step, with what the agent's terminal printed laid over the corner. */
+function Visual({ step }: { step: Step }) {
+  return (
+    <div className="relative overflow-hidden rounded-[16px] border border-line bg-surface">
+      <div className="px-3 pt-8 pb-4 sm:px-10 sm:pt-12 sm:pb-40">
+        <Scope step={step.scope} />
       </div>
-    )
-  }
-  return <Terminal agent="agent-b" color="var(--agent-b)" lines={index === 1 ? holdLines : briefLines} />
+      <div className="m-3 mt-0 sm:absolute sm:bottom-5 sm:left-5 sm:m-0 sm:w-[420px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step.title}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.35, ease }}
+            className="rounded-[12px] border border-line-strong bg-bg/95 px-4 py-3.5 font-mono text-[12.5px] leading-[1.7] shadow-[0_18px_40px_-20px_rgb(0_0_0/0.5)] backdrop-blur"
+          >
+            <p className="mb-2 text-[12px]" style={{ color: step.color }}>
+              {step.agent}
+            </p>
+            <div className="space-y-2">
+              {step.lines.map((l, i) => (
+                <Line key={i} line={l} />
+              ))}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  )
 }
 
 export function HowItWorks() {
   const [active, setActive] = useState(0)
-  const [touched, setTouched] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const inView = useInView(ref, { amount: 0.4 })
-  const reduced = useReducedMotion()
+  const refs = useRef<(HTMLDivElement | null)[]>([])
 
+  // The step crossing the middle of the screen is the one the visual shows.
   useEffect(() => {
-    if (touched || !inView || reduced) return
-    const id = window.setTimeout(() => setActive((a) => (a + 1) % steps.length), 6500)
-    return () => window.clearTimeout(id)
-  }, [active, touched, inView, reduced])
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) setActive(Number((e.target as HTMLElement).dataset.index))
+      },
+      { rootMargin: '-50% 0px -50% 0px' },
+    )
+    refs.current.forEach((el) => el && io.observe(el))
+    return () => io.disconnect()
+  }, [])
 
   return (
     <section id="how" className="border-t border-line py-24 sm:py-32">
       <Container>
         <SectionHeading title="Every edit asks first." lede="Airspace checks each write against the code graph before it lands. The answer is a graph query and a few rules, never a model call." />
 
-        <div ref={ref} className="mt-14 grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)] lg:gap-14">
-          <div className="flex flex-col" role="tablist" aria-label="How Airspace works">
-            {steps.map((s, i) => {
-              const on = i === active
-              return (
-                <button
-                  key={s.title}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  onClick={() => {
-                    setActive(i)
-                    setTouched(true)
-                  }}
-                  className="group relative border-t border-line py-6 text-left last:border-b"
-                >
-                  <span className={`block text-[20px] font-semibold tracking-[-0.01em] transition-colors ${on ? 'text-text' : 'text-muted group-hover:text-text'}`}>{s.title}</span>
-                  <AnimatePresence initial={false}>
-                    {on && (
-                      <motion.span
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.35, ease }}
-                        className="block overflow-hidden"
-                      >
-                        <span className="block pt-2 text-[15px] leading-relaxed text-muted">{s.body}</span>
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                  {on && !touched && !reduced && (
-                    <motion.span
-                      key={`bar-${active}`}
-                      className="absolute -top-px left-0 h-[2px] bg-accent"
-                      initial={{ width: '0%' }}
-                      animate={{ width: inView ? '100%' : '0%' }}
-                      transition={{ duration: 6.5, ease: 'linear' }}
-                    />
-                  )}
-                </button>
-              )
-            })}
+        <div className="mt-12 grid gap-10 lg:mt-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
+          <div>
+            {steps.map((s, i) => (
+              <div
+                key={s.title}
+                ref={(el) => {
+                  refs.current[i] = el
+                }}
+                data-index={i}
+                className="py-10 lg:flex lg:min-h-[78vh] lg:flex-col lg:justify-center lg:py-0"
+              >
+                <h3 className={`text-[28px] leading-tight font-semibold tracking-[-0.025em] transition-colors duration-500 sm:text-[32px] ${active === i ? 'text-text' : 'lg:text-faint'}`}>
+                  {s.title}
+                </h3>
+                <p className={`mt-3 max-w-[38ch] text-[18px] leading-relaxed transition-colors duration-500 ${active === i ? 'text-muted' : 'lg:text-faint'}`}>{s.body}</p>
+                <div className="mt-8 lg:hidden">
+                  <Visual step={s} />
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div className="min-w-0">
-            <div>
-              <AnimatePresence mode="wait">
-                <motion.div key={active} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.35, ease }}>
-                  <Visual index={active} />
-                </motion.div>
-              </AnimatePresence>
+          <div className="hidden lg:block">
+            <div className="sticky top-[calc(50vh-260px)]">
+              <Visual step={steps[active]} />
             </div>
           </div>
         </div>

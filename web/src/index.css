@@ -182,8 +182,8 @@ body {
 }
 
 /* Scope labels: readable on desktop, only the essentials on phones. */
-.scope-minor { font-size: 14px; }
-.scope-major { font-size: 16px; }
+.scope-minor { font-size: 16px; }
+.scope-major { font-size: 18px; }
 @media (max-width: 639px) {
   .scope-minor { display: none; }
   .scope-major { font-size: 28px; }
