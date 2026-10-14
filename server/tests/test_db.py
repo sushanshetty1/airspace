@@ -15,6 +15,12 @@ def test_ensure_schema_is_idempotent(graph):
     assert rows[0][0] >= 5
 
 
+def test_contract_changes_are_indexed_by_qualname(graph):
+    # Clearance looks changes up by qualname, since a removed symbol has no node to start from.
+    rows = graph.query("CALL db.indexes() YIELD label, properties RETURN label, properties").result_set
+    assert any(label == "ContractChange" and "qualname" in props for label, props in rows)
+
+
 def test_seed_blog_graph(graph):
     seed_blog_graph(graph)
     count = graph.query("MATCH (s:Symbol) RETURN count(s)").result_set[0][0]

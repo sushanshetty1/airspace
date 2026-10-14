@@ -14,8 +14,9 @@ from typing import Callable
 
 from airspace.admission import insights as memory
 from airspace.admission import text
+from airspace.admission.compat import call_fits, parse_shape
 from airspace.graph.db import ensure_schema
-from airspace.types import Briefing, SignatureChange, Verdict
+from airspace.types import Briefing, CallSite, SignatureChange, Verdict
 
 # Edges along which a change to one symbol can break another. Read as "dependent -> dependency".
 _DEPENDS = "CALLS|COVERS|INHERITS"
@@ -43,6 +44,11 @@ _COLLISION_FIELDS = (
 )
 _RADAR_AGENTS = 4
 _STATE_COLLISIONS = 20
+
+
+def removed_qualnames(graph) -> set[str]:
+    """Symbols some agent renamed or removed. Clearance keeps resolving calls to them, so such calls are held."""
+    return {r[0] for r in graph.query("MATCH (cc:ContractChange {new_sig: ''}) RETURN DISTINCT cc.qualname").result_set}
 
 
 def _label(qualname: str, kind: str | None) -> str:
@@ -107,6 +113,37 @@ class Airspace:
                 held.append(q)
         return held
 
+    def _defer_claims(self, task_id: str, qualnames: list[str]) -> None:
+        """Remember touched symbols that do not exist yet, to claim once the edit that creates them is written."""
+        if not qualnames:
+            return
+        existing = {r[0] for r in self._q(
+            "MATCH (s:Symbol) WHERE s.qualname IN $qs RETURN s.qualname", {"qs": qualnames}
+        )}
+        missing = [q for q in qualnames if q not in existing]
+        if missing:
+            self._q(
+                """MATCH (t:Task {id: $task})
+                SET t.pending_claims = coalesce(t.pending_claims, []) + $missing""",
+                {"task": task_id, "missing": missing},
+            )
+
+    def claim_pending(self, task_id: str) -> list[str]:
+        """Claim the symbols a cleared edit created, now that they are indexed. Returns what was claimed."""
+        rows = self._q(
+            """MATCH (t:Task {id: $task}) WHERE size(coalesce(t.pending_claims, [])) > 0
+            WITH t, t.pending_claims AS pending
+            SET t.pending_claims = []
+            RETURN pending""",
+            {"task": task_id},
+        )
+        if not rows:
+            return []
+        held = self._claim(task_id, list(dict.fromkeys(rows[0][0])))
+        if held:
+            self.refresh_cone(task_id)
+        return held
+
     def file_plan(self, agent_id: str, task_id: str, intent: str, qualnames: list[str]) -> list[str]:
         self.ensure_task(agent_id, task_id, intent)
         self.claim(task_id, qualnames)
@@ -140,7 +177,13 @@ class Airspace:
 
     # Clearance
 
-    def check_edit(self, task_id: str, touched: list[str], new_calls: list[tuple[str, str]]) -> Verdict:
+    def check_edit(
+        self,
+        task_id: str,
+        touched: list[str],
+        new_calls: list[tuple[str, str]],
+        call_shapes: dict[str, list[CallSite]] | None = None,
+    ) -> Verdict:
         me = self._ensure_known(task_id)
         now = self.clock()
         touched = list(dict.fromkeys(touched))
@@ -152,33 +195,49 @@ class Airspace:
             self._event("hold", me, task_id, subject, now)
             return Verdict(kind="hold", reason=text.paused_hold(me))
 
-        # Rule 1: a new call into a contract another agent's active task is changing, not yet briefed to this task.
+        # Rule 1: a new call into a contract another agent's active task is changing.
+        # With the call's shapes, it is checked against the latest new signature every time: it holds while it does
+        # not fit and clears once it does, briefed or not. Without shapes, it holds once, until briefed.
         for caller, callee in new_calls:
             rows = self._q(
                 """MATCH (me:Task {id: $task})
-                MATCH (a:Agent)-[:FLYING]->(o:Task {status: 'active'})-[:CHANGED]->(cc:ContractChange)
-                      -[:ON]->(:Symbol {qualname: $callee})
-                WHERE a.id <> $agent AND NOT (cc)-[:BRIEFED]->(me)
-                RETURN cc.id, cc.qualname, cc.old_sig, cc.new_sig, o.id, a.id
-                ORDER BY cc.at""",
+                MATCH (a:Agent)-[:FLYING]->(o:Task {status: 'active'})-[:CHANGED]->(cc:ContractChange {qualname: $callee})
+                WHERE a.id <> $agent
+                OPTIONAL MATCH (cc)-[b:BRIEFED]->(me)
+                RETURN cc.id, cc.qualname, cc.old_sig, cc.new_sig, o.id, a.id, b IS NOT NULL, coalesce(b.released, false)
+                ORDER BY cc.at, cc.seq""",
                 {"task": task_id, "agent": me, "callee": callee},
             )
             if not rows:
                 continue
-            briefings = [Briefing(r[0], r[1], r[2], r[3], r[5]) for r in rows]
+            unbriefed = [r for r in rows if not r[6]]
+            sites = [site for site in (call_shapes or {}).get(callee, []) if site.caller == caller]
+            latest = rows[-1]
+            checked = bool(sites) and self._judgeable(callee, latest[3])
+            if checked:
+                if latest[7]:
+                    continue  # Tower released this hold
+                if all(call_fits(latest[3], x.nargs, x.kwargs, x.star, x.bound) for x in sites):
+                    continue
+                first, last = rows[0], latest
+            else:
+                if not unbriefed:
+                    continue
+                first, last = unbriefed[0], unbriefed[-1]
+            briefings = [Briefing(r[0], r[1], r[2], r[3], r[5]) for r in unbriefed]
             for b in briefings:
                 self._brief(b.id, task_id, now)
-            other_task, other_agent = rows[-1][4], rows[-1][5]
-            old_sig, new_sig = briefings[0].old_signature, briefings[-1].new_signature
-            cid = self._collide(
-                "contract", now, me, task_id, other_agent, other_task, callee,
-                caller=caller, old_sig=old_sig, new_sig=new_sig,
+            other_task, other_agent = last[4], last[5]
+            old_sig, new_sig = first[2], last[3]
+            cid = self._contract_collision(
+                now, me, task_id, other_agent, other_task, callee, caller, old_sig, new_sig, last[0]
             )
             self._event("hold", me, task_id, caller, now)
-            self._event("briefed", me, task_id, callee, now)
+            if briefings:
+                self._event("briefed", me, task_id, callee, now)
             return Verdict(
                 kind="hold",
-                reason=text.contract_hold(callee, caller, other_agent, old_sig, new_sig),
+                reason=text.contract_hold(callee, caller, other_agent, old_sig, new_sig, checked=checked),
                 path=[caller, callee],
                 other_agent=other_agent,
                 collision_id=cid,
@@ -219,24 +278,50 @@ class Airspace:
                 "MATCH (:Task {id: $task})-[p:PASS]->(s:Symbol) WHERE s.qualname IN $qs DELETE p",
                 {"task": task_id, "qs": passed},
             )
-        # Dynamic scope: whatever the task touches becomes its claim if free.
+        # Dynamic scope: whatever the task touches becomes its claim if free. A symbol the edit creates is not in
+        # the graph until the post hook re-indexes the file, so it is claimed then (claim_pending).
         self._claim(task_id, touched)
+        self._defer_claims(task_id, touched)
         self.refresh_cone(task_id)
         if subject:
             self._event("cleared", me, task_id, subject, now)
-        self._resolve(me, task_id, touched + [caller for caller, _ in new_calls] + callees, now)
+        names = touched + [caller for caller, _ in new_calls] + callees
+        self._resolve(me, task_id, names, now, None if call_shapes is None else new_calls)
         return Verdict(kind="cleared", reason="")
 
-    def _resolve(self, agent: str, task_id: str, qualnames: list[str], now: float) -> None:
-        # A cleared edit by the held task on the contested symbol means the collision has been worked out.
+    def _judgeable(self, qualname: str, new_sig: str) -> bool:
+        """Whether calls can be checked against this change. A class line ("Post(Base)") says nothing about calls."""
+        if not new_sig:
+            return True
+        rows = self._q("MATCH (s:Symbol {qualname: $q}) RETURN s.kind", {"q": qualname})
+        return not rows or rows[0][0] != "class"
+
+    def _resolve(
+        self, agent: str, task_id: str, qualnames: list[str], now: float,
+        cleared_calls: list[tuple[str, str]] | None = None,
+    ) -> None:
+        """A cleared edit by the held task on the contested symbol means the collision has been worked out.
+
+        When the check carried call shapes, a contract collision is resolved only by a cleared call on the same
+        (caller, symbol) pair: that call was checked and fits, so the broken call has been fixed.
+        """
         if not qualnames:
             return
+        params = {"task": task_id, "qs": list(dict.fromkeys(qualnames)), "now": now}
+        if cleared_calls is None:
+            where = "x.symbol IN $qs OR x.caller IN $qs"
+        else:
+            where = (
+                "(x.kind = 'contract' AND (x.caller + ' ' + x.symbol) IN $pairs) "
+                "OR (x.kind <> 'contract' AND (x.symbol IN $qs OR x.caller IN $qs))"
+            )
+            params["pairs"] = [f"{caller} {callee}" for caller, callee in cleared_calls]
         rows = self._q(
-            """MATCH (x:Collision {held_task: $task, resolution: 'held'})
-            WHERE x.symbol IN $qs OR x.caller IN $qs
+            f"""MATCH (x:Collision {{held_task: $task, resolution: 'held'}})
+            WHERE {where}
             SET x.resolution = 'resolved', x.resolved_at = $now
             RETURN x.symbol ORDER BY x.at, x.seq""",
-            {"task": task_id, "qs": list(dict.fromkeys(qualnames)), "now": now},
+            params,
         )
         for (symbol,) in rows:
             self._event("resolved", agent, task_id, symbol, now)
@@ -252,43 +337,149 @@ class Airspace:
     def _collide(
         self, kind: str, now: float, held_agent: str, held_task: str, owner_agent: str, owner_task: str, symbol: str,
         caller: str | None = None, old_sig: str | None = None, new_sig: str | None = None,
+        change_id: str | None = None,
     ) -> str:
         # Append-only: collisions are history the planner learns hot zones from.
         cid = uuid.uuid4().hex
         self._q(
-            f"""MATCH (me:Task {{id: $held_task}}), (o:Task {{id: $owner_task}}), (s:Symbol {{qualname: $symbol}})
+            f"""MATCH (me:Task {{id: $held_task}}), (o:Task {{id: $owner_task}})
             {_NEXT_SEQ}
             CREATE (x:Collision {{id: $id, at: $now, seq: n.value, kind: $kind, resolution: 'held',
                     held_agent: $held_agent, held_task: $held_task, owner_agent: $owner_agent, owner_task: $owner_task,
-                    symbol: $symbol, caller: $caller, old_sig: $old_sig, new_sig: $new_sig}})
-            CREATE (x)-[:BETWEEN]->(me), (x)-[:BETWEEN]->(o), (x)-[:AT]->(s)""",
+                    symbol: $symbol, caller: $caller, old_sig: $old_sig, new_sig: $new_sig, change_id: $change_id}})
+            CREATE (x)-[:BETWEEN]->(me), (x)-[:BETWEEN]->(o)""",
             {"seq_name": "collision", "id": cid, "now": now, "kind": kind, "held_agent": held_agent,
              "held_task": held_task, "owner_agent": owner_agent, "owner_task": owner_task, "symbol": symbol,
-             "caller": caller, "old_sig": old_sig, "new_sig": new_sig},
+             "caller": caller, "old_sig": old_sig, "new_sig": new_sig, "change_id": change_id},
+        )
+        # A removed symbol may already be gone from the code graph; the collision is recorded all the same.
+        self._q(
+            "MATCH (x:Collision {id: $id}), (s:Symbol {qualname: $symbol}) CREATE (x)-[:AT]->(s)",
+            {"id": cid, "symbol": symbol},
         )
         return cid
+
+    def _contract_collision(
+        self, now: float, held_agent: str, held_task: str, owner_agent: str, owner_task: str, symbol: str,
+        caller: str, old_sig: str, new_sig: str, change_id: str,
+    ) -> str:
+        """The open collision for this call and signature, or a new one: a call held again is the same collision."""
+        rows = self._q(
+            """MATCH (x:Collision {kind: 'contract', resolution: 'held', held_task: $task, symbol: $symbol,
+                                   caller: $caller, new_sig: $new_sig})
+            RETURN x.id ORDER BY x.at, x.seq LIMIT 1""",
+            {"task": held_task, "symbol": symbol, "caller": caller, "new_sig": new_sig},
+        )
+        if rows:
+            return rows[0][0]
+        return self._collide(
+            "contract", now, held_agent, held_task, owner_agent, owner_task, symbol,
+            caller=caller, old_sig=old_sig, new_sig=new_sig, change_id=change_id,
+        )
 
     # Contract changes and briefings
 
     def record_changes(self, task_id: str, changes: list[SignatureChange]) -> list[str]:
+        """Record contract changes and hold the callers they break.
+
+        A change the agent already recorded (same new signature) is skipped, so the pre hook and the post hook can
+        both report it. A removal (new signature "") is recorded even once the symbol has left the code graph.
+        """
         agent = self._ensure_known(task_id)
         ids = []
         for ch in changes:
             now = self.clock()
+            latest = self._q(
+                """MATCH (:Agent {id: $agent})-[:FLYING]->(:Task)-[:CHANGED]->(cc:ContractChange {qualname: $q})
+                RETURN cc.new_sig ORDER BY cc.at DESC, cc.seq DESC LIMIT 1""",
+                {"agent": agent, "q": ch.qualname},
+            )
+            if latest and latest[0][0] == ch.new_signature:
+                continue
+            kind = self._q("MATCH (s:Symbol {qualname: $q}) RETURN s.kind", {"q": ch.qualname})
+            if not kind and ch.new_signature:
+                continue
+            cid = uuid.uuid4().hex
             rows = self._q(
-                """MATCH (t:Task {id: $task}), (s:Symbol {qualname: $q})
-                CREATE (cc:ContractChange {id: $id, qualname: $q, old_sig: $old, new_sig: $new, at: $now})
-                CREATE (t)-[:CHANGED]->(cc), (cc)-[:ON]->(s)
+                f"""MATCH (t:Task {{id: $task}})
+                {_NEXT_SEQ}
+                CREATE (cc:ContractChange {{id: $id, qualname: $q, old_sig: $old, new_sig: $new, at: $now,
+                        seq: n.value}})
+                CREATE (t)-[:CHANGED]->(cc)
                 RETURN cc.id""",
-                {"task": task_id, "q": ch.qualname, "id": uuid.uuid4().hex, "old": ch.old_signature,
+                {"seq_name": "change", "task": task_id, "q": ch.qualname, "id": cid, "old": ch.old_signature,
                  "new": ch.new_signature, "now": now},
             )
-            if rows:
-                self._event("contract", agent, task_id, ch.qualname, now)
-            ids.extend(r[0] for r in rows)
+            if not rows:
+                continue
+            if kind:
+                self._q(
+                    "MATCH (cc:ContractChange {id: $id}), (s:Symbol {qualname: $q}) CREATE (cc)-[:ON]->(s)",
+                    {"id": cid, "q": ch.qualname},
+                )
+            self._event("contract", agent, task_id, ch.qualname, now)
+            ids.append(cid)
+            self._hold_callers(task_id, agent, ch, cid, kind[0][0] if kind else None, now)
         return ids
 
+    def _hold_callers(
+        self, task_id: str, agent: str, ch: SignatureChange, change_id: str, kind: str | None, now: float
+    ) -> None:
+        """Caller first: another agent already wrote a call this change breaks, in code it has claimed.
+
+        Each such agent gets a held contract collision and a hold event. Its briefing stays pending, so its next
+        tool call of any kind delivers it. Only stored call shapes count: an edge without shapes holds no one.
+        """
+        if kind == "class" and ch.new_signature:
+            return
+        targets = [ch.qualname]
+        owner, _, name = ch.qualname.rpartition(".")
+        if name == "__init__":
+            targets.append(owner)  # Class(...) binds its arguments to __init__
+        rows = self._q(
+            """MATCH (d:Symbol)-[r:CALLS|COVERS]->(s:Symbol)
+            WHERE s.qualname IN $targets AND r.shapes IS NOT NULL
+            MATCH (a:Agent)-[:FLYING]->(t:Task {status: 'active'})-[c:CLAIMS]->(d)
+            WHERE a.id <> $agent AND c.lease_until > $now
+            RETURN a.id, t.id, d.qualname, s.qualname, s.kind, r.shapes
+            ORDER BY a.id, d.qualname, t.id""",
+            {"targets": targets, "agent": agent, "now": now},
+        )
+        broken: dict[str, tuple[str, str]] = {}  # agent -> (its task, the caller whose call no longer fits)
+        for other, other_task, caller, target, target_kind, shapes in rows:
+            if other in broken:
+                continue
+            via_class = target != ch.qualname
+            if via_class and target_kind != "class":
+                continue
+            for key in shapes or []:
+                shape = parse_shape(key)
+                if shape is None:
+                    continue
+                nargs, kwargs, star, bound = shape
+                if not call_fits(ch.new_signature, nargs, kwargs, star, bound or via_class):
+                    broken[other] = (other_task, caller)
+                    break
+        for other, (other_task, caller) in broken.items():
+            if self._q(
+                """MATCH (x:Collision {kind: 'contract', resolution: 'held', held_agent: $other, symbol: $q,
+                                       new_sig: $new})
+                RETURN x.id LIMIT 1""",
+                {"other": other, "q": ch.qualname, "new": ch.new_signature},
+            ):
+                continue
+            self._collide(
+                "contract", now, other, other_task, agent, task_id, ch.qualname,
+                caller=caller, old_sig=ch.old_signature, new_sig=ch.new_signature, change_id=change_id,
+            )
+            self._event("hold", other, other_task, caller, now)
+
     def pending_briefings(self, task_id: str) -> list[Briefing]:
+        """Contract changes this task depends on and has not been told about, each returned once.
+
+        Two sources: changes in the cone of what the task claims, and changes behind a held contract collision on
+        this agent (the caller-first case). The second kind names the call that no longer fits.
+        """
         now = self.clock()
         agent = self.agent_of(task_id) or task_id
         rows = self._q(
@@ -300,13 +491,24 @@ class Airspace:
             ORDER BY cc.at""",
             {"task": task_id, "agent": agent, "now": now},
         )
+        callers = self._q(
+            """MATCH (x:Collision {held_agent: $agent, kind: 'contract', resolution: 'held'})
+            WHERE x.change_id IS NOT NULL
+            MATCH (cc:ContractChange) WHERE cc.id = x.change_id
+            MATCH (me:Task {id: $task})
+            WHERE NOT (cc)-[:BRIEFED]->(me)
+            RETURN cc.id, cc.qualname, cc.old_sig, cc.new_sig, x.owner_agent, cc.at, x.caller
+            ORDER BY cc.at""",
+            {"task": task_id, "agent": agent},
+        )
+        found: dict[str, list] = {r[0]: [*r, None] for r in rows}
+        for r in callers:
+            found[r[0]] = list(r)
         briefings = []
-        for r in rows:
-            if any(b.id == r[0] for b in briefings):
-                continue
+        for r in sorted(found.values(), key=lambda r: r[5]):
             self._brief(r[0], task_id, now)
             self._event("briefed", agent, task_id, r[1], now)
-            briefings.append(Briefing(r[0], r[1], r[2], r[3], r[4]))
+            briefings.append(Briefing(r[0], r[1], r[2], r[3], r[4], r[6]))
         return briefings
 
     def explain(self, from_q: str, to_q: str) -> list[str]:
@@ -390,13 +592,15 @@ class Airspace:
             return False
         kind, held_agent, held_task, symbol = rows[0]
         if kind == "contract":
-            # The held task now counts as briefed on every change to that contract, so its retry is cleared.
+            # The held task now counts as briefed on every change to that contract, and released from it, so its
+            # retry is cleared whether or not the call fits.
             self._q(
-                """MATCH (a:Agent)-[:FLYING]->(:Task)-[:CHANGED]->(cc:ContractChange)-[:ON]->(:Symbol {qualname: $q})
+                """MATCH (a:Agent)-[:FLYING]->(:Task)-[:CHANGED]->(cc:ContractChange {qualname: $q})
                 MATCH (t:Task {id: $task})
                 WHERE a.id <> $agent
                 MERGE (cc)-[b:BRIEFED]->(t)
-                ON CREATE SET b.at = $now""",
+                ON CREATE SET b.at = $now
+                SET b.released = true""",
                 {"q": symbol, "task": held_task, "agent": held_agent, "now": now},
             )
         else:

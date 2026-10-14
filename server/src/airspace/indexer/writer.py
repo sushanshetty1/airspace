@@ -10,7 +10,7 @@ from pathlib import Path
 
 from airspace.graph.db import ensure_schema
 from airspace.indexer.parse import parse_module
-from airspace.indexer.resolve import resolve_calls, resolve_target
+from airspace.indexer.resolve import resolve_calls, resolve_shapes, resolve_target
 from airspace.types import ModuleFacts, SignatureChange
 
 SKIP_DIRS = {"__pycache__", ".venv", "venv", "node_modules", "build", "dist"}
@@ -69,25 +69,34 @@ def _write_edges(graph, facts: ModuleFacts, known: set[str]) -> tuple[int, int]:
     )
     tests = {s.qualname for s in facts.symbols if s.is_test}
     pairs = resolve_calls(facts, known)
+    shapes = resolve_shapes(facts, known)
     unresolved = sum(1 for c in facts.calls if resolve_target(c.target, facts, c.caller, known) is None)
-    # A test calling code is coverage, not a dependency the code has.
-    by_rel = {
-        "CALLS": [list(p) for p in pairs if p[0] not in tests],
-        "COVERS": [list(p) for p in pairs if p[0] in tests],
-        "INHERITS": [],
+    # A test calling code is coverage, not a dependency the code has. Each call edge carries its call shapes.
+    calls = {
+        "CALLS": [[a, b, sorted(shapes[(a, b)])] for a, b in pairs if a not in tests],
+        "COVERS": [[a, b, sorted(shapes[(a, b)])] for a, b in pairs if a in tests],
     }
-    for cls, base in facts.bases:
-        target = resolve_target(base, facts, cls, known)
-        if target is not None:
-            by_rel["INHERITS"].append([cls, target])
-    for rel, rows in by_rel.items():
+    for rel, rows in calls.items():
         if rows:
             graph.query(
                 f"""UNWIND $rows AS p
                 MATCH (a:Symbol {{qualname: p[0]}}), (b:Symbol {{qualname: p[1]}})
-                MERGE (a)-[:{rel}]->(b)""",
+                MERGE (a)-[r:{rel}]->(b)
+                SET r.shapes = p[2]""",
                 {"rows": rows},
             )
+    inherits = []
+    for cls, base in facts.bases:
+        target = resolve_target(base, facts, cls, known)
+        if target is not None:
+            inherits.append([cls, target])
+    if inherits:
+        graph.query(
+            """UNWIND $rows AS p
+            MATCH (a:Symbol {qualname: p[0]}), (b:Symbol {qualname: p[1]})
+            MERGE (a)-[:INHERITS]->(b)""",
+            {"rows": inherits},
+        )
     return len(pairs), unresolved
 
 

@@ -11,10 +11,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from airspace.admission.text import briefing_line
 from airspace.types import Briefing, EditAnalysis, SignatureChange
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
 UNAVAILABLE = "airspace: FalkorDB unavailable, edit not checked"
+ANY_UNAVAILABLE = "airspace: FalkorDB unavailable, briefings not delivered"
 
 # Hooks run on every edit; a stalled socket must not stall the agent.
 _CONNECT_TIMEOUT = 2.0
@@ -74,13 +76,7 @@ def _failed(exc: Exception) -> None:
 
 def briefing_context(briefings: list[Briefing]) -> str:
     """Factual text describing contract changes made by other agents."""
-    lines = []
-    for b in briefings:
-        lines.append(
-            f"Airspace briefing: {b.symbol} was changed by {b.from_agent}. "
-            f"New signature: {b.new_signature} (was {b.old_signature})."
-        )
-    return "\n".join(lines)
+    return "\n".join(f"Airspace briefing: {briefing_line(b)}" for b in briefings)
 
 
 def message_context(messages: list[str]) -> str:
@@ -118,10 +114,19 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
         return None
     try:
         analysis = deps.analyze(root, payload["tool_name"], payload.get("tool_input") or {}, known)
-        if analysis is None or not analysis.parse_ok or (not analysis.touched and not analysis.new_calls):
+        if analysis is None or not analysis.parse_ok:
             return None
+        changes = analysis.signature_changes
+        if not analysis.touched and not analysis.new_calls and not changes:
+            return None
+        # A removed symbol is gone from the new source, so it is not touched there, but removing it is an edit to it.
+        removed = [c.qualname for c in changes if not c.new_signature and c.qualname not in analysis.touched]
         airspace.ensure_task(agent, task)
-        verdict = airspace.check_edit(task, analysis.touched, analysis.new_calls)
+        verdict = airspace.check_edit(task, analysis.touched + removed, analysis.new_calls, analysis.call_shapes)
+        if verdict.kind == "cleared" and changes:
+            # Recorded before the file is written, so a concurrent agent sees the change at once.
+            # The post hook reports it again and record_changes skips the repeat.
+            airspace.record_changes(task, changes)
         if verdict.kind == "hold":
             # A message sent while the agent is held reaches it in this deny reason, not only on a later clear.
             messages = message_context(_messages(airspace, agent, task))
@@ -150,6 +155,8 @@ def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) 
         return None
     try:
         changes = deps.reindex(root, rel)
+        # Symbols the edit created exist now, so the task can claim them; a caller-first change then finds it.
+        airspace.claim_pending(task)
         if changes:
             airspace.ensure_task(agent, task)
             airspace.record_changes(task, changes)
@@ -157,6 +164,29 @@ def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) 
     except Exception as e:
         _failed(e)
         return None
+
+
+def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -> dict | None:
+    """PreToolUse for every other tool (Bash, Read, Grep, ...): deliver pending briefings and messages.
+
+    An agent that only runs tests after a contract it calls was changed still hears about it. No indexing and one
+    engine construction, so it stays fast; it fails open like the edit hooks.
+    """
+    if payload.get("tool_name") in EDIT_TOOLS:
+        return None  # the edit hooks deliver for edits
+    root, agent, task = identity(payload, env)
+    try:
+        airspace = deps.airspace(root)
+    except Exception:
+        _note(ANY_UNAVAILABLE)
+        return None
+    try:
+        briefings = airspace.pending_briefings(task)
+    except Exception as e:
+        detail = " ".join(str(e).split()) or type(e).__name__
+        _note(f"airspace: {type(e).__name__} ({detail}), briefings not delivered")
+        briefings = []
+    return _context("PreToolUse", briefings, _messages(airspace, agent, task))
 
 
 def default_deps() -> Deps:
@@ -195,9 +225,12 @@ def default_deps() -> Deps:
         return analyze_edit(root, tool_name, tool_input, known)
 
     def known(root: Path) -> set[str]:
+        from airspace.admission.engine import removed_qualnames
         from airspace.indexer.writer import known_qualnames
 
-        return known_qualnames(graph(root))
+        # Renamed or removed symbols stay known to clearance, so a new call to the old name is still caught.
+        g = graph(root)
+        return known_qualnames(g) | removed_qualnames(g)
 
     def reindex(root: Path, rel_path: str) -> list[SignatureChange]:
         from airspace.indexer.writer import reindex_file

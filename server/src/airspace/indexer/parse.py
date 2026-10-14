@@ -76,6 +76,19 @@ def _imports(tree: ast.Module, module: str, rel_path: str) -> dict[str, str]:
     return imports
 
 
+def _call_fact(node: ast.Call, caller: str, target: str) -> CallFact:
+    star = any(isinstance(a, ast.Starred) for a in node.args) or any(k.arg is None for k in node.keywords)
+    return CallFact(
+        caller=caller,
+        target=target,
+        lineno=node.lineno,
+        nargs=sum(1 for a in node.args if not isinstance(a, ast.Starred)),
+        kwargs=tuple(k.arg for k in node.keywords if k.arg is not None),
+        star=star,
+        via_instance=isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Call),
+    )
+
+
 def _calls_in(func: ast.AST, caller: str) -> list[CallFact]:
     found = []
     for stmt in func.body:
@@ -83,7 +96,7 @@ def _calls_in(func: ast.AST, caller: str) -> list[CallFact]:
             if isinstance(node, ast.Call):
                 target = _call_target(node.func)
                 if target is not None:
-                    found.append((node.lineno, node.col_offset, CallFact(caller, target, node.lineno)))
+                    found.append((node.lineno, node.col_offset, _call_fact(node, caller, target)))
     # ast.walk is breadth-first; sort so the order follows the source.
     return [c for _, _, c in sorted(found, key=lambda t: (t[0], t[1]))]
 

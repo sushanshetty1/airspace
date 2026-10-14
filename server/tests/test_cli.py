@@ -11,6 +11,8 @@ from airspace.types import EditAnalysis, Verdict
 
 PRE = f"{shlex.quote(sys.executable)} -m airspace.cli hook pre"
 POST = f"{shlex.quote(sys.executable)} -m airspace.cli hook post"
+ANY = f"{shlex.quote(sys.executable)} -m airspace.cli hook any"
+ANY_MATCHER = "Bash|Read|Grep|Glob|Task|WebFetch|WebSearch|NotebookEdit"
 
 
 def read_settings(root):
@@ -25,7 +27,8 @@ def test_install_hooks_creates_settings(tmp_path, capsys):
     assert cli.main(["install-hooks", "--root", str(tmp_path)]) == 0
     s = read_settings(tmp_path)
     assert s["hooks"]["PreToolUse"] == [
-        {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": PRE}]}
+        {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": PRE}]},
+        {"matcher": ANY_MATCHER, "hooks": [{"type": "command", "command": ANY}]},
     ]
     assert s["hooks"]["PostToolUse"] == [
         {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": POST}]}
@@ -51,7 +54,7 @@ def test_install_hooks_merges_existing_settings(tmp_path):
     assert s["env"] == existing["env"]
     assert s["hooks"]["Stop"] == existing["hooks"]["Stop"]
     assert s["hooks"]["PreToolUse"][0] == existing["hooks"]["PreToolUse"][0]
-    assert commands(s, "PreToolUse") == ["./guard.sh", PRE]
+    assert commands(s, "PreToolUse") == ["./guard.sh", PRE, ANY]
     assert commands(s, "PostToolUse") == [POST]
 
 
@@ -72,15 +75,60 @@ def test_install_hooks_recognises_an_existing_airspace_command(tmp_path):
     (tmp_path / ".claude" / "settings.json").write_text(json.dumps(existing))
     assert cli.main(["install-hooks", "--root", str(tmp_path)]) == 0
     s = read_settings(tmp_path)
-    assert commands(s, "PreToolUse") == ["airspace hook pre"]
+    assert commands(s, "PreToolUse") == ["airspace hook pre", ANY]
     assert commands(s, "PostToolUse") == [POST]
+
+
+def test_install_hooks_adds_any_hook(tmp_path, capsys):
+    # A settings file from before the any hook existed: pre and post are kept, the any hook is added once.
+    existing = {
+        "hooks": {
+            "PreToolUse": [{"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": PRE}]}],
+            "PostToolUse": [{"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": POST}]}],
+        }
+    }
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / "settings.json").write_text(json.dumps(existing))
+
+    assert cli.main(["install-hooks", "--root", str(tmp_path)]) == 0
+    s = read_settings(tmp_path)
+    assert s["hooks"]["PreToolUse"][1] == {"matcher": ANY_MATCHER, "hooks": [{"type": "command", "command": ANY}]}
+    assert commands(s, "PreToolUse") == [PRE, ANY]
+    assert commands(s, "PostToolUse") == [POST]
+    assert "hook any" in capsys.readouterr().out
+
+    assert cli.main(["install-hooks", "--root", str(tmp_path)]) == 0
+    assert commands(read_settings(tmp_path), "PreToolUse") == [PRE, ANY]
+
+
+def test_cli_hook_any_roundtrip(tmp_path, monkeypatch, capsys):
+    from airspace.types import Briefing
+
+    class Briefs:
+        def pending_briefings(self, task_id):
+            return [Briefing("cc", "utils.text.slugify", "slugify(value, allow_unicode=False)",
+                             "slugify(value, *, unicode=False)", "agent-a", "blog.views.render_post")]
+
+        def pending_messages(self, agent_id, task_id=None):
+            return []
+
+    deps = fake_deps()
+    deps.airspace = lambda root: Briefs()
+    monkeypatch.setattr(cli, "_deps", lambda: deps)
+    payload = {"session_id": "bbbb1111", "cwd": str(tmp_path), "tool_name": "Bash", "tool_input": {"command": "pytest"}}
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+    assert cli.main(["hook", "any"]) == 0
+    out = json.loads(capsys.readouterr().out)["hookSpecificOutput"]
+    assert out["hookEventName"] == "PreToolUse"
+    assert "slugify(value, *, unicode=False)" in out["additionalContext"]
+    assert "blog.views.render_post" in out["additionalContext"]
 
 
 class HoldingAirspace:
     def ensure_task(self, agent_id, task_id, intent=""):
         pass
 
-    def check_edit(self, task_id, touched, new_calls):
+    def check_edit(self, task_id, touched, new_calls, call_shapes=None):
         return Verdict("hold", "Airspace hold: utils.text.slugify is being changed by agent-a.")
 
     def pending_briefings(self, task_id):

@@ -12,6 +12,8 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
+from airspace.admission.text import briefing_line
+
 DEFAULT_AGENT = "agent-mcp"
 
 INSTRUCTIONS = (
@@ -90,11 +92,7 @@ def check_symbols(airspace: Any, agent: str, symbols: list[str]) -> str:
 
 
 def briefings(airspace: Any, agent: str, task: str) -> str:
-    lines = [
-        f"Airspace briefing: {b.symbol} was changed by {b.from_agent}. "
-        f"New signature: {b.new_signature} (was {b.old_signature})."
-        for b in airspace.pending_briefings(task)
-    ]
+    lines =[f"Airspace briefing: {briefing_line(b)}" for b in airspace.pending_briefings(task)]
     lines.extend(f"Airspace message: {m}" for m in airspace.pending_messages(agent))
     return "\n".join(lines) or "No pending briefings or messages."
 

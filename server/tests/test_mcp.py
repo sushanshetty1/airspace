@@ -119,6 +119,21 @@ def test_briefings_combine_briefings_and_messages():
     assert no_dashes(out)
 
 
+def test_briefings_state_removals_and_broken_calls():
+    class Removal(FakeAirspace):
+        def pending_briefings(self, task_id):
+            return [Briefing("cc_9", "blog.models.Post.get_absolute_url", "get_absolute_url(self)", "", "agent-a",
+                             "blog.feeds.LatestPosts.item_link")]
+
+        def pending_messages(self, agent_id):
+            return []
+
+    out = mcp.briefings(Removal(), AGENT, TASK)
+    assert "blog.models.Post.get_absolute_url was renamed or removed by agent-a" in out
+    assert "blog.feeds.LatestPosts.item_link" in out
+    assert "New signature" not in out and no_dashes(out)
+
+
 def test_briefings_when_nothing_is_pending():
     class Quiet(FakeAirspace):
         def pending_briefings(self, task_id):

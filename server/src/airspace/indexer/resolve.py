@@ -4,7 +4,8 @@ A target that cannot be pinned to a known symbol stays unresolved. We never gues
 would hold an innocent agent, while a missing one only weakens the cone.
 """
 
-from airspace.types import ModuleFacts
+from airspace.admission.compat import shape_key
+from airspace.types import CallFact, ModuleFacts
 
 
 def _class_of(caller: str, facts: ModuleFacts) -> str | None:
@@ -44,6 +45,23 @@ def resolve_target(target: str, facts: ModuleFacts, caller: str, known: set[str]
     if target in known:
         return target
     return None
+
+
+def is_bound(call: CallFact) -> bool:
+    """The call goes through an instance (self.x(), cls.x(), Tag(name).save()), so its first parameter is filled."""
+    head, dot, _ = call.target.partition(".")
+    return call.via_instance or (bool(dot) and head in ("self", "cls"))
+
+
+def resolve_shapes(facts: ModuleFacts, known: set[str]) -> dict[tuple[str, str], set[str]]:
+    """(caller, callee) -> the shape keys of every resolved call site between them."""
+    shapes: dict[tuple[str, str], set[str]] = {}
+    for call in facts.calls:
+        callee = resolve_target(call.target, facts, call.caller, known)
+        if callee is not None:
+            key = shape_key(call.nargs, call.kwargs, call.star, is_bound(call))
+            shapes.setdefault((call.caller, callee), set()).add(key)
+    return shapes
 
 
 def resolve_calls(facts: ModuleFacts, known: set[str]) -> list[tuple[str, str]]:

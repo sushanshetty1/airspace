@@ -166,3 +166,37 @@ def test_reindex_new_file(graph, blog_repo):
     )
     assert reindex_file(graph, blog_repo, "blog/search.py") == []
     assert ("blog.search.search", "utils.text.slugify") in _edges(graph, "CALLS")
+
+
+def _shapes(graph, rel: str) -> dict[tuple[str, str], list[str]]:
+    rows = graph.query(f"MATCH (a:Symbol)-[r:{rel}]->(b:Symbol) RETURN a.qualname, b.qualname, r.shapes").result_set
+    return {(a, b): s for a, b, s in rows}
+
+
+def test_edges_store_call_shapes(graph):
+    index_repo(graph, FIXTURE_REPO)
+    calls = _shapes(graph, "CALLS")
+    assert calls[("blog.models.Post.save", "utils.text.slugify")] == ["1|"]
+    assert calls[("blog.feeds.LatestPosts.item_description", "utils.text.truncate_words")] == ["2|"]
+    assert calls[("tags.views.tag_create", "tags.models.Tag")] == ["1|"]
+    # Tag(name).save() is called on the new instance, so it is bound.
+    assert calls[("tags.views.tag_create", "tags.models.Tag.save")] == ["b:0|"]
+    covers = _shapes(graph, "COVERS")
+    assert covers[("tests.test_views.test_render_post", "blog.models.Post")] == ["2|"]
+
+
+def test_edge_shapes_merge_across_call_sites(graph, blog_repo):
+    index_repo(graph, blog_repo)
+    (blog_repo / "blog" / "search.py").write_text(
+        "from utils.text import slugify\n\n\n"
+        "class Search:\n"
+        "    def run(self, q, opts):\n"
+        "        self.clean(q)\n"
+        "        return slugify(q) + slugify(q, unicode=True) + slugify(q) + slugify(*opts)\n\n"
+        "    def clean(self, q):\n"
+        "        return q\n"
+    )
+    reindex_file(graph, blog_repo, "blog/search.py")
+    calls = _shapes(graph, "CALLS")
+    assert sorted(calls[("blog.search.Search.run", "utils.text.slugify")]) == ["*", "1|", "1|unicode"]
+    assert calls[("blog.search.Search.run", "blog.search.Search.clean")] == ["b:1|"]

@@ -24,6 +24,10 @@ class CallFact:
     caller: str  # qualname of the enclosing function or method
     target: str  # dotted name as written: "slugify", "text.slugify", "self.save", "Tag.save"
     lineno: int
+    nargs: int = 0  # positional arguments, not counting *args
+    kwargs: tuple[str, ...] = ()  # keyword names, not counting **kwargs
+    star: bool = False  # the call unpacks *args or **kwargs
+    via_instance: bool = False  # the receiver is a constructed instance: Tag(name).save()
 
 
 @dataclass
@@ -48,8 +52,9 @@ class Briefing:
     id: str
     symbol: str  # qualname
     old_signature: str
-    new_signature: str
+    new_signature: str  # "" when the symbol was renamed or removed
     from_agent: str
+    caller: str | None = None  # the caller whose call no longer fits, when one is known
 
 
 VerdictKind = Literal["cleared", "hold"]
@@ -65,9 +70,22 @@ class Verdict:
     briefings: list[Briefing] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class CallSite:
+    """The shape of one call as written, for checking it against a signature."""
+
+    caller: str  # qualname of the calling function or method
+    nargs: int  # positional arguments, not counting *args
+    kwargs: tuple[str, ...]  # keyword names, not counting **kwargs
+    star: bool  # unpacks *args or **kwargs
+    bound: bool  # called through an instance (or a constructor checked against __init__): the first parameter is filled
+
+
 @dataclass
 class EditAnalysis:
     file: str  # repo-relative
     touched: list[str]  # qualnames whose body the edit changes, in the new source
-    new_calls: list[tuple[str, str]]  # (caller qualname, resolved callee qualname) added by the edit
+    new_calls: list[tuple[str, str]]  # (caller qualname, resolved callee qualname) new or reshaped by the edit
     parse_ok: bool
+    call_shapes: dict[str, list[CallSite]] = field(default_factory=dict)  # callee -> sites of the new calls
+    signature_changes: list[SignatureChange] = field(default_factory=list)  # new_signature "" for a removal
