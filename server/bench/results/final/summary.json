@@ -13,8 +13,8 @@
       "task_failed": 0,
       "adapted": 0,
       "errors": 0,
-      "median_wall_seconds": 24.5,
-      "cost_usd": 4.84,
+      "median_wall_seconds": 24.6,
+      "cost_usd": 4.82,
       "holds": 0
     },
     "broadcast": {
@@ -30,26 +30,26 @@
       "task_failed": 0,
       "adapted": 0,
       "errors": 0,
-      "median_wall_seconds": 27.9,
-      "cost_usd": 4.97,
+      "median_wall_seconds": 27.5,
+      "cost_usd": 4.83,
       "holds": 0
     },
     "airspace": {
       "pairs": 18,
-      "graded": 3,
-      "interference": 3,
-      "interference_rate": 1.0,
+      "graded": 4,
+      "interference": 1,
+      "interference_rate": 0.25,
       "merged_runs": 18,
-      "merged_pass": 15,
-      "merged_pass_rate": 0.833,
-      "clean": 0,
+      "merged_pass": 17,
+      "merged_pass_rate": 0.944,
+      "clean": 3,
       "conflict": 0,
-      "task_failed": 15,
-      "adapted": 15,
+      "task_failed": 14,
+      "adapted": 14,
       "errors": 0,
-      "median_wall_seconds": 39.8,
-      "cost_usd": 5.46,
-      "holds": 15
+      "median_wall_seconds": 43.0,
+      "cost_usd": 5.55,
+      "holds": 19
     }
   },
   "sets": {
@@ -57,8 +57,8 @@
       "kind": "constructor",
       "airspace": [
         {
-          "outcome": "task_failed",
-          "merged": true
+          "outcome": "interference",
+          "merged": false
         },
         {
           "outcome": "task_failed",
@@ -237,16 +237,16 @@
       "kind": "behaviour",
       "airspace": [
         {
-          "outcome": "interference",
-          "merged": false
+          "outcome": "clean",
+          "merged": true
         },
         {
-          "outcome": "interference",
-          "merged": false
+          "outcome": "clean",
+          "merged": true
         },
         {
-          "outcome": "interference",
-          "merged": false
+          "outcome": "clean",
+          "merged": true
         }
       ],
       "broadcast": [

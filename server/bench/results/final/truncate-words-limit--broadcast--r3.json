@@ -6,29 +6,29 @@
   "a_alone": true,
   "b_alone": true,
   "merged": false,
-  "wall_seconds": 23.2,
-  "cost_usd": 0.254,
+  "wall_seconds": 31.4,
+  "cost_usd": 0.2408,
   "holds": 0,
   "briefed": 0,
   "agents": [
     {
       "agent": "agent-a",
-      "seconds": 23.2,
-      "cost_usd": 0.15788560000000001,
-      "turns": 10,
-      "result": "I made `truncate_words(text, *, limit=30)` keyword-only, updated its only caller (`blog/feeds.py` now passes `limit=40`), and all 3 tests pass; the engineer adding `tag_label` needs to call `truncate_words(name, limit=3)`, because a positional `3` will raise a TypeError once both branches merge, and I didn't message them since I couldn't tell which session was theirs.",
+      "seconds": 31.4,
+      "cost_usd": 0.14305400000000001,
+      "turns": 9,
+      "result": "`truncate_words` is now `truncate_words(text, *, limit=30)`, its only caller in `blog/feeds.py` passes `limit=40`, and all 3 tests pass; tell the engineer on the other branch to write `tag_label` as `truncate_words(name, limit=3)`, because a positional `truncate_words(name, 3)` will raise a TypeError once the two branches are merged.",
       "error": ""
     },
     {
       "agent": "agent-b",
-      "seconds": 14.7,
-      "cost_usd": 0.0960704,
+      "seconds": 14.5,
+      "cost_usd": 0.0977196,
       "turns": 3,
-      "result": "I added `tag_label(name)` to `tags/views.py`, which calls `truncate_words(name, 3)`, and all 3 tests pass; heads-up, this positional call will break once the other engineer makes the argument keyword-only `limit`, so after their change it needs to become `truncate_words(name, limit=3)`.",
+      "result": "I added `tag_label(name)` to `tags/views.py`, which calls `truncate_words(name, 3)`, and all 3 tests pass. The other engineer's change will break this call once both branches are merged, because the count can then only be passed as `limit=` (keyword-only); after their branch lands, it needs to become `truncate_words(name, limit=3)`.",
       "error": ""
     }
   ],
   "diff_a": "diff --git a/blog/feeds.py b/blog/feeds.py\nindex 0537800..966d744 100644\n--- a/blog/feeds.py\n+++ b/blog/feeds.py\n@@ -4,4 +4,4 @@ from utils.text import truncate_words\n \n class LatestPosts:\n     def item_description(self, post):\n-        return truncate_words(render_post(post), 40)\n+        return truncate_words(render_post(post), limit=40)\ndiff --git a/utils/text.py b/utils/text.py\nindex 3b5c079..07b7183 100644\n--- a/utils/text.py\n+++ b/utils/text.py\n@@ -12,6 +12,6 @@ def slugify(value, allow_unicode=False):\n     return re.sub(r\"[-\\s]+\", \"-\", value).strip(\"-_\")\n \n \n-def truncate_words(text, count=30):\n+def truncate_words(text, *, limit=30):\n     words = text.split()\n-    return \" \".join(words[:count]) + (\"...\" if len(words) > count else \"\")\n+    return \" \".join(words[:limit]) + (\"...\" if len(words) > limit else \"\")\n",
   "diff_b": "diff --git a/tags/views.py b/tags/views.py\nindex 123c0c7..fca7f12 100644\n--- a/tags/views.py\n+++ b/tags/views.py\n@@ -1,5 +1,10 @@\n from tags.models import Tag\n+from utils.text import truncate_words\n \n \n def tag_create(name):\n     return Tag(name).save()\n+\n+\n+def tag_label(name):\n+    return truncate_words(name, 3)\n",
-  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_label ________________________________\n\n    def test_tag_label():\n>       assert tag_label('one two three four') == 'one two three...'\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'one two three four'\n\n    def tag_label(name):\n>       return truncate_words(name, 3)\n               ^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: truncate_words() takes 1 positional argument but 2 were given\n\ntags/views.py:10: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-truncate-words-limit-broadcast-oilrl_28/repo/test_hidden_b.py::test_tag_label\n1 failed, 4 passed in 1.08s\n"
+  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_label ________________________________\n\n    def test_tag_label():\n>       assert tag_label('one two three four') == 'one two three...'\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'one two three four'\n\n    def tag_label(name):\n>       return truncate_words(name, 3)\n               ^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: truncate_words() takes 1 positional argument but 2 were given\n\ntags/views.py:10: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-truncate-words-limit-broadcast-0c4c7gac/repo/test_hidden_b.py::test_tag_label\n1 failed, 4 passed in 1.08s\n"
 }

@@ -2,33 +2,33 @@
   "set_id": "tag-save-returns-none",
   "kind": "behaviour",
   "condition": "airspace",
-  "outcome": "interference",
+  "outcome": "clean",
   "a_alone": true,
   "b_alone": true,
-  "merged": false,
-  "wall_seconds": 26.3,
-  "cost_usd": 0.269,
-  "holds": 0,
-  "briefed": 0,
+  "merged": true,
+  "wall_seconds": 41.9,
+  "cost_usd": 0.3103,
+  "holds": 1,
+  "briefed": 1,
   "agents": [
     {
       "agent": "agent-a",
-      "seconds": 25.3,
-      "cost_usd": 0.1620918,
-      "turns": 10,
-      "result": "`Tag.save` in `tags/models.py` now only sets the slug and returns None, and I updated its one caller, `tag_create` in `tags/views.py`, to return the tag itself; all 3 tests pass.",
+      "seconds": 21.3,
+      "cost_usd": 0.14119920000000002,
+      "turns": 9,
+      "result": "`Tag.save` now returns `None` after setting the slug, I changed its only caller, `tag_create` in `tags/views.py`, to save the tag and then return it, and all 3 tests pass.",
       "error": ""
     },
     {
       "agent": "agent-b",
-      "seconds": 26.3,
-      "cost_usd": 0.10694900000000002,
-      "turns": 5,
-      "result": "I added `tag_slug(name)` in `tags/utils.py` as `return Tag(name).save().slug`, which works because `Tag.save()` returns the tag itself, and all 3 tests pass, though none of them calls `tag_slug` and my one-off direct check of it needed approval so it didn't run.",
+      "seconds": 41.9,
+      "cost_usd": 0.169142,
+      "turns": 9,
+      "result": "I rewrote `tag_slug` as `((tag := Tag(name)).save(), tag.slug)[1]` so it no longer uses what `save()` returns and will still work once agent-a's `save() -> None` change is merged; the 3 tests pass, but none of them import `tags/utils.py`, and my attempt to check it was blocked by a permission prompt, so the new line hasn't been run or even checked for syntax errors.",
       "error": ""
     }
   ],
   "diff_a": "diff --git a/tags/models.py b/tags/models.py\nindex 2b73135..12f5eb7 100644\n--- a/tags/models.py\n+++ b/tags/models.py\n@@ -8,4 +8,3 @@ class Tag:\n \n     def save(self):\n         self.slug = slugify(self.name)\n-        return self\ndiff --git a/tags/views.py b/tags/views.py\nindex 123c0c7..ea6b010 100644\n--- a/tags/views.py\n+++ b/tags/views.py\n@@ -2,4 +2,6 @@ from tags.models import Tag\n \n \n def tag_create(name):\n-    return Tag(name).save()\n+    tag = Tag(name)\n+    tag.save()\n+    return tag\n",
-  "diff_b": "diff --git a/tags/utils.py b/tags/utils.py\nnew file mode 100644\nindex 0000000..5ac245a\n--- /dev/null\n+++ b/tags/utils.py\n@@ -0,0 +1,5 @@\n+from tags.models import Tag\n+\n+\n+def tag_slug(name):\n+    return Tag(name).save().slug\n",
-  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_slug _________________________________\n\n    def test_tag_slug():\n>       assert tag_slug('Hello World') == 'hello-world'\n               ^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'Hello World'\n\n    def tag_slug(name):\n>       return Tag(name).save().slug\n               ^^^^^^^^^^^^^^^^^^^^^\nE       AttributeError: 'NoneType' object has no attribute 'slug'\n\ntags/utils.py:5: AttributeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-tag-save-returns-none-airspace-lui5vvju/repo/test_hidden_b.py::test_tag_slug\n1 failed, 4 passed in 1.09s\n"
+  "diff_b": "diff --git a/tags/utils.py b/tags/utils.py\nnew file mode 100644\nindex 0000000..dd47292\n--- /dev/null\n+++ b/tags/utils.py\n@@ -0,0 +1,6 @@\n+from tags.models import Tag\n+\n+\n+def tag_slug(name):\n+    # Tag.save() returns None, so keep a reference to the tag and read its slug.\n+    return ((tag := Tag(name)).save(), tag.slug)[1]\n",
+  "detail": ""
 }

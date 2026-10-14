@@ -6,29 +6,29 @@
   "a_alone": true,
   "b_alone": true,
   "merged": false,
-  "wall_seconds": 36.1,
-  "cost_usd": 0.3008,
+  "wall_seconds": 25.2,
+  "cost_usd": 0.3046,
   "holds": 0,
   "briefed": 0,
   "agents": [
     {
       "agent": "agent-a",
-      "seconds": 36.1,
-      "cost_usd": 0.162502,
-      "turns": 11,
-      "result": "`truncate_words` in `utils/text.py` now has the signature `truncate_words(text, *, limit=30)`, its only caller in `blog/feeds.py` now passes `limit=40`, and all 3 tests pass.",
+      "seconds": 25.2,
+      "cost_usd": 0.17130740000000003,
+      "turns": 10,
+      "result": "I changed the signature in `utils/text.py` to `truncate_words(text, *, limit=30)`, updated its only caller in `blog/feeds.py` to pass `limit=40`, and all 3 tests pass.",
       "error": ""
     },
     {
       "agent": "agent-b",
-      "seconds": 20.5,
-      "cost_usd": 0.1382806,
+      "seconds": 20.0,
+      "cost_usd": 0.1333402,
       "turns": 7,
-      "result": "I added `tag_label(name)` to `tags/views.py`, which returns `truncate_words(name, 3)` (so names longer than 3 words get a trailing \"...\"), and all 3 tests pass.",
+      "result": "I added `tag_label(name)` to `tags/views.py`, which returns `truncate_words(name, 3)` (adding \"...\" when the name is longer than 3 words), and all 3 existing tests pass, though none of them test the new function.",
       "error": ""
     }
   ],
   "diff_a": "diff --git a/blog/feeds.py b/blog/feeds.py\nindex 0537800..966d744 100644\n--- a/blog/feeds.py\n+++ b/blog/feeds.py\n@@ -4,4 +4,4 @@ from utils.text import truncate_words\n \n class LatestPosts:\n     def item_description(self, post):\n-        return truncate_words(render_post(post), 40)\n+        return truncate_words(render_post(post), limit=40)\ndiff --git a/utils/text.py b/utils/text.py\nindex 3b5c079..07b7183 100644\n--- a/utils/text.py\n+++ b/utils/text.py\n@@ -12,6 +12,6 @@ def slugify(value, allow_unicode=False):\n     return re.sub(r\"[-\\s]+\", \"-\", value).strip(\"-_\")\n \n \n-def truncate_words(text, count=30):\n+def truncate_words(text, *, limit=30):\n     words = text.split()\n-    return \" \".join(words[:count]) + (\"...\" if len(words) > count else \"\")\n+    return \" \".join(words[:limit]) + (\"...\" if len(words) > limit else \"\")\n",
   "diff_b": "diff --git a/tags/views.py b/tags/views.py\nindex 123c0c7..fca7f12 100644\n--- a/tags/views.py\n+++ b/tags/views.py\n@@ -1,5 +1,10 @@\n from tags.models import Tag\n+from utils.text import truncate_words\n \n \n def tag_create(name):\n     return Tag(name).save()\n+\n+\n+def tag_label(name):\n+    return truncate_words(name, 3)\n",
-  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_label ________________________________\n\n    def test_tag_label():\n>       assert tag_label('one two three four') == 'one two three...'\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'one two three four'\n\n    def tag_label(name):\n>       return truncate_words(name, 3)\n               ^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: truncate_words() takes 1 positional argument but 2 were given\n\ntags/views.py:10: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-truncate-words-limit-worktrees-rvpe469n/repo/test_hidden_b.py::test_tag_label\n1 failed, 4 passed in 1.08s\n"
+  "detail": ".F...                                                                    [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_label ________________________________\n\n    def test_tag_label():\n>       assert tag_label('one two three four') == 'one two three...'\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'one two three four'\n\n    def tag_label(name):\n>       return truncate_words(name, 3)\n               ^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: truncate_words() takes 1 positional argument but 2 were given\n\ntags/views.py:10: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-truncate-words-limit-worktrees-majlqxwa/repo/test_hidden_b.py::test_tag_label\n1 failed, 4 passed in 1.10s\n"
 }

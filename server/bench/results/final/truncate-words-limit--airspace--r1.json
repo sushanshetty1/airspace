@@ -6,29 +6,29 @@
   "a_alone": true,
   "b_alone": false,
   "merged": true,
-  "wall_seconds": 39.8,
-  "cost_usd": 0.3511,
+  "wall_seconds": 59.6,
+  "cost_usd": 0.3179,
   "holds": 1,
   "briefed": 1,
   "agents": [
     {
       "agent": "agent-a",
-      "seconds": 39.8,
-      "cost_usd": 0.16036759999999997,
-      "turns": 9,
-      "result": "`truncate_words` is now `truncate_words(text, *, limit=30)`, its only caller in `blog/feeds.py` passes `limit=40`, and all 3 tests pass.",
+      "seconds": 39.7,
+      "cost_usd": 0.16876760000000002,
+      "turns": 10,
+      "result": "The signature is now `truncate_words(text, *, limit=30)`, its only caller (`blog/feeds.py:7`) passes `limit=40`, and all 3 tests pass, though none of them actually call `truncate_words`.",
       "error": ""
     },
     {
       "agent": "agent-b",
-      "seconds": 38.8,
-      "cost_usd": 0.1907002,
-      "turns": 11,
-      "result": "I changed `tag_label` to call `truncate_words(name, limit=3)` so it fits agent-a's new signature, and all 3 tests still pass, but since this copy still has the old `count` version and no test calls `tag_label`, calling it here would raise a `TypeError` until agent-a's change is merged.",
+      "seconds": 59.6,
+      "cost_usd": 0.1491312,
+      "turns": 8,
+      "result": "I changed `tag_label` to call `truncate_words(name, limit=3)` to match agent-a's new keyword-only signature, and the 3 existing tests pass, but no test calls `tag_label`, and in this working copy it will raise a `TypeError` until agent-a's change is merged in.",
       "error": ""
     }
   ],
   "diff_a": "diff --git a/blog/feeds.py b/blog/feeds.py\nindex 0537800..966d744 100644\n--- a/blog/feeds.py\n+++ b/blog/feeds.py\n@@ -4,4 +4,4 @@ from utils.text import truncate_words\n \n class LatestPosts:\n     def item_description(self, post):\n-        return truncate_words(render_post(post), 40)\n+        return truncate_words(render_post(post), limit=40)\ndiff --git a/utils/text.py b/utils/text.py\nindex 3b5c079..07b7183 100644\n--- a/utils/text.py\n+++ b/utils/text.py\n@@ -12,6 +12,6 @@ def slugify(value, allow_unicode=False):\n     return re.sub(r\"[-\\s]+\", \"-\", value).strip(\"-_\")\n \n \n-def truncate_words(text, count=30):\n+def truncate_words(text, *, limit=30):\n     words = text.split()\n-    return \" \".join(words[:count]) + (\"...\" if len(words) > count else \"\")\n+    return \" \".join(words[:limit]) + (\"...\" if len(words) > limit else \"\")\n",
   "diff_b": "diff --git a/tags/views.py b/tags/views.py\nindex 123c0c7..259150f 100644\n--- a/tags/views.py\n+++ b/tags/views.py\n@@ -1,5 +1,10 @@\n from tags.models import Tag\n+from utils.text import truncate_words\n \n \n def tag_create(name):\n     return Tag(name).save()\n+\n+\n+def tag_label(name):\n+    return truncate_words(name, limit=3)\n",
-  "detail": "F...                                                                     [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_label ________________________________\n\n    def test_tag_label():\n>       assert tag_label('one two three four') == 'one two three...'\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'one two three four'\n\n    def tag_label(name):\n>       return truncate_words(name, limit=3)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: truncate_words() got an unexpected keyword argument 'limit'\n\ntags/views.py:10: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-truncate-words-limit-airspace-fzepw92w/repo/test_hidden_b.py::test_tag_label\n1 failed, 3 passed in 1.09s\n"
+  "detail": "F...                                                                     [100%]\n=================================== FAILURES ===================================\n________________________________ test_tag_label ________________________________\n\n    def test_tag_label():\n>       assert tag_label('one two three four') == 'one two three...'\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_hidden_b.py:5: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nname = 'one two three four'\n\n    def tag_label(name):\n>       return truncate_words(name, limit=3)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: truncate_words() got an unexpected keyword argument 'limit'\n\ntags/views.py:10: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-truncate-words-limit-airspace-9fgeosa7/repo/test_hidden_b.py::test_tag_label\n1 failed, 3 passed in 1.09s\n"
 }
