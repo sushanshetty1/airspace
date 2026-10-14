@@ -116,7 +116,7 @@ def test_new_call_into_changed_contract_holds_then_clears(airspace):
     assert verdict.kind == "hold"
     for fact in (SLUGIFY, "agent-a", NEW_SIG, OLD_SIG, "blog.views.render_post"):
         assert fact in verdict.reason
-    assert "—" not in verdict.reason and "–" not in verdict.reason
+    assert "\u2014" not in verdict.reason and "\u2013" not in verdict.reason
     assert verdict.path == ["blog.views.render_post", SLUGIFY]
     assert verdict.other_agent == "agent-a"
     assert len(verdict.briefings) == 1
@@ -236,4 +236,4 @@ def test_messages_are_factual_and_dash_free():
         assert fact in brief
     assert text.briefing_text([]) == ""
     for msg in (hold, claim, brief):
-        assert "—" not in msg and "–" not in msg
+        assert "\u2014" not in msg and "\u2013" not in msg
