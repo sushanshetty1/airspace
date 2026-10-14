@@ -165,11 +165,11 @@ The table fills in once the runs are done. We won't publish a number we haven't 
 | [`server/src/airspace/indexer`](server/src/airspace/indexer) | Python `ast` → symbols, calls, imports, inheritance and test coverage, re-indexed per file |
 | [`server/src/airspace/graph`](server/src/airspace/graph) | FalkorDB connection, schema, indexes and the Cypher above |
 | [`server/src/airspace/admission`](server/src/airspace/admission) | Flight plans, cones, clearance, leases, briefings |
-| [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code `PreToolUse` / `PostToolUse` / `Stop` hooks |
-| [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `request_clearance`, `report_change`, `briefings`, `radar` |
-| [`server/src/airspace/api`](server/src/airspace/api) | HTTP and live updates for the radar |
+| [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code hooks: clearance before an edit, reindex after it, git reconcile after shell commands, briefings on every tool call, the holding pattern at `Stop` |
+| [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `check_symbols`, `briefings`, `explain`, `hot_zones` |
+| [`server/src/airspace/api`](server/src/airspace/api) | HTTP, server-sent events, Tower actions, replay and the playground |
 | [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness |
-| [`web`](web) | Tower, the web app: radar, flight log, activity, collisions, hot zones, playground, results (Vite, React, sigma.js) |
+| [`web`](web) | The site and Tower: live radar, flight log, collisions, pause, message and release, replay, playground (Vite, React) |
 | [`docs/notes.md`](docs/notes.md) | Research, plan and decisions |
 
 ## Try it
@@ -177,10 +177,9 @@ The table fills in once the runs are done. We won't publish a number we haven't 
 | Time | How | You need |
 | --- | --- | --- |
 | 0 min | Watch the demo video | Nothing |
-| 30 s | Open Tower live and replay a recorded run. Click a collision for its path; the queries run on FalkorDB. | A browser |
-| 2 min | **Playground** in Tower: pick what two agents will change on a real repo and get the verdict and path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
-| 5 min | `airspace demo`: two scripted agents replay a real run through the real hooks | Docker |
-| 15 min | `airspace install-hooks` in any Python repo, then two Claude Code sessions | Claude Code |
+| 30 s | Open **Tower** and replay a recorded run of two real Claude Code sessions. Click a collision for its path. | A browser |
+| 2 min | **Playground**: pick what two agents will change in a real repo and get the verdict and the path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
+| 15 min | `airspace install-hooks` in any Python repo, then two Claude Code sessions | Docker, Claude Code |
 
 ## Quick start
 
@@ -209,22 +208,26 @@ The website lives in `web/` (`npm install && npm run dev`).
 - [x] **First language.** Python, through the standard-library `ast`. Other languages come later through tree-sitter.
 - [x] **First harness.** Claude Code, through `PreToolUse` and `PostToolUse` hooks. Any MCP client can use the same tools.
 - [x] **Storage.** Everything (code graph, flight plans, leases, history) lives in FalkorDB, one graph per repo. No side database.
-- [ ] **Benchmark repo.** Django, to match the paper's constructed tasks, or a smaller library if Django's test suite is too slow for many runs.
-- [ ] **Cone depth.** Three hops by default; tune it against hold rate and parallelism in the benchmark.
+- [x] **Benchmark repo.** A small blog app with six constructed task pairs, so every pair runs in under a minute and the whole matrix can repeat.
+- [x] **Cone depth.** Two hops by default (`AIRSPACE_CONE_DEPTH`). Contract changes reach every direct caller, whatever the depth.
+- [x] **Writes outside the edit tools.** After every shell command and before landing, the working copy is reconciled with git, so `cat > file` or `sed -i` cannot skip the check.
 
 ## Roadmap
 
 - [x] Indexer and code graph, with incremental re-index on save
 - [x] Cones, clearance, leases and collision paths
 - [x] Claude Code hooks and CLI
-- [x] Briefings on contract changes
-- [ ] MCP server
-- [ ] Tower: radar, flight log, activity and collision views
-- [ ] Tower actions: release, pause, hand off, message, approve
-- [ ] Tower playground and replay mode
-- [ ] Hot-zone memory across sessions
-- [ ] Benchmark: worktrees vs broadcast vs Airspace
+- [x] Briefings on contract changes, with call-shape checks and rename detection
+- [x] Holding pattern at landing, read and prompt interest, git reconcile for shell writes
+- [x] MCP server
+- [x] Tower: radar, flight log, activity and collision views
+- [x] Tower actions: release, pause, message
+- [x] Tower playground and replay mode
+- [x] Hot-zone memory across sessions
+- [x] Benchmark: worktrees vs broadcast vs Airspace
 - [ ] Live deployment, demo video and write-up
+- [ ] TypeScript and Go through tree-sitter
+- [ ] Other harnesses through MCP: Codex, Cursor, Gemini CLI
 
 ## Prior art
 

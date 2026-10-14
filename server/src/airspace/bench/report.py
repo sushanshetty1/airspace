@@ -26,6 +26,9 @@ def summarize(results: list[dict]) -> dict:
             "clean": sum(r["outcome"] == "clean" for r in graded),
             "conflict": sum(r["outcome"] == "conflict" for r in graded),
             "task_failed": sum(r["outcome"] == "task_failed" for r in rows),
+            # Held or briefed, an agent writes against the other's new contract: its patch fails on its own old
+            # branch and passes merged. The paper's alone-then-merged grading calls that a failed task.
+            "adapted": sum(_adapted(r) for r in rows),
             "errors": sum(r["outcome"] == "error" for r in rows),
             "median_wall_seconds": _median([r["wall_seconds"] for r in rows if r["outcome"] != "error"]),
             "cost_usd": round(sum(r["cost_usd"] for r in rows), 2),
@@ -36,6 +39,12 @@ def summarize(results: list[dict]) -> dict:
         row = by_set.setdefault(r["set_id"], {"kind": r["kind"]})
         row.setdefault(r["condition"], []).append({"outcome": r["outcome"], "merged": r.get("merged")})
     return {"conditions": conditions, "sets": by_set}
+
+
+def _adapted(r: dict) -> bool:
+    alone = (r.get("a_alone"), r.get("b_alone"))
+    return (r["outcome"] == "task_failed" and bool(r.get("merged")) and False in alone and None not in alone
+            and (r.get("holds", 0) > 0 or r.get("briefed", 0) > 0))
 
 
 def _median(xs: list[float]) -> float | None:
