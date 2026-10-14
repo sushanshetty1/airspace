@@ -6,12 +6,14 @@ import { clock, createHttpApi, httpApi, shortName, type CollisionSummary, type R
 import { CollisionPanel, ResolutionSign } from './CollisionPanel'
 import { agentLooks, type AgentLook } from './layout'
 import { LiveRadar } from './LiveRadar'
+import { MemorySection } from './Memory'
 import { createMockApi, mockReplay, mockVariant } from './mock'
 import { collisionPath, navigate, workspacePath } from './nav'
 import { duration, fetchMode, fetchReplay } from './replay'
 import { CommandLines } from './CommandLines'
 import { AgentName, Sidebar } from './Sidebar'
 import { useLive, type Conn, type Live } from './useLive'
+import { useRecentMemory } from './useMemory'
 import { useReplay, type Player } from './useReplay'
 
 const connWord: Record<Conn | 'replay', { text: string; className: string }> = {
@@ -245,9 +247,11 @@ function TowerView({ live, api, collisionId, replay, workspace }: ViewProps) {
   const readOnly = !!replay
 
   const looks = useMemo(
-    () => agentLooks([...(state?.agents.map((a) => a.id) ?? []), ...(radar?.agents.map((a) => a.id) ?? []), ...events.map((e) => e.agent)]),
+    () => agentLooks([...(state?.agents.map((a) => a.id) ?? []), ...(radar?.agents.map((a) => a.id) ?? []), ...events.filter((e) => e.agent !== 'Tower').map((e) => e.agent)]),
     [state, radar, events],
   )
+
+  const memory = useRecentMemory(api, live.tick)
 
   const base = workspace ? workspacePath(workspace.id) : '/tower'
   const openCollision = useCallback((id: string) => navigate(collisionPath(id, base)), [base])
@@ -317,7 +321,9 @@ function TowerView({ live, api, collisionId, replay, workspace }: ViewProps) {
     body = (
       <div className="flex flex-1 flex-col lg:grid lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="order-2 border-t border-line bg-surface lg:order-1 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:border-r">
-          <Sidebar agents={agents} events={events} looks={looks} api={api} onChanged={live.refresh} readOnly={readOnly} />
+          <Sidebar agents={agents} events={events} looks={looks} api={api} onChanged={live.refresh} readOnly={readOnly}>
+            <MemorySection api={api} memory={memory} looks={looks} symbols={radar?.symbols} readOnly={readOnly} />
+          </Sidebar>
         </aside>
         <main className={`order-1 flex flex-col lg:order-2 lg:min-h-0 lg:overflow-y-auto ${collisionId ? 'xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:overflow-hidden' : ''}`}>
           <section className="min-w-0 px-4 pt-5 pb-8 sm:px-8 xl:min-h-0 xl:overflow-y-auto" aria-label="Radar">
@@ -333,7 +339,7 @@ function TowerView({ live, api, collisionId, replay, workspace }: ViewProps) {
           </section>
           {collisionId && (
             <section className="min-w-0 border-y border-line bg-surface xl:min-h-0 xl:overflow-y-auto xl:border-y-0 xl:border-l" aria-label="Collision">
-              <CollisionPanel key={collisionId} id={collisionId} api={api} tick={live.tick} agents={agents} looks={looks} symbols={radar?.symbols} onClose={close} onChanged={live.refresh} readOnly={readOnly} />
+              <CollisionPanel key={collisionId} id={collisionId} api={api} tick={live.tick} agents={agents} looks={looks} symbols={radar?.symbols} onClose={close} onChanged={live.refresh} onNoted={memory.reload} readOnly={readOnly} />
             </section>
           )}
         </main>

@@ -1,7 +1,9 @@
 import { ChatCircleText, LockOpen, PauseCircle, PlayCircle, X } from '@phosphor-icons/react'
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Sign } from '../ui'
-import { clock, MESSAGE_MAX, shortName, type AgentState, type CollisionDetail, type RadarSymbol, type Resolution, type TowerApi } from './api'
+import { Action } from './Action'
+import { clock, fixFor, MESSAGE_MAX, shortName, type AgentState, type CollisionDetail, type MemoryItem, type RadarSymbol, type Resolution, type TowerApi } from './api'
+import { AddNote, FixNote } from './Memory'
 import { AgentName } from './Sidebar'
 import type { AgentLook } from './layout'
 
@@ -40,21 +42,6 @@ function Signature({ sig, other, mark }: { sig: string; other: string | null | u
   )
 }
 
-function Action({ onClick, disabled, primary, type = 'button', children }: { onClick?: () => void; disabled?: boolean; primary?: boolean; type?: 'button' | 'submit'; children: ReactNode }) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={`inline-flex h-9 items-center gap-2 rounded-[8px] px-3 text-[13.5px] font-semibold whitespace-nowrap transition-[transform,opacity,background-color,color] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 ${
-        primary ? 'bg-accent text-accent-ink hover:brightness-[1.07]' : 'text-text shadow-[inset_0_0_0_1px_var(--line-strong)] hover:bg-surface-2'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
-
 function Loc({ q, symbols }: { q: string; symbols?: Record<string, RadarSymbol> }) {
   return (
     <span title={q}>
@@ -72,6 +59,7 @@ export function CollisionPanel({
   symbols,
   onClose,
   onChanged,
+  onNoted,
   readOnly = false,
 }: {
   id: string
@@ -82,6 +70,8 @@ export function CollisionPanel({
   symbols?: Record<string, RadarSymbol>
   onClose: () => void
   onChanged: () => void
+  /** A note was saved here, so the memory list can refetch. */
+  onNoted?: () => void
   /** A recording: the actions are replaced by one line saying why. */
   readOnly?: boolean
 }) {
@@ -115,6 +105,29 @@ export function CollisionPanel({
   }, [api, id, tick])
 
   const c = detail?.id === id ? detail.data : undefined
+
+  // A resolved collision's fix, from what the graph remembers about its symbol.
+  const [fix, setFix] = useState<{ id: string; item: MemoryItem | null } | null>(null)
+  const resolved = c?.resolution === 'resolved'
+  // Primitives, so the lookup runs again on a new tick or another collision, not on every refetched object.
+  const rId = resolved ? c.id : null
+  const rSymbol = resolved ? c.symbol : ''
+  const rAt = resolved ? c.at : 0
+  const rHeld = resolved ? c.held_agent : ''
+  useEffect(() => {
+    if (!rId) return
+    let alive = true
+    const find = async () => {
+      const about = await api.memory([rSymbol]).catch(() => null)
+      const items = about ?? (await api.recentMemory(50).catch(() => null)) ?? []
+      return fixFor({ id: rId, symbol: rSymbol, at: rAt, held_agent: rHeld }, items)
+    }
+    find().then((item) => alive && setFix({ id: rId, item }))
+    return () => {
+      alive = false
+    }
+  }, [api, rId, rSymbol, rAt, rHeld, tick])
+  const fixNote = rId && fix?.id === rId ? fix.item : null
 
   const header = (right?: ReactNode) => (
     <div className="flex h-12 items-center justify-between gap-3 border-b border-line px-5">
@@ -245,6 +258,8 @@ export function CollisionPanel({
           </dl>
         )}
 
+        {fixNote && <FixNote fix={fixNote} symbols={symbols} />}
+
         {readOnly ? (
           <p className="px-5 py-5 text-[13.5px] leading-relaxed text-muted">
             {held ? `${c.held_agent} is held at this point of the run. ` : c.resolution === 'released' ? 'The hold was released from Tower. ' : `${c.held_agent} cleared this collision. `}
@@ -297,6 +312,10 @@ export function CollisionPanel({
               <p className={`mt-3 min-h-[20px] text-[13.5px] leading-relaxed ${feedback?.tone === 'bad' ? 'text-bad' : feedback?.tone === 'ok' ? 'text-text' : 'text-muted'}`} aria-live="polite">
                 {feedback?.text ?? (held ? `Send ${c.held_agent} the fix, or release the hold yourself.` : c.resolution === 'released' ? 'The hold was released from Tower.' : `${c.held_agent} cleared this collision.`)}
               </p>
+            </section>
+
+            <section className="px-5 py-4">
+              <AddNote key={c.symbol} api={api} symbol={c.symbol} symbols={symbols} label={`Add a note about ${shortName(c.symbol, symbols)}`} onSaved={onNoted} />
             </section>
           </>
         )}

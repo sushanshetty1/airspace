@@ -3,7 +3,7 @@
 // ?mock=replay plays a short sample run through the replay player.
 // The mock answers actions too, so pause, release and message can be tried.
 
-import { ApiError, type AgentState, type AirEvent, type CollisionDetail, type RadarAgent, type RadarData, type RadarSymbol, type StateData, type TowerApi } from './api'
+import { ApiError, type AgentState, type AirEvent, type CollisionDetail, type MemoryItem, type RadarAgent, type RadarData, type RadarSymbol, type StateData, type TowerApi } from './api'
 import type { ReplayDoc, ReplayFrame } from './replay'
 
 export type MockVariant = 'story' | 'four' | 'empty' | 'error' | 'loading' | 'replay'
@@ -131,7 +131,37 @@ type World = {
   radar: RadarData
   events: AirEvent[]
   collisions: Record<string, CollisionDetail>
+  /** Newest first. */
+  memory: MemoryItem[]
 }
+
+const DAY = 86400
+
+/** What earlier sessions left on the story's code. */
+function storyMemory(): MemoryItem[] {
+  return [
+    {
+      id: 'n_0003',
+      kind: 'fix',
+      symbol: 'blog.views.render_post',
+      text: "agent-c's call render_post(item, preview=True) did not fit render_post(post, *, excerpt=False) after agent-a's change. It cleared as render_post(item, excerpt=True).",
+      agent: 'agent-c',
+      at: at(16, 12, 40) - DAY,
+    },
+    { id: 'n_0002', kind: 'note', symbol: 'blog.models.Post.save', text: 'Post.save slugifies the title on every save. Tests compare slugs across saves, so keep it stable.', agent: 'agent-d', at: at(11, 5, 2) - DAY },
+    { id: 'n_0001', kind: 'note', symbol: 'tags.views.tag_create', text: 'Tag names can hold emoji. Keep them through slugify.', agent: 'Tower', at: at(9, 30, 0) - 3 * DAY },
+  ]
+}
+
+/** The fix Airspace writes when agent-b's retry fits the new slugify. */
+const storyFix = (t: number): MemoryItem => ({
+  id: 'n_0004',
+  kind: 'fix',
+  symbol: 'utils.text.slugify',
+  text: "agent-b's call slugify(post.title, allow_unicode=True) did not fit slugify(value, *, unicode=False) after agent-a's change. It cleared as slugify(post.title, unicode=True).",
+  agent: 'agent-b',
+  at: t,
+})
 
 function agent(id: string, claims: string[], extra: Partial<AgentState> = {}): AgentState {
   return { id, paused: false, status: 'active', tasks: [`${id}-task`], claims, held: false, ...extra }
@@ -184,11 +214,12 @@ function storyWorld(four: boolean): World {
     },
     events,
     collisions: { [collision.id]: collision },
+    memory: storyMemory(),
   }
 }
 
 function emptyWorld(): World {
-  return { state: { now: Date.now() / 1000, repo: 'blog-api', agents: [], collisions: [] }, radar: { agents: [], symbols: {}, edges: [], collision: null }, events: [], collisions: {} }
+  return { state: { now: Date.now() / 1000, repo: 'blog-api', agents: [], collisions: [] }, radar: { agents: [], symbols: {}, edges: [], collision: null }, events: [], collisions: {}, memory: [] }
 }
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T
@@ -197,7 +228,20 @@ const never = <T,>() => new Promise<T>(() => {})
 
 export function createMockApi(variant: MockVariant): TowerApi {
   if (variant === 'loading') {
-    return { state: never, radar: never, events: never, collision: never, pause: never, resume: never, message: never, release: never, stream: () => () => {} }
+    return {
+      state: never,
+      radar: never,
+      events: never,
+      collision: never,
+      pause: never,
+      resume: never,
+      message: never,
+      release: never,
+      recentMemory: never,
+      memory: never,
+      addNote: never,
+      stream: () => () => {},
+    }
   }
   if (variant === 'error') {
     const fail = () => Promise.reject(new ApiError(0, 'The Airspace server did not answer.'))
@@ -210,6 +254,9 @@ export function createMockApi(variant: MockVariant): TowerApi {
       resume: fail,
       message: fail,
       release: fail,
+      recentMemory: fail,
+      memory: fail,
+      addNote: fail,
       stream: (_since, h) => {
         const t = window.setTimeout(h.onError, 50)
         return () => window.clearTimeout(t)
@@ -269,6 +316,7 @@ export function createMockApi(variant: MockVariant): TowerApi {
           if (open.resolution !== 'held') return
           emit('cleared', id, 'was cleared to edit', open.caller ?? open.symbol)
           setResolution(open.id, 'resolved')
+          if (open.id === 'c_0007') world.memory.unshift(storyFix(Date.now() / 1000))
           emit('resolved', id, 'cleared the collision at', open.symbol)
         }, 2200)
       }
@@ -281,6 +329,19 @@ export function createMockApi(variant: MockVariant): TowerApi {
       setResolution(cid, 'released')
       emit('released', c.held_agent, 'had a hold released at', c.symbol)
       return true
+    },
+    recentMemory: async (limit = 20) => (await wait(90), clone(world.memory.slice(0, limit))),
+    memory: async (symbols) => (await wait(90), clone(world.memory.filter((m) => symbols.includes(m.symbol)))),
+    addNote: async (symbols, text) => {
+      await wait(250)
+      const known = new Set([...Object.keys(world.radar.symbols), ...world.memory.map((m) => m.symbol)])
+      const unknown = symbols.filter((s) => !known.has(s))
+      if (unknown.length) throw new ApiError(422, `No symbol named ${unknown.join(', ')}.`)
+      if (!text.trim() || text.length > 500) throw new ApiError(422, 'Notes are 1 to 500 characters.')
+      const note: MemoryItem = { id: `n_${seq++}`, kind: 'note', symbol: symbols[0], text: text.trim(), agent: 'Tower', at: Date.now() / 1000 }
+      world.memory.unshift(note)
+      emit('noted', 'Tower', 'left a note on', symbols[0])
+      return note.id
     },
     stream: (since, h) => {
       const l = (e: AirEvent) => {
@@ -337,5 +398,5 @@ export function mockReplay(): ReplayDoc {
     frame(events[5], [a, { ...b, held: true }], [radarA, radarB], 'held'),
     frame(events[7], [a, b], [radarA, radarB], 'resolved'),
   ]
-  return { version: 1, recorded_at: events[7].at + 5, events, frames, collisions: { [c.id]: { ...c, resolution: 'resolved' } } }
+  return { version: 1, recorded_at: events[7].at + 5, events, frames, collisions: { [c.id]: { ...c, resolution: 'resolved' } }, memory: [storyFix(events[7].at), ...storyMemory()] }
 }

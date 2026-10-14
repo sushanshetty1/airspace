@@ -1,6 +1,6 @@
 import { PauseCircle, PlayCircle } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Sign, signLabel } from '../ui'
 import { clock, type AgentState, type AirEvent, type TowerApi } from './api'
 import { fallbackLook, type AgentLook } from './layout'
@@ -90,7 +90,7 @@ function Activity({ events, looks }: { events: AirEvent[]; looks: Record<string,
             <div className="grid grid-cols-[60px_minmax(0,1fr)] gap-2 px-2.5 py-1.5 text-[13px] leading-snug">
               <span className="pt-px font-mono text-[11.5px] text-faint">{clock(e.at)}</span>
               <p className="text-muted [overflow-wrap:anywhere]">
-                <AgentName id={e.agent} look={looks[e.agent]} />{' '}
+                {e.agent === 'Tower' ? <span className="text-text">Tower</span> : <AgentName id={e.agent} look={looks[e.agent]} />}{' '}
                 <span className={e.kind === 'hold' ? 'font-semibold text-accent' : e.kind === 'cleared' || e.kind === 'resolved' ? 'text-ok' : ''}>{e.text}</span>{' '}
                 {e.code === 'Tower' ? <span className="text-text">Tower</span> : <span className="font-mono text-[12.5px] text-text">{e.code}</span>}
               </p>
@@ -102,7 +102,24 @@ function Activity({ events, looks }: { events: AirEvent[]; looks: Record<string,
   )
 }
 
-export function Sidebar({ agents, events, looks, api, onChanged, readOnly = false }: { agents: AgentState[]; events: AirEvent[]; looks: Record<string, AgentLook>; api: TowerApi; onChanged: () => void; readOnly?: boolean }) {
+export function Sidebar({
+  agents,
+  events,
+  looks,
+  api,
+  onChanged,
+  readOnly = false,
+  children,
+}: {
+  agents: AgentState[]
+  events: AirEvent[]
+  looks: Record<string, AgentLook>
+  api: TowerApi
+  onChanged: () => void
+  readOnly?: boolean
+  /** Sections under Activity, such as Memory. */
+  children?: ReactNode
+}) {
   return (
     <div className="p-3">
       <h2 className="flex items-baseline justify-between px-2.5 pt-1 pb-2 text-[12.5px] font-semibold text-muted">
@@ -115,6 +132,7 @@ export function Sidebar({ agents, events, looks, api, onChanged, readOnly = fals
       </ul>
       <h2 className="px-2.5 pt-6 pb-2 text-[12.5px] font-semibold text-muted">Activity</h2>
       <Activity events={events} looks={looks} />
+      {children}
     </div>
   )
 }
