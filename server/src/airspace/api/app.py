@@ -178,6 +178,9 @@ def create_app(
                 yield ": ping\n\n"
             await asyncio.sleep(poll_interval)
 
+    from airspace.api import playground, replay_routes
+    app.include_router(replay_routes.router(engine))
+    app.include_router(playground.router())
     return app
 
 
