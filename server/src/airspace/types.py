@@ -14,7 +14,7 @@ class SymbolFact:
     file: str  # repo-relative POSIX path, "utils/text.py"
     lineno: int
     end_lineno: int
-    signature: str  # "slugify(value, allow_unicode=False)"
+    signature: str  # "slugify(value, allow_unicode=False)"; "save(self) -> None" when it never returns a value
     sig_hash: str  # sha1(signature)[:12]
     is_test: bool  # file under tests/ or name starts with "test_"
 
@@ -28,6 +28,7 @@ class CallFact:
     kwargs: tuple[str, ...] = ()  # keyword names, not counting **kwargs
     star: bool = False  # the call unpacks *args or **kwargs
     via_instance: bool = False  # the receiver is a constructed instance: Tag(name).save()
+    used: bool = False  # the result is used (assigned, returned, passed on, chained), not a bare statement
     text: str = field(default="", compare=False)  # the call as source, on one line: "slugify(post.title, True)"
 
 
@@ -83,6 +84,7 @@ class CallSite:
     kwargs: tuple[str, ...]  # keyword names, not counting **kwargs
     star: bool  # unpacks *args or **kwargs
     bound: bool  # called through an instance (or a constructor checked against __init__): the first parameter is filled
+    used: bool = False  # the result is used, so a callee that now returns nothing breaks it
     text: str = field(default="", compare=False)  # the call as source, when known
 
 

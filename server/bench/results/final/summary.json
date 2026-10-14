@@ -1,0 +1,327 @@
+{
+  "conditions": {
+    "worktrees": {
+      "pairs": 18,
+      "graded": 18,
+      "interference": 18,
+      "interference_rate": 1.0,
+      "merged_runs": 18,
+      "merged_pass": 0,
+      "merged_pass_rate": 0.0,
+      "clean": 0,
+      "conflict": 0,
+      "task_failed": 0,
+      "adapted": 0,
+      "errors": 0,
+      "median_wall_seconds": 24.5,
+      "cost_usd": 4.84,
+      "holds": 0
+    },
+    "broadcast": {
+      "pairs": 18,
+      "graded": 18,
+      "interference": 15,
+      "interference_rate": 0.833,
+      "merged_runs": 18,
+      "merged_pass": 3,
+      "merged_pass_rate": 0.167,
+      "clean": 3,
+      "conflict": 0,
+      "task_failed": 0,
+      "adapted": 0,
+      "errors": 0,
+      "median_wall_seconds": 27.9,
+      "cost_usd": 4.97,
+      "holds": 0
+    },
+    "airspace": {
+      "pairs": 18,
+      "graded": 3,
+      "interference": 3,
+      "interference_rate": 1.0,
+      "merged_runs": 18,
+      "merged_pass": 15,
+      "merged_pass_rate": 0.833,
+      "clean": 0,
+      "conflict": 0,
+      "task_failed": 15,
+      "adapted": 15,
+      "errors": 0,
+      "median_wall_seconds": 39.8,
+      "cost_usd": 5.46,
+      "holds": 15
+    }
+  },
+  "sets": {
+    "post-requires-author": {
+      "kind": "constructor",
+      "airspace": [
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    },
+    "rename-absolute-url": {
+      "kind": "rename",
+      "airspace": [
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    },
+    "render-post-show-body": {
+      "kind": "signature",
+      "airspace": [
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    },
+    "slugify-keyword-only": {
+      "kind": "signature",
+      "airspace": [
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    },
+    "tag-save-returns-none": {
+      "kind": "behaviour",
+      "airspace": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        },
+        {
+          "outcome": "clean",
+          "merged": true
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    },
+    "truncate-words-limit": {
+      "kind": "signature",
+      "airspace": [
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        },
+        {
+          "outcome": "task_failed",
+          "merged": true
+        }
+      ],
+      "broadcast": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ],
+      "worktrees": [
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        },
+        {
+          "outcome": "interference",
+          "merged": false
+        }
+      ]
+    }
+  }
+}

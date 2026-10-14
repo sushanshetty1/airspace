@@ -76,7 +76,41 @@ def _imports(tree: ast.Module, module: str, rel_path: str) -> dict[str, str]:
     return imports
 
 
-def _call_fact(node: ast.Call, caller: str, target: str) -> CallFact:
+def _returns_nothing(node: ast.AST) -> bool:
+    """A function whose callers always get None back: no `return value`, no yield, and a real body.
+
+    Part of its contract, because a caller that uses the result breaks when a change drops the return. Dunder
+    methods (a constructor's result is the instance), async functions (they return a coroutine), tests (nothing
+    calls them) and stubs (a docstring, `...`, `pass` or a raise, as in an abstract method) are left out.
+    """
+    if isinstance(node, ast.AsyncFunctionDef) or node.name.startswith("test"):
+        return False
+    if node.name.startswith("__") and node.name.endswith("__"):
+        return False
+    if node.returns is not None:
+        return isinstance(node.returns, ast.Constant) and node.returns.value is None
+    body = [s for s in node.body if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+    if not body or all(isinstance(s, (ast.Pass, ast.Raise)) for s in body):
+        return False
+    stack = list(node.body)
+    while stack:
+        n = stack.pop()
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue  # a nested scope returns for itself
+        if isinstance(n, (ast.Yield, ast.YieldFrom)):
+            return False
+        if isinstance(n, ast.Return) and n.value is not None:
+            if not (isinstance(n.value, ast.Constant) and n.value.value is None):
+                return False
+        stack.extend(ast.iter_child_nodes(n))
+    return True
+
+
+def _signature(node: ast.AST) -> str:
+    return f"{node.name}({ast.unparse(node.args)})" + (" -> None" if _returns_nothing(node) else "")
+
+
+def _call_fact(node: ast.Call, caller: str, target: str, used: bool = True) -> CallFact:
     star = any(isinstance(a, ast.Starred) for a in node.args) or any(k.arg is None for k in node.keywords)
     return CallFact(
         caller=caller,
@@ -86,6 +120,7 @@ def _call_fact(node: ast.Call, caller: str, target: str) -> CallFact:
         kwargs=tuple(k.arg for k in node.keywords if k.arg is not None),
         star=star,
         via_instance=isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Call),
+        used=used,
         text=ast.unparse(node),
     )
 
@@ -93,11 +128,14 @@ def _call_fact(node: ast.Call, caller: str, target: str) -> CallFact:
 def _calls_in(func: ast.AST, caller: str) -> list[CallFact]:
     found = []
     for stmt in func.body:
+        # A call that is a whole statement throws its result away; every other call uses it.
+        discarded = {id(n.value) for n in ast.walk(stmt) if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)}
         for node in ast.walk(stmt):
             if isinstance(node, ast.Call):
                 target = _call_target(node.func)
                 if target is not None:
-                    found.append((node.lineno, node.col_offset, _call_fact(node, caller, target)))
+                    fact = _call_fact(node, caller, target, used=id(node) not in discarded)
+                    found.append((node.lineno, node.col_offset, fact))
     # ast.walk is breadth-first; sort so the order follows the source.
     return [c for _, _, c in sorted(found, key=lambda t: (t[0], t[1]))]
 
@@ -132,7 +170,7 @@ def parse_module(rel_path: str, source: str) -> ModuleFacts | None:
     for node in tree.body:
         if isinstance(node, _FUNCS):
             q = f"{module}.{node.name}"
-            add(node, q, "function", f"{node.name}({ast.unparse(node.args)})")
+            add(node, q, "function", _signature(node))
             calls.extend(_calls_in(node, q))
         elif isinstance(node, ast.ClassDef):
             cq = f"{module}.{node.name}"
@@ -144,7 +182,7 @@ def parse_module(rel_path: str, source: str) -> ModuleFacts | None:
             for item in node.body:
                 if isinstance(item, _FUNCS):
                     mq = f"{cq}.{item.name}"
-                    add(item, mq, "method", f"{item.name}({ast.unparse(item.args)})")
+                    add(item, mq, "method", _signature(item))
                     calls.extend(_calls_in(item, mq))
 
     return ModuleFacts(

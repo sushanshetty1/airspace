@@ -145,3 +145,35 @@ def test_call_fact_shape_fields_default():
 
     c = CallFact("m.f", "g", 3)
     assert (c.nargs, c.kwargs, c.star, c.via_instance) == (0, (), False, False)
+
+
+def test_a_function_that_never_returns_a_value_carries_none_in_its_signature():
+    src = (
+        "def save(self):\n    self.x = 1\n\n"
+        "def get(self):\n    return self.x\n\n"
+        "def maybe(self):\n    if self.x:\n        return\n    return None\n\n"
+        "def gen(self):\n    yield 1\n\n"
+        "def outer():\n    def inner():\n        return 1\n    inner()\n\n"
+        "def stub():\n    '''Doc.'''\n    ...\n\n"
+        "def abstract():\n    raise NotImplementedError\n\n"
+        "def annotated() -> None:\n    return\n\n"
+        "def typed() -> int:\n    pass\n\n"
+        "async def fetch():\n    pass\n\n"
+        "def test_thing():\n    assert True\n\n"
+        "class C:\n    def __init__(self):\n        self.x = 1\n"
+    )
+    sigs = {s.name: s.signature for s in parse_module("m.py", src).symbols}
+    assert sigs["save"] == "save(self) -> None"
+    assert sigs["get"] == "get(self)"
+    assert sigs["maybe"] == "maybe(self) -> None"
+    assert sigs["gen"] == "gen(self)"
+    assert sigs["outer"] == "outer() -> None"  # the nested return belongs to inner
+    assert sigs["stub"] == "stub()" and sigs["abstract"] == "abstract()"
+    assert sigs["annotated"] == "annotated() -> None" and sigs["typed"] == "typed()"
+    assert sigs["fetch"] == "fetch()" and sigs["test_thing"] == "test_thing()" and sigs["__init__"] == "__init__(self)"
+
+
+def test_a_call_records_whether_its_result_is_used():
+    src = "def f(t):\n    t.save()\n    x = t.save()\n    return g(t.save())\n"
+    calls = [(c.target, c.used) for c in parse_module("m.py", src).calls]
+    assert calls == [("t.save", False), ("t.save", True), ("g", True), ("t.save", True)]

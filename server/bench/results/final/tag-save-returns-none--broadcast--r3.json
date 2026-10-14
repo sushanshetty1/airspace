@@ -1,0 +1,34 @@
+{
+  "set_id": "tag-save-returns-none",
+  "kind": "behaviour",
+  "condition": "broadcast",
+  "outcome": "clean",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": true,
+  "wall_seconds": 27.9,
+  "cost_usd": 0.295,
+  "holds": 0,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 27.9,
+      "cost_usd": 0.16106320000000002,
+      "turns": 10,
+      "result": "`Tag.save` in `tags/models.py` now returns `None`, I changed its only caller, `tag_create` in `tags/views.py`, to return the tag itself, and all 3 tests pass; heads-up that the other engineer's planned one-line `tag_slug(name)` (likely `Tag(name).save().slug`) will fail once this merges, because `save()` no longer returns the tag.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 25.1,
+      "cost_usd": 0.13398500000000002,
+      "turns": 7,
+      "result": "I added `tag_slug(name)` in `tags/utils.py` as one expression, `((tag := Tag(name)).save(), tag.slug)[1]`, which reads the slug from the tag itself rather than from what `save()` returns, so it will still work once the other branch makes `Tag.save` return `None`; all 3 tests pass, though there's no test for `tag_slug` and my direct check of it was blocked for approval, so it hasn't actually been run.",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/tags/models.py b/tags/models.py\nindex 2b73135..12f5eb7 100644\n--- a/tags/models.py\n+++ b/tags/models.py\n@@ -8,4 +8,3 @@ class Tag:\n \n     def save(self):\n         self.slug = slugify(self.name)\n-        return self\ndiff --git a/tags/views.py b/tags/views.py\nindex 123c0c7..ea6b010 100644\n--- a/tags/views.py\n+++ b/tags/views.py\n@@ -2,4 +2,6 @@ from tags.models import Tag\n \n \n def tag_create(name):\n-    return Tag(name).save()\n+    tag = Tag(name)\n+    tag.save()\n+    return tag\n",
+  "diff_b": "diff --git a/tags/utils.py b/tags/utils.py\nnew file mode 100644\nindex 0000000..a4ebfd5\n--- /dev/null\n+++ b/tags/utils.py\n@@ -0,0 +1,6 @@\n+from tags.models import Tag\n+\n+\n+def tag_slug(name):\n+    # Don't rely on Tag.save()'s return value; read the slug off the instance.\n+    return ((tag := Tag(name)).save(), tag.slug)[1]\n",
+  "detail": ""
+}

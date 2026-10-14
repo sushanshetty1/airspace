@@ -124,8 +124,20 @@ def test_shape_key_round_trip():
     assert shape_key(0, (), False, True) == "b:0|"
     for key in ("1|", "1|unicode", "2|a,b", "*", "b:0|", "b:2|k"):
         assert shape_key(*parse_shape(key)) == key
-    assert parse_shape("b:1|k") == (1, ("k",), False, True)
-    assert parse_shape("*") == (0, (), True, False)
+    assert parse_shape("b:1|k") == (1, ("k",), False, True, False)
+    assert parse_shape("*") == (0, (), True, False, False)
+    assert shape_key(0, (), False, True, True) == "v:b:0|"
+    assert shape_key(1, (), True, False, True) == "v:*"
+    for key in ("v:1|", "v:b:0|", "v:*"):
+        assert shape_key(*parse_shape(key)) == key
+    assert parse_shape("v:b:1|k") == (1, ("k",), False, True, True)
+
+
+def test_a_used_result_does_not_fit_a_function_that_returns_nothing():
+    assert call_fits("save(self) -> None", 0, (), False, True, used=False)
+    assert not call_fits("save(self) -> None", 0, (), False, True, used=True)
+    assert not call_fits("run(*args) -> None", 0, (), True, False, used=True)
+    assert call_fits("save(self)", 0, (), False, True, used=True)
 
 
 @pytest.mark.parametrize("bad", ["", "x|", "b:|", "1"])

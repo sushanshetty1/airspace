@@ -1,0 +1,34 @@
+{
+  "set_id": "render-post-show-body",
+  "kind": "signature",
+  "condition": "broadcast",
+  "outcome": "interference",
+  "a_alone": true,
+  "b_alone": true,
+  "merged": false,
+  "wall_seconds": 33.4,
+  "cost_usd": 0.2919,
+  "holds": 0,
+  "briefed": 0,
+  "agents": [
+    {
+      "agent": "agent-a",
+      "seconds": 33.4,
+      "cost_usd": 0.1738482,
+      "turns": 11,
+      "result": "`render_post(post, *, show_body)` now includes the body paragraph only when `show_body` is true, the three callers (`post_list`, `LatestPosts.item_description` and the test) pass `show_body=True`, and all 3 tests pass \u2014 but your colleague's new `render_index` will raise a `TypeError` after the merge unless it also passes `show_body`.",
+      "error": ""
+    },
+    {
+      "agent": "agent-b",
+      "seconds": 16.8,
+      "cost_usd": 0.11808819999999998,
+      "turns": 5,
+      "result": "I added `render_index` in `blog/index.py` plus a test in `tests/test_index.py`, and all 4 tests pass \u2014 but once the other engineer's branch merges, its call `render_post(p)` will fail because the new required `show_body` argument is missing, so it must be changed to `render_post(p, show_body=True)` then (it can't be passed now since the current `render_post` doesn't accept it).",
+      "error": ""
+    }
+  ],
+  "diff_a": "diff --git a/blog/feeds.py b/blog/feeds.py\nindex 0537800..c3e7352 100644\n--- a/blog/feeds.py\n+++ b/blog/feeds.py\n@@ -4,4 +4,4 @@ from utils.text import truncate_words\n \n class LatestPosts:\n     def item_description(self, post):\n-        return truncate_words(render_post(post), 40)\n+        return truncate_words(render_post(post, show_body=True), 40)\ndiff --git a/blog/views.py b/blog/views.py\nindex d824969..dd01732 100644\n--- a/blog/views.py\n+++ b/blog/views.py\n@@ -1,10 +1,11 @@\n from blog.models import Post\n \n \n-def render_post(post):\n+def render_post(post, *, show_body):\n     url = post.get_absolute_url()\n-    return f'<article><a href=\"{url}\">{post.title}</a><p>{post.body}</p></article>'\n+    body = f\"<p>{post.body}</p>\" if show_body else \"\"\n+    return f'<article><a href=\"{url}\">{post.title}</a>{body}</article>'\n \n \n def post_list(posts):\n-    return \"\\n\".join(render_post(p) for p in posts)\n+    return \"\\n\".join(render_post(p, show_body=True) for p in posts)\ndiff --git a/tests/test_views.py b/tests/test_views.py\nindex 956df9a..bc7277d 100644\n--- a/tests/test_views.py\n+++ b/tests/test_views.py\n@@ -3,5 +3,5 @@ from blog.views import render_post\n \n \n def test_render_post():\n-    html = render_post(Post(\"Hi\", \"x\").save())\n+    html = render_post(Post(\"Hi\", \"x\").save(), show_body=True)\n     assert \"/posts/hi/\" in html\n",
+  "diff_b": "diff --git a/blog/index.py b/blog/index.py\nnew file mode 100644\nindex 0000000..b2f02c6\n--- /dev/null\n+++ b/blog/index.py\n@@ -0,0 +1,6 @@\n+from blog.views import render_post\n+\n+\n+def render_index(posts):\n+    items = \"\".join(f\"<li>{render_post(p)}</li>\" for p in posts)\n+    return f\"<ul>{items}</ul>\"\ndiff --git a/tests/test_index.py b/tests/test_index.py\nnew file mode 100644\nindex 0000000..8d401c6\n--- /dev/null\n+++ b/tests/test_index.py\n@@ -0,0 +1,9 @@\n+from blog.index import render_index\n+from blog.models import Post\n+\n+\n+def test_render_index():\n+    html = render_index([Post(\"Hi\", \"x\").save(), Post(\"Yo\", \"y\").save()])\n+    assert html.startswith(\"<ul><li><article>\")\n+    assert html.count(\"<li>\") == 2\n+    assert \"/posts/yo/\" in html\n",
+  "detail": "n posts)\n                           ^^^^^^^^^^^^^^\nE   TypeError: render_post() missing 1 required keyword-only argument: 'show_body'\n\nblog/index.py:5: TypeError\n______________________________ test_render_index _______________________________\n\n    def test_render_index():\n>       html = render_index([Post(\"Hi\", \"x\").save(), Post(\"Yo\", \"y\").save()])\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_index.py:6: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \nblog/index.py:5: in render_index\n    items = \"\".join(f\"<li>{render_post(p)}</li>\" for p in posts)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n.0 = <list_iterator object at 0x10c677010>\n\n>   items = \"\".join(f\"<li>{render_post(p)}</li>\" for p in posts)\n                           ^^^^^^^^^^^^^^\nE   TypeError: render_post() missing 1 required keyword-only argument: 'show_body'\n\nblog/index.py:5: TypeError\n=========================== short test summary info ============================\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-render-post-show-body-broadcast-lp44s_zy/repo/test_hidden_b.py::test_render_index\nFAILED ../../../../../../../../var/folders/wz/b49hhkv12ygfypxjdf8rpr0c0000gn/T/airspace-bench-render-post-show-body-broadcast-lp44s_zy/repo/test_index.py::test_render_index\n2 failed, 4 passed in 1.08s\n"
+}

@@ -174,12 +174,13 @@ def test_removed_symbol_holds_callers(indexed):
     assert "removed by agent-a" in out["hookSpecificOutput"]["permissionDecisionReason"]
 
 
-def test_behaviour_change_is_not_held(indexed):
-    # Tag.save stops returning self, but its signature stays save(self): no call shape can show the break.
-    # This is a documented limit of signature checks.
+def test_a_dropped_return_is_a_contract_change(indexed):
+    # Tag.save stops returning self. Its parameters stay the same, but its contract becomes save(self) -> None,
+    # and agent-b's Tag(name).save().slug uses the result.
     graph, a, b = indexed
     ref_a, ref_b = REFS["tag-save-returns-none"]
 
-    assert a.apply(ref_a) and b.apply(ref_b)
-    assert b.holds == [] and _collisions(graph) == []
-    assert graph.query("MATCH (cc:ContractChange) RETURN count(cc)").result_set == [[0]]
+    assert a.apply(ref_a)
+    assert b.apply(ref_b) is False
+    assert "save(self) -> None" in b.holds[0]["hookSpecificOutput"]["permissionDecisionReason"]
+    assert graph.query("MATCH (cc:ContractChange) RETURN cc.new_sig").result_set == [["save(self) -> None"]]

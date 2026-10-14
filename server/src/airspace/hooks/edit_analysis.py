@@ -84,7 +84,7 @@ def _empty(rel: str) -> ModuleFacts:
     return ModuleFacts(module="", file=rel, symbols=[], calls=[], imports={}, bases=[])
 
 
-Site = tuple[int, tuple[str, ...], bool, bool]  # (nargs, sorted kwargs, star, bound)
+Site = tuple[int, tuple[str, ...], bool, bool, bool]  # (nargs, sorted kwargs, star, bound, used)
 
 
 def _clearance_calls(facts: ModuleFacts, universe: set[str]) -> Iterator[tuple[str, str, CallFact, bool]]:
@@ -128,7 +128,9 @@ def _clearance_sites(facts: ModuleFacts, universe: set[str]) -> dict[tuple[str, 
     """(caller, callee) -> the shapes of its call sites."""
     sites: dict[tuple[str, str], set[Site]] = {}
     for caller, callee, call, bound in _clearance_calls(facts, universe):
-        sites.setdefault((caller, callee), set()).add((call.nargs, tuple(sorted(call.kwargs)), call.star, bound))
+        sites.setdefault((caller, callee), set()).add(
+            (call.nargs, tuple(sorted(call.kwargs)), call.star, bound, call.used)
+        )
     return sites
 
 
@@ -143,7 +145,8 @@ def calls_in_file(repo_root: Path, rel: str, known: set[str]) -> list[tuple[str,
         return []
     universe = known | {s.qualname for s in facts.symbols}
     return [
-        (caller, callee, CallSite(caller, call.nargs, tuple(sorted(call.kwargs)), call.star, bound, text=call.text))
+        (caller, callee, CallSite(caller, call.nargs, tuple(sorted(call.kwargs)), call.star, bound, call.used,
+                                  text=call.text))
         for caller, callee, call, bound in _clearance_calls(facts, universe)
     ]
 
@@ -213,8 +216,8 @@ def analyze_sources(rel: str, old_source: str | None, new_source: str, known: se
     new_calls = sorted(pair for pair, shapes in after.items() if before.get(pair) != shapes)
     call_shapes: dict[str, list[CallSite]] = {}
     for caller, callee in new_calls:
-        for nargs, kwargs, star, bound in sorted(after[(caller, callee)]):
-            call_shapes.setdefault(callee, []).append(CallSite(caller, nargs, kwargs, star, bound))
+        for nargs, kwargs, star, bound, used in sorted(after[(caller, callee)]):
+            call_shapes.setdefault(callee, []).append(CallSite(caller, nargs, kwargs, star, bound, used))
     return EditAnalysis(
         rel, touched, new_calls, parse_ok=True, call_shapes=call_shapes,
         signature_changes=_signature_changes(old, new),

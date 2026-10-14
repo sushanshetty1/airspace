@@ -228,7 +228,7 @@ class Airspace:
             if checked:
                 if latest[7]:
                     continue  # Tower released this hold
-                if all(call_fits(latest[3], x.nargs, x.kwargs, x.star, x.bound) for x in sites):
+                if all(call_fits(latest[3], x.nargs, x.kwargs, x.star, x.bound, x.used) for x in sites):
                     continue
                 first, last = rows[0], latest
             else:
@@ -478,8 +478,9 @@ class Airspace:
                 shape = parse_shape(key)
                 if shape is None:
                     continue
-                nargs, kwargs, star, bound = shape
-                if not call_fits(ch.new_signature, nargs, kwargs, star, bound or via_class):
+                nargs, kwargs, star, bound, used = shape
+                # Through the class, the call is the constructor: its result is the instance, never None.
+                if not call_fits(ch.new_signature, nargs, kwargs, star, bound or via_class, used and not via_class):
                     broken[other] = (other_task, caller)
                     break
         for other, (other_task, caller) in broken.items():
@@ -626,7 +627,7 @@ class Airspace:
             old_sig, (_, change_id, _, new_sig, other_agent, other_task, released) = changes[callee]
             if released or not self._judgeable(callee, new_sig):
                 continue  # Tower released this hold, or a class line says nothing about calls
-            if call_fits(new_sig, site.nargs, site.kwargs, site.star, site.bound):
+            if call_fits(new_sig, site.nargs, site.kwargs, site.star, site.bound, site.used):
                 continue
             key = (caller, callee, site.text)
             if key in seen:

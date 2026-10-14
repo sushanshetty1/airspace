@@ -1,43 +1,50 @@
 """Whether a call of a given shape can bind to a signature, by Python's own binding rules. Pure functions.
 
 A call's shape is what the parser can see without running anything: how many positional arguments, which
-keyword names, whether it unpacks *args or **kwargs, and whether it is bound (called through an instance, so
-the first parameter is already filled). The graph stores shapes on CALLS and COVERS edges as short strings:
-"2|" (two positional), "1|unicode" (one positional, keyword unicode), "b:0|" (bound, no arguments), "*" (star).
+keyword names, whether it unpacks *args or **kwargs, whether it is bound (called through an instance, so
+the first parameter is already filled), and whether its result is used. The graph stores shapes on CALLS and
+COVERS edges as short strings: "2|" (two positional), "1|unicode" (one positional, keyword unicode), "b:0|"
+(bound, no arguments), "*" (star), and a leading "v:" when the result is used ("v:b:0|").
 """
 
 import ast
 from collections.abc import Sequence
 
-Shape = tuple[int, tuple[str, ...], bool, bool]  # (nargs, kwargs, star, bound)
+Shape = tuple[int, tuple[str, ...], bool, bool, bool]  # (nargs, kwargs, star, bound, used)
+RETURNS_NOTHING = " -> None"
 
 
-def shape_key(nargs: int, kwargs: Sequence[str], star: bool, bound: bool) -> str:
+def shape_key(nargs: int, kwargs: Sequence[str], star: bool, bound: bool, used: bool = False) -> str:
+    used_mark = "v:" if used else ""
     if star:
-        return "*"
-    return f"{'b:' if bound else ''}{nargs}|{','.join(sorted(kwargs))}"
+        return f"{used_mark}*"
+    return f"{used_mark}{'b:' if bound else ''}{nargs}|{','.join(sorted(kwargs))}"
 
 
 def parse_shape(key: str) -> Shape | None:
     """The shape a key stands for, or None when the key is not one."""
+    used = key.startswith("v:")
+    key = key[2:] if used else key
     if key == "*":
-        return (0, (), True, False)
+        return (0, (), True, False, used)
     bound = key.startswith("b:")
     body = key[2:] if bound else key
     count, sep, names = body.partition("|")
     if not sep or not count.isdigit():
         return None
-    return (int(count), tuple(n for n in names.split(",") if n), False, bound)
+    return (int(count), tuple(n for n in names.split(",") if n), False, bound, used)
 
 
-def call_fits(signature: str, nargs: int, kwargs: Sequence[str], star: bool, bound: bool) -> bool:
-    """True when a call with this shape can bind to `signature` ("name(params)").
+def call_fits(signature: str, nargs: int, kwargs: Sequence[str], star: bool, bound: bool, used: bool = False) -> bool:
+    """True when a call with this shape can bind to `signature` ("name(params)", "name(params) -> None").
 
-    An empty signature means the symbol was removed, so nothing fits it. A star call may unpack anything, so it
-    always fits. A signature that does not parse as a def (a class line such as "Post(Base)") cannot be judged and
+    An empty signature means the symbol was removed, so nothing fits it. A call that uses the result does not fit
+    a function that returns nothing. A star call may unpack any arguments, so otherwise it always fits. A signature that does not parse as a def (a class line such as "Post(Base)") cannot be judged and
     is taken to fit: the check never holds on a guess.
     """
     if not signature:
+        return False
+    if used and signature.endswith(RETURNS_NOTHING):
         return False
     if star:
         return True

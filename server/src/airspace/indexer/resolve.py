@@ -59,7 +59,7 @@ def resolve_shapes(facts: ModuleFacts, known: set[str]) -> dict[tuple[str, str],
     for call in facts.calls:
         callee = resolve_target(call.target, facts, call.caller, known)
         if callee is not None:
-            key = shape_key(call.nargs, call.kwargs, call.star, is_bound(call))
+            key = shape_key(call.nargs, call.kwargs, call.star, is_bound(call), call.used)
             shapes.setdefault((call.caller, callee), set()).add(key)
     return shapes
 

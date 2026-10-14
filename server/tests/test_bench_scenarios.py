@@ -2,7 +2,8 @@
 
 Calls after the change: agent-a's reference change goes through first, then agent-b's natural edit is held.
 Caller first: agent-b's edit lands first, then agent-a's change holds it, and agent-b's next tool call of any kind
-gets the briefing. The behaviour set keeps every signature, so nothing is held: that is a documented limit.
+gets the briefing. The return set keeps every parameter and drops the return value: a caller that uses the result
+no longer fits "save(self) -> None".
 agent-b finishes first: agent-b's whole patch goes through and agent-b stops before agent-a's change. Its Stop hook
 holds while agent-a still claims a contract agent-b calls, then blocks the landing with the change.
 """
@@ -11,7 +12,7 @@ import pytest
 
 from airspace.admission.engine import Airspace
 from airspace.graph.db import repo_graph
-from bench_refs import BEHAVIOUR_SETS, REFS, SIGNATURE_SETS, Agent, FakeTime, never
+from bench_refs import REFS, SIGNATURE_SETS, Agent, FakeTime, never
 
 # A's new interface, as B's briefing or hold must state it.
 NEW_INTERFACE = {
@@ -20,6 +21,7 @@ NEW_INTERFACE = {
     "rename-absolute-url": "renamed or removed by agent-a",
     "render-post-show-body": "render_post(post, *, show_body)",
     "post-requires-author": "__init__(self, title, body, author)",
+    "tag-save-returns-none": "save(self) -> None",
 }
 CHANGED_SYMBOL = {
     "slugify-keyword-only": "utils.text.slugify",
@@ -36,6 +38,7 @@ B_CALL = {
     "rename-absolute-url": ("blog.feeds.LatestPosts.item_link", "post.get_absolute_url()"),
     "render-post-show-body": ("blog.index.render_index", "render_post(p)"),
     "post-requires-author": ("tests.test_feeds.test_item_description", "Post('Hi', 'x')"),
+    "tag-save-returns-none": ("tags.utils.tag_slug", "Tag(name).save()"),
 }
 
 
@@ -115,31 +118,9 @@ def test_caller_first_is_briefed_on_the_next_tool_call(indexed, set_id):
     assert b.other_tool() is None
 
 
-@pytest.mark.parametrize("set_id", BEHAVIOUR_SETS)
-def test_behaviour_set_is_not_held(indexed, set_id):
-    graph, a, b = indexed
-    ref_a, ref_b = REFS[set_id]
-
-    assert a.apply(ref_a), a.holds
-    assert b.apply(ref_b), b.holds
-    assert b.other_tool() is None
-    assert _collisions(graph) == []
-
-
-@pytest.mark.parametrize("set_id", BEHAVIOUR_SETS)
-def test_behaviour_set_caller_first_is_not_held(indexed, set_id):
-    graph, a, b = indexed
-    ref_a, ref_b = REFS[set_id]
-
-    assert b.apply(ref_b), b.holds
-    assert a.apply(ref_a), a.holds
-    assert b.other_tool() is None
-    assert _collisions(graph) == []
-
 
 def _landing_status(graph, task):
     return graph.query("MATCH (t:Task {id: $t}) RETURN t.status", {"t": task}).result_set[0][0]
-
 
 @pytest.mark.parametrize("set_id", SIGNATURE_SETS)
 def test_b_finishes_first_holds_then_is_blocked_at_landing(indexed, set_id):
@@ -186,21 +167,3 @@ def test_b_stops_after_the_change_is_blocked_at_landing(indexed, set_id):
     assert out is not None and out["decision"] == "block", out
     assert NEW_INTERFACE[set_id] in out["reason"] and B_CALL[set_id][1] in out["reason"]
     assert _collisions(graph) == [["contract", "agent-b", "agent-a", CHANGED_SYMBOL[set_id], "held"]]
-
-
-@pytest.mark.parametrize("set_id", BEHAVIOUR_SETS)
-def test_behaviour_set_b_finishes_first_lands(indexed, set_id):
-    graph, a, b = indexed
-    ref_a, ref_b = REFS[set_id]
-    Airspace(graph).file_plan("agent-a", a.session, "change", [CHANGED_SYMBOL[set_id]])
-    assert b.apply(ref_b), b.holds
-
-    def a_changes_and_lands():
-        assert a.apply(ref_a), a.holds
-        assert a.stop(sleep=never) is None
-
-    t = FakeTime(a_changes_and_lands)
-    assert b.stop(sleep=t.sleep, clock=t.clock) is None
-    assert t.sleeps == 1
-    assert _landing_status(graph, b.session) == "landed"
-    assert _collisions(graph) == []

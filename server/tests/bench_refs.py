@@ -44,10 +44,10 @@ REFS = {
     ),
 }
 
-# The sets where B's natural call breaks against A's new signature. The behaviour set keeps the signature.
+# Every set: B's natural call breaks against A's new contract. In the last one the parameters stay the same and
+# only the return changes (Tag.save stops returning self), which the contract carries as "-> None".
 SIGNATURE_SETS = ["slugify-keyword-only", "truncate-words-limit", "rename-absolute-url", "render-post-show-body",
-                  "post-requires-author"]
-BEHAVIOUR_SETS = ["tag-save-returns-none"]
+                  "post-requires-author", "tag-save-returns-none"]
 
 
 def tool_calls(patch: dict) -> list[tuple[str, str, dict]]:

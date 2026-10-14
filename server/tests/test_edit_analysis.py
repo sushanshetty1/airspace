@@ -160,7 +160,7 @@ RENDER = "blog.views.render_post"
 def test_analysis_reports_call_shapes(blog_repo):
     tool_input = {"file_path": "blog/views.py", "edits": ADD_SLUGIFY_CALL}
     analysis = analyze_edit(blog_repo, "MultiEdit", tool_input, KNOWN)
-    assert analysis.call_shapes == {SLUGIFY: [CallSite(RENDER, 2, (), False, False)]}
+    assert analysis.call_shapes == {SLUGIFY: [CallSite(RENDER, 2, (), False, False, True)]}
     assert analysis.signature_changes == []
 
 
@@ -172,7 +172,7 @@ def test_reshaped_call_counts_as_new(blog_repo):
     }
     analysis = analyze_edit(blog_repo, "Edit", tool_input, KNOWN)
     assert analysis.new_calls == [("blog.models.Post.save", SLUGIFY)]
-    assert analysis.call_shapes == {SLUGIFY: [CallSite("blog.models.Post.save", 1, ("unicode",), False, False)]}
+    assert analysis.call_shapes == {SLUGIFY: [CallSite("blog.models.Post.save", 1, ("unicode",), False, False, True)]}
 
 
 def test_changed_signature_is_reported(blog_repo):
@@ -208,7 +208,7 @@ def test_attribute_call_resolves_by_unique_method_name(blog_repo):
     analysis = analyze_edit(blog_repo, "Edit", _add_feeds_method("        return post.get_absolute_url()\n"), KNOWN)
     url = "blog.models.Post.get_absolute_url"
     assert ("blog.feeds.LatestPosts.item_link", url) in analysis.new_calls
-    assert analysis.call_shapes[url] == [CallSite("blog.feeds.LatestPosts.item_link", 0, (), False, True)]
+    assert analysis.call_shapes[url] == [CallSite("blog.feeds.LatestPosts.item_link", 0, (), False, True, True)]
 
 
 def test_ambiguous_method_name_is_not_guessed(blog_repo):
@@ -223,9 +223,9 @@ def test_constructor_call_pairs_with_init(blog_repo):
     caller = "tests.test_new.test_it"
     assert (caller, "blog.models.Post") in analysis.new_calls
     assert (caller, "blog.models.Post.__init__") in analysis.new_calls
-    assert analysis.call_shapes["blog.models.Post.__init__"] == [CallSite(caller, 2, (), False, True)]
-    assert analysis.call_shapes["blog.models.Post"] == [CallSite(caller, 2, (), False, False)]
-    assert analysis.call_shapes["blog.models.Post.save"] == [CallSite(caller, 0, (), False, True)]
+    assert analysis.call_shapes["blog.models.Post.__init__"] == [CallSite(caller, 2, (), False, True, True)]
+    assert analysis.call_shapes["blog.models.Post"] == [CallSite(caller, 2, (), False, False, True)]
+    assert analysis.call_shapes["blog.models.Post.save"] == [CallSite(caller, 0, (), False, True, True)]
 
 
 def test_removed_symbol_in_known_still_resolves(blog_repo):
@@ -254,12 +254,12 @@ def test_calls_in_file_resolves_methods_and_constructors(blog_repo):
     found = {(caller, callee): site for caller, callee, site in calls}
 
     link = found[("blog.feeds.LatestPosts.item_link", "blog.models.Post.get_absolute_url")]
-    assert link == CallSite("blog.feeds.LatestPosts.item_link", 0, (), False, True)
+    assert link == CallSite("blog.feeds.LatestPosts.item_link", 0, (), False, True, True)
     assert link.text == "post.get_absolute_url()"
     assert found[("blog.feeds.LatestPosts.item_new", "blog.models.Post")] == CallSite(
-        "blog.feeds.LatestPosts.item_new", 1, ("body",), False, False)
+        "blog.feeds.LatestPosts.item_new", 1, ("body",), False, False, True)
     init = found[("blog.feeds.LatestPosts.item_new", "blog.models.Post.__init__")]
-    assert init == CallSite("blog.feeds.LatestPosts.item_new", 1, ("body",), False, True)
+    assert init == CallSite("blog.feeds.LatestPosts.item_new", 1, ("body",), False, True, True)
     assert init.text == "Post('Hi', body='x')"
     # A call written over two lines reads as one.
     assert found[("blog.feeds.LatestPosts.item_slug", "utils.text.slugify")].text == (

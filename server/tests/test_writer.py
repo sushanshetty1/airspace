@@ -176,13 +176,14 @@ def _shapes(graph, rel: str) -> dict[tuple[str, str], list[str]]:
 def test_edges_store_call_shapes(graph):
     index_repo(graph, FIXTURE_REPO)
     calls = _shapes(graph, "CALLS")
-    assert calls[("blog.models.Post.save", "utils.text.slugify")] == ["1|"]
-    assert calls[("blog.feeds.LatestPosts.item_description", "utils.text.truncate_words")] == ["2|"]
-    assert calls[("tags.views.tag_create", "tags.models.Tag")] == ["1|"]
+    # "v:": the result is used (assigned, returned, passed on), so a callee that stops returning breaks the call.
+    assert calls[("blog.models.Post.save", "utils.text.slugify")] == ["v:1|"]
+    assert calls[("blog.feeds.LatestPosts.item_description", "utils.text.truncate_words")] == ["v:2|"]
+    assert calls[("tags.views.tag_create", "tags.models.Tag")] == ["v:1|"]
     # Tag(name).save() is called on the new instance, so it is bound.
-    assert calls[("tags.views.tag_create", "tags.models.Tag.save")] == ["b:0|"]
+    assert calls[("tags.views.tag_create", "tags.models.Tag.save")] == ["v:b:0|"]
     covers = _shapes(graph, "COVERS")
-    assert covers[("tests.test_views.test_render_post", "blog.models.Post")] == ["2|"]
+    assert covers[("tests.test_views.test_render_post", "blog.models.Post")] == ["v:2|"]
 
 
 def test_edge_shapes_merge_across_call_sites(graph, blog_repo):
@@ -198,5 +199,6 @@ def test_edge_shapes_merge_across_call_sites(graph, blog_repo):
     )
     reindex_file(graph, blog_repo, "blog/search.py")
     calls = _shapes(graph, "CALLS")
-    assert sorted(calls[("blog.search.Search.run", "utils.text.slugify")]) == ["*", "1|", "1|unicode"]
+    assert sorted(calls[("blog.search.Search.run", "utils.text.slugify")]) == ["v:*", "v:1|", "v:1|unicode"]
+    # A bare statement throws the result away.
     assert calls[("blog.search.Search.run", "blog.search.Search.clean")] == ["b:1|"]
