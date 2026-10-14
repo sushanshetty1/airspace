@@ -8,6 +8,7 @@ Agents are the unit of conflict. One agent can fly several tasks (a task per Cla
 "<agent>:mcp" from the MCP server), and an agent's own tasks never hold each other.
 """
 
+import re
 import time
 import uuid
 from typing import Callable
@@ -65,6 +66,7 @@ def _label(qualname: str, kind: str | None) -> str:
 
 # How long a Read of a file counts as interest in it, for the holding pattern at landing.
 READ_INTEREST_SECONDS = 900
+_TOKEN = re.compile(r"[A-Za-z_][\w./]*")
 
 class Airspace:
     def __init__(self, graph, lease_seconds: int = 900, cone_depth: int = 2, clock: Callable[[], float] = time.time):
@@ -635,6 +637,28 @@ class Airspace:
             {"callees": callees, "agent": me, "since": now - READ_INTEREST_SECONDS},
         )
         return violations, sorted({r[0] for r in waiting} | {r[0] for r in reading})
+
+    def note_interest_from_text(self, agent_id: str, task_id: str, text: str) -> list[str]:
+        """Files of the repo a task's prompt names, directly or through a symbol defined in them.
+
+        Recorded as the same soft interest as a Read, at the moment the agent starts, so an agent that lands early
+        waits for one that has only been given its task. Returns the files noted.
+        """
+        tokens = {t.strip(".,:;()`'\"") for t in _TOKEN.findall(text or "")}
+        tokens = {t for t in tokens if t}
+        if not tokens:
+            return []
+        files = {r[0] for r in self._q("MATCH (f:File) RETURN f.path")}
+        hit = {f for f in files if f in tokens or f.replace("/", ".")[:-3] in tokens}
+        for qualname, name, file in self._q("MATCH (f:File)-[:DEFINES]->(s:Symbol) RETURN s.qualname, s.name, f.path"):
+            short = qualname.rsplit(".", 2)
+            dotted = ".".join(short[-2:]) if len(short) > 2 else qualname
+            # Bare names count when they are distinctive enough to mean this symbol (save, url, get do not).
+            if qualname in tokens or dotted in tokens or (name in tokens and (len(name) >= 6 or "_" in name)):
+                hit.add(file)
+        for rel in sorted(hit):
+            self.note_reading(agent_id, task_id, rel)
+        return sorted(hit)
 
     def note_reading(self, agent_id: str, task_id: str, rel: str) -> None:
         """Record that a task read a file of the repo: a soft interest that landing agents wait for."""

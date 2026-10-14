@@ -12,6 +12,12 @@ BRANCH_NOTE = (
     "That change may not be in this working copy yet, so local tests can still reflect the old signature "
     "until the branches are merged."
 )
+# The hooks know the agent's working copy and replace BRANCH_NOTE with one of these facts.
+LOCAL_NOTE = "This working copy already has that change, so local tests use the new signature."
+NOT_HERE_NOTE = (
+    "That change is not in this working copy yet, so local tests still reflect the old signature until the "
+    "branches are merged. A call that fits the new signature is the one that merges cleanly."
+)
 
 
 def contract_hold(

@@ -94,7 +94,8 @@ def test_stop_waits_for_active_owner_then_blocks_with_briefing(indexed):
     assert reason.startswith(f"Airspace: before landing, {SLUGIFY} was changed by agent-a to {NEW_SIG}")
     assert "slugify(value, allow_unicode=False)" in reason
     assert f"The call {CALLER} makes, {B_CALL}, does not fit it." in reason
-    assert "may not be in this working copy yet" in reason
+    # Both agents share this working copy, so the change is already on disk here and the reason says so.
+    assert "This working copy already has that change" in reason
     assert chr(0x2014) not in reason and chr(0x2013) not in reason
     # One holding event for the whole wait, then the hold.
     assert _events(graph, "holding") == [["agent-b", "is holding for", "agent-a"]]
@@ -244,3 +245,47 @@ def test_reading_an_unrelated_file_does_not_make_a_lander_wait(indexed):
     assert b.apply(SLUG_B)
     assert b.stop(sleep=never) is None
     assert _status(graph, b.session) == "landed"
+
+
+def test_hold_reason_states_whether_the_change_is_in_this_working_copy(tmp_path, blog_repo):
+    from airspace.admission.text import BRANCH_NOTE
+    from airspace.hooks.handlers import _localize
+
+    text = f"Airspace hold: ... {BRANCH_NOTE}"
+    change = [(SLUGIFY, NEW_SIG)]
+    assert "is not in this working copy yet" in _localize(text, blog_repo, change)
+    p = blog_repo / "utils/text.py"
+    p.write_text(p.read_text().replace("def slugify(value, allow_unicode=False):", f"def {NEW_SIG}:"))
+    assert "This working copy already has that change" in _localize(text, blog_repo, change)
+    # A removal is on disk when the symbol is gone.
+    assert "already has" in _localize(text, blog_repo, [("utils.text.no_such_function", "")])
+
+
+def test_prompt_names_become_interest_that_a_lander_waits_for(indexed):
+    """agent-a has only been given its task. Its prompt names utils/text.py and slugify, so agent-b waits."""
+    from airspace.hooks.handlers import handle_prompt
+
+    graph, a, b = indexed
+    prompt = "In utils/text.py, make the unicode option of slugify keyword-only: slugify(value, *, unicode=False)."
+    handle_prompt({"session_id": a.session, "cwd": str(a.repo), "prompt": prompt}, a.deps, a.env)
+    assert b.apply(SLUG_B)
+
+    def a_changes():
+        assert _status(graph, b.session) == "holding"
+        assert a.apply(SLUG_A), a.holds
+
+    def a_lands():
+        assert a.stop(sleep=never) is None
+
+    t = FakeTime(a_changes, a_lands)
+    assert NEW_SIG in _reason(b.stop(**t.timing()))
+
+
+def test_prompt_interest_ignores_short_common_names(indexed):
+    from airspace.admission.engine import Airspace
+
+    graph, a, _ = indexed
+    noted = Airspace(graph).note_interest_from_text(a.agent_id, a.session, "save the url and get it")
+    assert noted == []
+    noted = Airspace(graph).note_interest_from_text(a.agent_id, a.session, "Rename Post.get_absolute_url to Post.url")
+    assert noted == ["blog/models.py"]

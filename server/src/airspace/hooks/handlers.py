@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from airspace.admission.text import briefing_line, landing_hold
+from airspace.admission.text import BRANCH_NOTE, LOCAL_NOTE, NOT_HERE_NOTE, briefing_line, landing_hold
 from airspace.types import Briefing, CallSite, EditAnalysis, SignatureChange
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
@@ -109,6 +109,35 @@ def _messages(airspace, agent: str, task: str) -> list[str]:
         return []
 
 
+def _on_disk(root: Path, qualname: str, new_sig: str) -> bool:
+    """Whether this working copy already has a contract change: the new signature, or the symbol gone if removed."""
+    from airspace.indexer.parse import parse_module
+
+    parts = qualname.split(".")
+    for i in range(len(parts) - 1, 0, -1):
+        for rel in ("/".join(parts[:i]) + ".py", "/".join(parts[:i]) + "/__init__.py"):
+            path = root / rel
+            if not path.is_file():
+                continue
+            facts = parse_module(rel, path.read_text(encoding="utf-8", errors="replace"))
+            if facts is None:
+                return False
+            signatures = {sym.qualname: sym.signature for sym in facts.symbols}
+            return qualname not in signatures if not new_sig else signatures.get(qualname) == new_sig
+    return False
+
+
+def _localize(text: str, root: Path, changes: list[tuple[str, str]]) -> str:
+    """Replace the generic working-copy note with the fact for this agent's own working copy."""
+    if BRANCH_NOTE not in text or not changes:
+        return text
+    try:
+        here = all(_on_disk(root, q, sig) for q, sig in changes)
+    except Exception:
+        return text
+    return text.replace(BRANCH_NOTE, LOCAL_NOTE if here else NOT_HERE_NOTE)
+
+
 def _context(event: str, briefings: list[Briefing], messages: list[str]) -> dict | None:
     parts = [p for p in (briefing_context(briefings), message_context(messages)) if p]
     if not parts:
@@ -149,7 +178,10 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
-                    "permissionDecisionReason": verdict.reason + ("\n" + messages if messages else ""),
+                    "permissionDecisionReason": _localize(
+                        verdict.reason, root, [(b.symbol, b.new_signature) for b in verdict.briefings]
+                    )
+                    + ("\n" + messages if messages else ""),
                 }
             }
         return _context("PreToolUse", airspace.pending_briefings(task), _messages(airspace, agent, task))
@@ -213,6 +245,24 @@ def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
     return _context("PreToolUse", briefings, _messages(airspace, agent, task))
 
 
+def handle_prompt(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -> dict | None:
+    """UserPromptSubmit: note the files the task names as interest, so agents landing early wait for this one."""
+    prompt = payload.get("prompt")
+    if not isinstance(prompt, str) or not prompt.strip():
+        return None
+    root, agent, task = identity(payload, env)
+    try:
+        airspace = deps.airspace(root)
+    except Exception:
+        _note(UNAVAILABLE.replace("edit not checked", "task not noted"))
+        return None
+    try:
+        airspace.note_interest_from_text(agent, task, prompt)
+    except Exception as e:
+        _failed(e, "task not noted")
+    return None
+
+
 def _fingerprint(violations: list[dict]) -> str:
     keys = sorted(f"{v['caller']}|{v['symbol']}|{v['new_sig']}|{v['call']}" for v in violations)
     return hashlib.sha1("\n".join(keys).encode()).hexdigest()[:12]
@@ -260,7 +310,8 @@ def handle_stop(
             if not (payload.get("stop_hook_active") and airspace.last_block(task) == fingerprint):
                 airspace.block_landing(task, fingerprint, violations[0]["caller"])
                 messages = message_context(_messages(airspace, agent, task))
-                return {"decision": "block", "reason": landing_hold(violations) + ("\n" + messages if messages else "")}
+                reason = _localize(landing_hold(violations), root, [(v["symbol"], v["new_sig"]) for v in violations])
+                return {"decision": "block", "reason": reason + ("\n" + messages if messages else "")}
         airspace.land(task)
         return _context("Stop", airspace.pending_briefings(task), _messages(airspace, agent, task))
     except Exception as e:

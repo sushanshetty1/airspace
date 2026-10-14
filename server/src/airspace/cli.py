@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from airspace.hooks.handlers import Deps, default_deps, handle_any, handle_post, handle_pre, handle_stop
+from airspace.hooks.handlers import Deps, default_deps, handle_any, handle_post, handle_pre, handle_prompt, handle_stop
 
 MATCHER = "Edit|Write|MultiEdit"
 # Every other tool an agent uses between edits, so a briefing reaches an agent that only runs tests or reads.
@@ -22,8 +22,9 @@ _HOOKS = [
     ("PreToolUse", "any", ANY_MATCHER, None),
     ("PostToolUse", "post", MATCHER, None),
     ("Stop", "stop", None, STOP_TIMEOUT),
+    ("UserPromptSubmit", "prompt", None, None),
 ]
-_HANDLERS = {"pre": handle_pre, "post": handle_post, "any": handle_any, "stop": handle_stop}
+_HANDLERS = {"pre": handle_pre, "post": handle_post, "any": handle_any, "stop": handle_stop, "prompt": handle_prompt}
 
 
 # Providers. Module level so tests can swap them.
