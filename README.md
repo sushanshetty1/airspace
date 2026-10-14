@@ -165,7 +165,7 @@ The table fills in once the runs are done. We won't publish a number we haven't 
 | [`server/src/airspace/indexer`](server/src/airspace/indexer) | Python `ast` → symbols, calls, imports, inheritance and test coverage, re-indexed per file |
 | [`server/src/airspace/graph`](server/src/airspace/graph) | FalkorDB connection, schema, indexes and the Cypher above |
 | [`server/src/airspace/admission`](server/src/airspace/admission) | Flight plans, cones, clearance, leases, briefings |
-| [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code `PreToolUse` / `PostToolUse` hooks |
+| [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code `PreToolUse` / `PostToolUse` / `Stop` hooks |
 | [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `request_clearance`, `report_change`, `briefings`, `radar` |
 | [`server/src/airspace/api`](server/src/airspace/api) | HTTP and live updates for the radar |
 | [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness |
@@ -189,11 +189,11 @@ docker compose up -d falkordb                      # FalkorDB on :6379, Browser 
 cd server && uv sync
 
 uv run airspace index --root /path/to/your/repo          # build the code graph
-uv run airspace install-hooks --root /path/to/your/repo  # Claude Code PreToolUse and PostToolUse hooks
+uv run airspace install-hooks --root /path/to/your/repo  # Claude Code PreToolUse, PostToolUse and Stop hooks
 uv run airspace status --root /path/to/your/repo         # agents, claims and recent collisions
 ```
 
-Open two Claude Code sessions in that repo (set `AIRSPACE_AGENT=agent-a` and `agent-b` to name them) and let them work on the same feature. Every `Edit`, `Write` and `MultiEdit` on a Python file is checked first.
+Open two Claude Code sessions in that repo (set `AIRSPACE_AGENT=agent-a` and `agent-b` to name them) and let them work on the same feature. Every `Edit`, `Write` and `MultiEdit` on a Python file is checked first. When a session stops, it holds while another agent is still changing a contract it calls, then lands only if its calls fit the new signatures.
 
 Run the tests (FalkorDB must be running):
 

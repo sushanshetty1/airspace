@@ -76,6 +76,33 @@ def briefing_text(briefings: list[Briefing]) -> str:
     return "\n".join(lines)
 
 
+def landing_hold(violations: list[dict]) -> str:
+    """Calls in the agent's own code that do not fit a contract another agent changed, found as it stops.
+
+    Each violation has symbol, caller, call (the call as written, may be ""), old_sig, new_sig ("" when removed)
+    and agent (who changed it).
+    """
+    by_symbol: dict[str, list[dict]] = {}
+    for v in violations:
+        by_symbol.setdefault(v["symbol"], []).append(v)
+    parts = []
+    for symbol, calls in by_symbol.items():
+        v = calls[0]
+        if v["new_sig"]:
+            parts.append(f"{symbol} was changed by {v['agent']} to {v['new_sig']} (it was {v['old_sig']}).")
+        else:
+            parts.append(f"{symbol} was renamed or removed by {v['agent']} (it was {v['old_sig']}).")
+        verdict = "does not fit it" if v["new_sig"] else "has no target now"
+        for c in calls:
+            call = f", {c['call']}," if c["call"] else ""
+            parts.append(f"The call {c['caller']} makes{call} {verdict}.")
+    return (
+        "Airspace: before landing, " + " ".join(parts) + " "
+        "Landing is cleared once these calls match the current contracts. "
+        f"{BRANCH_NOTE}"
+    )
+
+
 def paused_hold(agent: str) -> str:
     return f"Airspace hold: {agent} is paused from Tower. Its edits are held until it is resumed."
 
@@ -92,4 +119,6 @@ EVENT_TEXT = {
     "released": "had a hold released at",
     "message": "got a message from",
     "resolved": "cleared the collision at",
+    "holding": "is holding for",
+    "landed": "landed",
 }

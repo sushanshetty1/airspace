@@ -1,26 +1,39 @@
-"""Claude Code PreToolUse and PostToolUse hook logic: payload in, hook JSON out (or None to stay silent).
+"""Claude Code PreToolUse, PostToolUse and Stop hook logic: payload in, hook JSON out (or None to stay silent).
 
 Every handler fails open. If FalkorDB is unreachable or anything else goes wrong, it writes one line to stderr
 and returns None, so Claude Code carries on as if Airspace were not installed.
 """
 
+import hashlib
 import os
 import sys
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from airspace.admission.text import briefing_line
-from airspace.types import Briefing, EditAnalysis, SignatureChange
+from airspace.admission.text import briefing_line, landing_hold
+from airspace.types import Briefing, CallSite, EditAnalysis, SignatureChange
 
 EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
 UNAVAILABLE = "airspace: FalkorDB unavailable, edit not checked"
 ANY_UNAVAILABLE = "airspace: FalkorDB unavailable, briefings not delivered"
+STOP_UNAVAILABLE = "airspace: FalkorDB unavailable, landing not checked"
+
+# The holding pattern. Inside the 300 s timeout install-hooks gives the Stop hook.
+STOP_WAIT_SECONDS = 240.0
+STOP_POLL_SECONDS = 2.0
 
 # Hooks run on every edit; a stalled socket must not stall the agent.
 _CONNECT_TIMEOUT = 2.0
 _SOCKET_TIMEOUT = 10.0
+
+
+def _calls_in_file(repo_root: Path, rel: str, known: set[str]) -> list[tuple[str, str, CallSite]]:
+    from airspace.hooks.edit_analysis import calls_in_file
+
+    return calls_in_file(repo_root, rel, known)
 
 
 @dataclass
@@ -29,6 +42,8 @@ class Deps:
     analyze: Callable[[Path, str, dict, set[str]], EditAnalysis | None]
     known: Callable[[Path], set[str]]  # repo_root -> known qualnames
     reindex: Callable[[Path, str], list[SignatureChange]]  # (repo_root, rel_path) -> changes
+    # (repo_root, rel_path, known) -> (caller, callee, site) for every call in the file as it is now
+    calls: Callable[[Path, str, set[str]], list[tuple[str, str, CallSite]]] = _calls_in_file
 
 
 def identity(payload: dict, env: Mapping[str, str]) -> tuple[Path, str, str]:
@@ -69,9 +84,9 @@ def _note(line: str) -> None:
     print(line, file=sys.stderr)
 
 
-def _failed(exc: Exception) -> None:
+def _failed(exc: Exception, what: str = "edit not checked") -> None:
     detail = " ".join(str(exc).split()) or type(exc).__name__
-    _note(f"airspace: {type(exc).__name__} ({detail}), edit not checked")
+    _note(f"airspace: {type(exc).__name__} ({detail}), {what}")
 
 
 def briefing_context(briefings: list[Briefing]) -> str:
@@ -160,6 +175,8 @@ def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) 
         if changes:
             airspace.ensure_task(agent, task)
             airspace.record_changes(task, changes)
+        # The Stop hook checks the calls in every file the task edited.
+        airspace.record_edited_file(task, rel)
         return _context("PostToolUse", airspace.pending_briefings(task), _messages(airspace, agent, task))
     except Exception as e:
         _failed(e)
@@ -187,6 +204,61 @@ def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
         _note(f"airspace: {type(e).__name__} ({detail}), briefings not delivered")
         briefings = []
     return _context("PreToolUse", briefings, _messages(airspace, agent, task))
+
+
+def _fingerprint(violations: list[dict]) -> str:
+    keys = sorted(f"{v['caller']}|{v['symbol']}|{v['new_sig']}|{v['call']}" for v in violations)
+    return hashlib.sha1("\n".join(keys).encode()).hexdigest()[:12]
+
+
+def handle_stop(
+    payload: dict,
+    deps: Deps,
+    env: Mapping[str, str] = os.environ,
+    wait_seconds: float = STOP_WAIT_SECONDS,
+    poll_seconds: float = STOP_POLL_SECONDS,
+    sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> dict | None:
+    """Stop: the holding pattern on landing.
+
+    An agent that finishes before another agent changes a contract it calls makes no further tool call, so a
+    briefing never reaches it. Here the calls in the files the task edited are checked against every contract
+    change by another agent. While an active agent still claims a callee, the task holds (up to `wait_seconds`).
+    A call that no longer fits blocks the stop with the change, once per distinct set of broken calls: a
+    continuation (stop_hook_active) that reports the same set again lands, so a call the agent could not fix
+    does not use up Claude Code's continuation cap. Otherwise the task lands.
+    """
+    root, agent, task = identity(payload, env)
+    try:
+        airspace = deps.airspace(root)
+    except Exception:
+        _note(STOP_UNAVAILABLE)
+        return None
+    try:
+        if airspace.agent_of(task) is None:
+            return None  # nothing edited through Airspace
+        deadline = clock() + wait_seconds
+        while True:
+            # Known names are read again each round: a rename made meanwhile keeps the old name resolvable.
+            known = deps.known(root)
+            calls = [c for rel in airspace.edited_files(task) for c in deps.calls(root, rel, known)]
+            violations, waiting_on = airspace.stop_check(task, calls)
+            if not waiting_on or clock() >= deadline:
+                break
+            airspace.holding(task, waiting_on[0])
+            sleep(poll_seconds)
+        if violations:
+            fingerprint = _fingerprint(violations)
+            if not (payload.get("stop_hook_active") and airspace.last_block(task) == fingerprint):
+                airspace.block_landing(task, fingerprint, violations[0]["caller"])
+                messages = message_context(_messages(airspace, agent, task))
+                return {"decision": "block", "reason": landing_hold(violations) + ("\n" + messages if messages else "")}
+        airspace.land(task)
+        return _context("Stop", airspace.pending_briefings(task), _messages(airspace, agent, task))
+    except Exception as e:
+        _failed(e, "landing not checked")
+        return None
 
 
 def default_deps() -> Deps:

@@ -6,11 +6,12 @@ the tool call would produce, so nothing is written to find out.
 """
 
 import difflib
+from collections.abc import Iterator
 from pathlib import Path
 
 from airspace.indexer.parse import parse_module
 from airspace.indexer.resolve import is_bound, resolve_target
-from airspace.types import CallSite, EditAnalysis, ModuleFacts, SignatureChange, SymbolFact
+from airspace.types import CallFact, CallSite, EditAnalysis, ModuleFacts, SignatureChange, SymbolFact
 
 
 def _replace(current: str, edit: dict) -> str | None:
@@ -86,8 +87,8 @@ def _empty(rel: str) -> ModuleFacts:
 Site = tuple[int, tuple[str, ...], bool, bool]  # (nargs, sorted kwargs, star, bound)
 
 
-def _clearance_sites(facts: ModuleFacts, universe: set[str]) -> dict[tuple[str, str], set[Site]]:
-    """(caller, callee) -> the shapes of its call sites, resolved more widely than the stored graph.
+def _clearance_calls(facts: ModuleFacts, universe: set[str]) -> Iterator[tuple[str, str, CallFact, bool]]:
+    """(caller, callee, call, bound) for each call site, resolved more widely than the stored graph.
 
     The stored graph never guesses. Clearance is stricter, because a missed call lets a collision through:
     - an agent often writes a call before its import, so a bare name with a single possible target means it;
@@ -102,18 +103,16 @@ def _clearance_sites(facts: ModuleFacts, universe: set[str]) -> dict[tuple[str, 
         if parent in universe:
             methods.setdefault(name, []).append(q)
 
-    sites: dict[tuple[str, str], set[Site]] = {}
-
-    def add(caller: str, callee: str, call, bound: bool) -> None:
-        sites.setdefault((caller, callee), set()).add((call.nargs, tuple(sorted(call.kwargs)), call.star, bound))
+    def pairs(caller: str, callee: str, call: CallFact, bound: bool):
+        yield caller, callee, call, bound
         init = f"{callee}.__init__"
         if init in universe and init != caller:
-            sites.setdefault((caller, init), set()).add((call.nargs, tuple(sorted(call.kwargs)), call.star, True))
+            yield caller, init, call, True
 
     for c in facts.calls:
         callee = resolve_target(c.target, facts, c.caller, universe)
         if callee is not None:
-            add(c.caller, callee, c, is_bound(c))
+            yield from pairs(c.caller, callee, c, is_bound(c))
             continue
         if "." in c.target:
             matches = methods.get(c.target.rsplit(".", 1)[1], [])
@@ -122,8 +121,31 @@ def _clearance_sites(facts: ModuleFacts, universe: set[str]) -> dict[tuple[str, 
             matches = by_name.get(c.target, [])
             bound = False
         if len(matches) == 1 and matches[0] != c.caller:
-            add(c.caller, matches[0], c, bound)
+            yield from pairs(c.caller, matches[0], c, bound)
+
+
+def _clearance_sites(facts: ModuleFacts, universe: set[str]) -> dict[tuple[str, str], set[Site]]:
+    """(caller, callee) -> the shapes of its call sites."""
+    sites: dict[tuple[str, str], set[Site]] = {}
+    for caller, callee, call, bound in _clearance_calls(facts, universe):
+        sites.setdefault((caller, callee), set()).add((call.nargs, tuple(sorted(call.kwargs)), call.star, bound))
     return sites
+
+
+def calls_in_file(repo_root: Path, rel: str, known: set[str]) -> list[tuple[str, str, CallSite]]:
+    """(caller, callee, site) for every call in the file as it is on disk now, resolved as clearance resolves an
+    edit. Empty when the file is gone or does not parse."""
+    path = Path(repo_root) / rel
+    if not path.is_file():
+        return []
+    facts = parse_module(rel, path.read_text(encoding="utf-8"))
+    if facts is None:
+        return []
+    universe = known | {s.qualname for s in facts.symbols}
+    return [
+        (caller, callee, CallSite(caller, call.nargs, tuple(sorted(call.kwargs)), call.star, bound, text=call.text))
+        for caller, callee, call, bound in _clearance_calls(facts, universe)
+    ]
 
 
 def _signature_changes(old: ModuleFacts, new: ModuleFacts) -> list[SignatureChange]:
