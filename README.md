@@ -65,6 +65,16 @@ This is what an agent sees:
 
 Each repo gets its own graph in FalkorDB. It has two layers: the code, and the agents working on it.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/graph-model-dark.png">
+    <img alt="Graph model. Airspace layer: Agent FLYING Task; Collision BETWEEN Task; ContractChange BRIEFED Task. Task CLAIMS (mode, lease, fence) and CONE (depth) point down to Symbol in the code layer. Code layer: File DEFINES and IMPORTS Symbol; Symbol CALLS and INHERITS Symbol; Test COVERS Symbol; ContractChange ON Symbol; Collision AT Symbol." src="assets/readme/graph-model-light.png" width="100%">
+  </picture>
+</p>
+
+<details>
+<summary>The same model as text</summary>
+
 ```text
 (:File {path})-[:DEFINES]->(:Symbol {qualname, kind, signature, sig_hash})
 (:Symbol)-[:CALLS]->(:Symbol)
@@ -80,6 +90,8 @@ Each repo gets its own graph in FalkorDB. It has two layers: the code, and the a
 (:ContractChange {old_sig, new_sig, at})-[:ON]->(:Symbol)
 (:ContractChange)-[:BRIEFED]->(:Task)
 ```
+
+</details>
 
 The queries the product depends on (sketches, finalised during the event):
 
