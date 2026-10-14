@@ -33,7 +33,7 @@ ENGINE_METHODS = frozenset({
     "holding", "land", "block_landing", "last_block", "note_reading", "note_interest_from_text", "pending_messages",
     "state", "explain", "insights", "owned", "restore_signatures",
 })
-GRAPH_METHODS = frozenset({"graph.known", "graph.write_file", "graph.index"})
+GRAPH_METHODS = frozenset({"graph.known", "graph.write_file", "graph.index", "graph.preflight"})
 WORKSPACE_HEADER = "X-Airspace-Workspace"
 # FalkorDB went away mid-call (the client is redis-py underneath): the caller should retry, not report a bug.
 _DOWN = (ConnectionError, TimeoutError, RedisConnectionError, RedisTimeoutError)
@@ -77,6 +77,20 @@ def _graph_call(graph, method: str, args: list, kwargs: dict):
         if facts is not None and facts.file != rel:
             raise RpcError(f"The facts are for {facts.file}, not {rel}.")
         return reindex_facts(graph, rel, facts)
+
+    if method == "graph.preflight":
+        from airspace.admission.preflight import PreflightError, preflight
+
+        def plan(tasks, depth=2):
+            return tasks, depth
+
+        _bind(plan, method, args, kwargs)
+        tasks, depth = plan(*args, **kwargs)
+        # Input the plan cannot use comes back as a result, not an RPC error, so its suggestions survive the trip.
+        try:
+            return preflight(graph, tasks, depth)
+        except PreflightError as e:
+            return {"error": e.message, "suggestions": e.suggestions}
 
     def index(facts_list, reset=False):
         return facts_list, reset

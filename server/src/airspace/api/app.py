@@ -177,11 +177,14 @@ def create_app(
     ping_interval: float = 15.0,
     max_seconds: float | None = None,
     cloud: Any = None,
+    demos: Any = None,
 ) -> FastAPI:
     """The API over an engine built by airspace_factory on first use (and again after a failed attempt).
 
     max_seconds ends each event stream after that long; None streams until the client disconnects.
     cloud, an airspace.cloud.Cloud, adds sign-in, workspaces and the RPC endpoint remote hooks call.
+    demos, an airspace.api.preflight_routes.Demos, holds the repos pre-flight runs on; None serves none, so an app
+    built here never indexes anything by itself (default_app starts the real ones).
     """
     app = FastAPI(title="Airspace", docs_url=None, redoc_url=None)
     app.add_middleware(
@@ -215,16 +218,22 @@ def create_app(
     timing = {"poll_interval": poll_interval, "ping_interval": ping_interval, "max_seconds": max_seconds}
     app.include_router(tower_routes(lambda request: engine(), **timing), prefix="/api")
 
-    from airspace.api import playground, replay_routes
+    from airspace.api import playground, preflight_routes, replay_routes
     app.include_router(replay_routes.router(engine))
     app.include_router(playground.router())
+    app.include_router(preflight_routes.router(demos if demos is not None else preflight_routes.Demos([])))
     if cloud is not None:
         cloud.mount(app, **timing)
     return app
 
 
 def default_app(root: Path) -> FastAPI:
-    """The API for one repository on the configured FalkorDB, plus hosted accounts and workspaces."""
+    """The API for one repository on the configured FalkorDB, plus hosted accounts, workspaces and the pre-flight
+    demo repos, which start indexing in the background now."""
+    from airspace.api.preflight_routes import Demos
     from airspace.cloud import Cloud
 
-    return create_app(lambda: open_airspace(root), cloud=Cloud.from_env())
+    demos = Demos.from_env()
+    app = create_app(lambda: open_airspace(root), cloud=Cloud.from_env(), demos=demos)
+    demos.start()
+    return app

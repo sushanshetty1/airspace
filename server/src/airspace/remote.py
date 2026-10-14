@@ -278,6 +278,10 @@ class RemoteAirspace:
     def insights(self) -> dict:
         return self._call("insights")
 
+    def preflight(self, tasks: list[dict], depth: int = 2) -> dict:
+        """Pre-flight on the workspace graph. Raises PreflightError, with the server's suggestions, as locally."""
+        return remote_preflight(self.client, tasks, depth)
+
     # Seen sources, local only
 
     def _seen_path(self, scope: str, rel: str) -> Path:
@@ -301,6 +305,16 @@ class RemoteAirspace:
 
 
 # The code graph, parsed here and written there
+
+
+def remote_preflight(client: RpcClient, tasks: list[dict], depth: int = 2) -> dict:
+    """preflight over RPC (graph.preflight). The server answers bad input as {"error", "suggestions"}."""
+    from airspace.admission.preflight import PreflightError
+
+    answer = client.call("graph.preflight", tasks, depth)
+    if isinstance(answer, dict) and "error" in answer:
+        raise PreflightError(str(answer["error"]), list(answer.get("suggestions") or []))
+    return answer
 
 
 def remote_known(client: RpcClient) -> set[str]:
