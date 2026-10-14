@@ -111,10 +111,10 @@ Each repo gets its own graph in FalkorDB. It has two layers: the code, and the a
 The queries the product depends on (sketches, finalised during the event):
 
 ```cypher
-// Impact cone: everything that depends on what a task claims, up to 3 hops
-MATCH (t:Task {id: $task})-[:CLAIMS]->(s:Symbol)
-MATCH (dep)-[:CALLS|IMPORTS|INHERITS|COVERS*1..3]->(s)
-MERGE (t)-[:CONE]->(dep)
+// Impact cone: everything that depends on what a task holds a live claim on, up to 2 hops
+MATCH (t:Task {id: $task})-[c:CLAIMS]->(s:Symbol) WHERE c.lease_until > $now
+MATCH (d:Symbol)-[:CALLS|COVERS|INHERITS*1..2]->(s)
+MERGE (t)-[:CONE]->(d)
 ```
 
 ```cypher
@@ -126,22 +126,22 @@ RETURN other.id, other.intent
 ```
 
 ```cypher
-// Why: the shortest path between my work and theirs
-MATCH (a:Symbol {qualname: $mine}), (b:Symbol {qualname: $theirs})
-CALL algo.SPpaths({sourceNode: a, targetNode: b, relTypes: ['CALLS', 'IMPORTS', 'INHERITS'], maxLen: 4})
-YIELD path
-RETURN path
+// Why: the shortest path between my work and theirs (shortestPath must sit in WITH or RETURN in FalkorDB)
+MATCH (a:Symbol {qualname: $a}), (b:Symbol {qualname: $b})
+WITH shortestPath((a)-[:CALLS|COVERS|INHERITS*..6]->(b)) AS p
+RETURN [n IN nodes(p) | n.qualname]
 ```
 
 ```cypher
-// Lease a symbol atomically (writes to one graph are serialised)
-MATCH (s:Symbol {qualname: $qualname})
-OPTIONAL MATCH (other:Task)-[c:CLAIMS]->(s) WHERE other.id <> $task AND c.lease_until > $now
-WITH s, count(c) AS held WHERE held = 0
-MATCH (t:Task {id: $task})
-MERGE (t)-[c:CLAIMS]->(s)
-SET c.mode = $mode, c.lease_until = $now + $ttl, c.fence = coalesce(c.fence, 0) + 1
-RETURN c.fence
+// Lease a symbol atomically (writes to one graph are serialised).
+// Every node is matched before the aggregation: in FalkorDB a MATCH after WITH ... count() loses rows.
+MATCH (t:Task {id: $task}), (s:Symbol {qualname: $q})
+OPTIONAL MATCH (o:Task)-[c:CLAIMS]->(s) WHERE o.id <> $task AND c.lease_until > $now
+WITH t, s, count(c) AS held
+WHERE held = 0
+MERGE (t)-[k:CLAIMS]->(s)
+SET k.lease_until = $now + $ttl, k.fence = coalesce(k.fence, 0) + 1
+RETURN k.fence
 ```
 
 ## Does it work?
