@@ -1,0 +1,10 @@
+{
+  "id": "flask-send-file-name",
+  "kind": "signature",
+  "a": "In src/flask/helpers.py, rename the download_name parameter of send_file to filename (same meaning: the file name the browser saves). Update the body, the docstring and every caller in the repo, including tests. Do not keep the old name.",
+  "b": "Add a function send_text(text, name) at the end of src/flask/helpers.py that sends the string text to the client as a downloadable plain-text file named name. Build it on send_file with an io.BytesIO and the text/plain mimetype. Export it from src/flask/__init__.py.",
+  "hidden": {
+    "tests/test_hidden_a.py": "import io\n\nimport pytest\n\nimport flask\n\n\ndef test_filename_keyword():\n    app = flask.Flask(__name__)\n    with app.test_request_context():\n        rv = flask.send_file(io.BytesIO(b\"x\"), mimetype=\"text/plain\", as_attachment=True, filename=\"a.txt\")\n        assert \"a.txt\" in rv.headers[\"Content-Disposition\"]\n        rv.close()\n        with pytest.raises(TypeError):\n            flask.send_file(io.BytesIO(b\"x\"), mimetype=\"text/plain\", download_name=\"a.txt\")\n",
+    "tests/test_hidden_b.py": "import flask\n\n\ndef test_send_text():\n    app = flask.Flask(__name__)\n    with app.test_request_context():\n        rv = flask.send_text(\"hello\", \"notes.txt\")\n        rv.direct_passthrough = False\n        assert rv.get_data() == b\"hello\"\n        assert \"notes.txt\" in rv.headers[\"Content-Disposition\"]\n        assert rv.mimetype == \"text/plain\"\n        rv.close()\n"
+  }
+}

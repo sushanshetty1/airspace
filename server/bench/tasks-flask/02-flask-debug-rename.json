@@ -1,0 +1,10 @@
+{
+  "id": "flask-debug-rename",
+  "kind": "rename",
+  "a": "In src/flask/helpers.py, rename get_debug_flag to get_debug_env (same behaviour). Update every caller and import in the repo, including tests. Do not keep the old name.",
+  "b": "Add a function debug_status() at the end of src/flask/helpers.py that returns the string \"debug on\" or \"debug off\", depending on whether debug mode is enabled by the FLASK_DEBUG environment variable. Use the existing helper that reads that variable.",
+  "hidden": {
+    "tests/test_hidden_a.py": "from flask import helpers\n\n\ndef test_renamed(monkeypatch):\n    monkeypatch.setenv(\"FLASK_DEBUG\", \"1\")\n    assert helpers.get_debug_env() is True\n    assert not hasattr(helpers, \"get_debug_flag\")\n",
+    "tests/test_hidden_b.py": "from flask.helpers import debug_status\n\n\ndef test_debug_status(monkeypatch):\n    monkeypatch.setenv(\"FLASK_DEBUG\", \"1\")\n    assert debug_status() == \"debug on\"\n    monkeypatch.setenv(\"FLASK_DEBUG\", \"0\")\n    assert debug_status() == \"debug off\"\n"
+  }
+}

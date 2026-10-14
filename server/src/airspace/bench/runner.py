@@ -24,6 +24,32 @@ from airspace.bench.tasks import TaskSet, load_tasks
 CONDITIONS = ("worktrees", "broadcast", "airspace")
 FIXTURE = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "blog"
 RESULTS = Path(__file__).resolve().parents[3] / "bench" / "results"
+BENCH = Path(__file__).resolve().parents[3] / "bench"
+
+
+@dataclass(frozen=True)
+class Suite:
+    """A repo the pairs work on, its task sets, and the interpreter that runs its tests.
+
+    src names a source root (Flask's src/) that goes first on the test interpreter's path, so each worktree's
+    tests import that worktree's code and not an installed copy.
+    """
+
+    name: str
+    repo: Path
+    tasks: Path
+    python: str = sys.executable
+    src: str = ""
+
+
+def suite(name: str, repo: str | None = None, python: str | None = None) -> Suite:
+    if name == "blog":
+        return Suite("blog", FIXTURE, BENCH / "tasks")
+    if name == "flask":
+        if not repo or not python:
+            raise SystemExit("--suite flask needs --repo (a Flask checkout) and --test-python (with Flask's dependencies)")
+        return Suite("flask", Path(repo), BENCH / "tasks-flask", python, "src")
+    raise SystemExit(f"unknown suite {name}")
 AGENT_TIMEOUT = 600
 
 
@@ -73,9 +99,19 @@ def _commit(repo: Path, message: str) -> None:
     git(repo, "-c", "user.name=bench", "-c", "user.email=bench@example.com", "commit", "-qm", message, "--allow-empty")
 
 
-def _setup(tmp: Path) -> Path:
+def _test_python(tmp: Path, s: Suite) -> str:
+    """The interpreter agents and the grader run tests with. With a src root, a wrapper puts ./src first."""
+    if not s.src:
+        return s.python
+    wrapper = tmp / "python"
+    wrapper.write_text(f'#!/bin/sh\nPYTHONPATH="$(pwd)/{s.src}${{PYTHONPATH:+:$PYTHONPATH}}" exec "{s.python}" "$@"\n')
+    wrapper.chmod(0o755)
+    return str(wrapper)
+
+
+def _setup(tmp: Path, repo: Path = FIXTURE) -> Path:
     base = tmp / "repo"
-    shutil.copytree(FIXTURE, base, ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copytree(repo, base, ignore=shutil.ignore_patterns("__pycache__", ".git", ".venv", "*.egg-info", ".pytest_cache"))
     (base / ".gitignore").write_text(".claude/\n__pycache__/\n*.log\n.pytest_cache/\n")
     subprocess.run(["git", "init", "-q", "-b", "main", str(base)], check=True)
     _commit(base, "base")
@@ -128,18 +164,22 @@ def _airspace_counts(graph_name: str) -> tuple[int, int]:
         return 0, 0
 
 
-def run_pair(t: TaskSet, condition: str, python: str = sys.executable) -> PairResult:
+def run_pair(t: TaskSet, condition: str, python: str | None = None, s: Suite | None = None) -> PairResult:
+    s = s or suite("blog")
     tmp = Path(tempfile.mkdtemp(prefix=f"airspace-bench-{t.id}-{condition}-"))
     graph_name = f"bench_{uuid.uuid4().hex[:12]}"
     try:
-        base = _setup(tmp)
+        base = _setup(tmp, s.repo)
+        # Airspace itself always runs on this interpreter; tests run on the suite's.
+        python = python or _test_python(tmp, s)
         env = {**os.environ}
         env.pop("CLAUDE_PROJECT_DIR", None)
         if condition == "airspace":
             env["AIRSPACE_GRAPH"] = graph_name
-            subprocess.run([python, "-m", "airspace.cli", "index", "--root", str(base)], env=env, check=True, capture_output=True)
+            airspace = sys.executable
+            subprocess.run([airspace, "-m", "airspace.cli", "index", "--root", str(base)], env=env, check=True, capture_output=True)
             for name in ("a", "b"):
-                subprocess.run([python, "-m", "airspace.cli", "install-hooks", "--root", str(tmp / name)], env=env, check=True, capture_output=True)
+                subprocess.run([airspace, "-m", "airspace.cli", "install-hooks", "--root", str(tmp / name)], env=env, check=True, capture_output=True)
         other = {"a": t.b, "b": t.a} if condition == "broadcast" else {"a": None, "b": None}
         started = time.time()
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -185,9 +225,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--jobs", type=int, default=3, help="pairs to run at once")
     parser.add_argument("--repeat", type=int, default=1, help="runs of every set under every condition")
     parser.add_argument("--out", default=None)
+    parser.add_argument("--suite", default="blog", help="blog (the bundled fixture) or flask")
+    parser.add_argument("--repo", default=None, help="the repo to copy for each pair (flask)")
+    parser.add_argument("--test-python", default=None, help="interpreter with the repo's test dependencies (flask)")
     args = parser.parse_args(argv)
 
-    sets = [t for t in load_tasks() if not args.sets or t.id in args.sets]
+    s = suite(args.suite, args.repo, args.test_python)
+    sets = [t for t in load_tasks(s.tasks) if not args.sets or t.id in args.sets]
     jobs = [(t, c, k) for k in range(1, args.repeat + 1) for t in sets for c in args.conditions]
     out_dir = Path(args.out) if args.out else RESULTS / time.strftime("%Y%m%d-%H%M%S")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -195,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def one(job):
         t, c, k = job
-        r = run_pair(t, c)
+        r = run_pair(t, c, s=s)
         (out_dir / f"{t.id}--{c}--r{k}.json").write_text(json.dumps(asdict(r), indent=2))
         print(f"  r{k} {t.id:28} {c:10} {r.outcome:13} merged={r.merged!s:5} {r.wall_seconds:6.0f}s  ${r.cost_usd:.2f}  holds={r.holds}", flush=True)
         return r

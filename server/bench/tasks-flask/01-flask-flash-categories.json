@@ -1,0 +1,10 @@
+{
+  "id": "flask-flash-categories",
+  "kind": "signature",
+  "a": "In src/flask/helpers.py, rename the category_filter parameter of get_flashed_messages to categories (same meaning and default). Update the function body, its docstring and every caller in the repo, including tests. Do not keep the old name.",
+  "b": "Add a function get_flashed_errors() at the end of src/flask/helpers.py that returns the flashed messages in the \"error\" category, as message strings only, built on get_flashed_messages and its category filter option. Export it from src/flask/__init__.py next to get_flashed_messages.",
+  "hidden": {
+    "tests/test_hidden_a.py": "import pytest\n\nimport flask\n\n\ndef test_categories_keyword():\n    app = flask.Flask(__name__)\n    app.secret_key = \"k\"\n    with app.test_request_context():\n        flask.flash(\"a\", \"error\")\n        flask.flash(\"b\", \"info\")\n        assert flask.get_flashed_messages(categories=[\"error\"]) == [\"a\"]\n    with app.test_request_context():\n        with pytest.raises(TypeError):\n            flask.get_flashed_messages(category_filter=[\"error\"])\n",
+    "tests/test_hidden_b.py": "import flask\n\n\ndef test_get_flashed_errors():\n    app = flask.Flask(__name__)\n    app.secret_key = \"k\"\n    with app.test_request_context():\n        flask.flash(\"bad\", \"error\")\n        flask.flash(\"ok\", \"info\")\n        flask.flash(\"worse\", \"error\")\n        assert flask.get_flashed_errors() == [\"bad\", \"worse\"]\n"
+  }
+}
