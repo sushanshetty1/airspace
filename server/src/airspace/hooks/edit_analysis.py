@@ -151,10 +151,22 @@ def calls_in_file(repo_root: Path, rel: str, known: set[str]) -> list[tuple[str,
 def _signature_changes(old: ModuleFacts, new: ModuleFacts) -> list[SignatureChange]:
     """Symbols whose signature differs between the two sources, and symbols the edit removes (signature "")."""
     after = {s.qualname: s.signature for s in new.symbols}
+    before = {s.qualname for s in old.symbols}
+    added = [s for s in new.symbols if s.qualname not in before]
     changes = []
     for s in old.symbols:
         if s.qualname not in after:
-            changes.append(SignatureChange(s.qualname, s.signature, ""))
+            # A rename: exactly one new symbol of the same kind, beside it, with the same parameters.
+            params = s.signature[s.signature.index("("):] if "(" in s.signature else ""
+            twins = [
+                a for a in added
+                if a.kind == s.kind and a.qualname.rsplit(".", 1)[0] == s.qualname.rsplit(".", 1)[0]
+                and a.signature[a.signature.index("("):] == params
+            ]
+            if len(twins) == 1:
+                changes.append(SignatureChange(s.qualname, s.signature, "", twins[0].qualname, twins[0].signature))
+            else:
+                changes.append(SignatureChange(s.qualname, s.signature, ""))
         elif after[s.qualname] != s.signature:
             changes.append(SignatureChange(s.qualname, s.signature, after[s.qualname]))
     return changes
@@ -173,13 +185,17 @@ def analyze_edit(repo_root: Path, tool_name: str, tool_input: dict, known: set[s
     new_source = apply_tool_input(tool_name, tool_input, current)
     if new_source is None:
         return None
+    return analyze_sources(rel, current, new_source, known)
 
+
+def analyze_sources(rel: str, old_source: str | None, new_source: str, known: set[str]) -> EditAnalysis:
+    """What changing `rel` from `old_source` (None when the file is new) to `new_source` touches, adds and changes."""
     new = parse_module(rel, new_source)
     if new is None:
         return EditAnalysis(rel, [], [], parse_ok=False)
-    # A new file, or one already broken on disk, counts as empty: everything in it is new.
-    old = parse_module(rel, current) if current is not None else None
-    old_source = current if old is not None else ""
+    # A new file, or one already broken, counts as empty: everything in it is new.
+    old = parse_module(rel, old_source) if old_source is not None else None
+    old_source = old_source if old is not None else ""
     old = old or _empty(rel)
 
     changed, deleted = _changed_lines(old_source, new_source)

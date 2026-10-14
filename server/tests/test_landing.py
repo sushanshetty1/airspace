@@ -289,3 +289,18 @@ def test_prompt_interest_ignores_short_common_names(indexed):
     assert noted == []
     noted = Airspace(graph).note_interest_from_text(a.agent_id, a.session, "Rename Post.get_absolute_url to Post.url")
     assert noted == ["blog/models.py"]
+
+
+def test_rename_is_detected_and_named_in_the_landing_hold(indexed):
+    """agent-a renames Post.get_absolute_url to Post.url; agent-b's new call to the old name is told the new one."""
+    graph, a, b = indexed
+    rename_a, call_b = REFS["rename-absolute-url"]
+    assert a.apply(rename_a), a.holds
+    changes = graph.query("MATCH (cc:ContractChange) RETURN cc.qualname, cc.renamed_to, cc.renamed_sig").result_set
+    assert ["blog.models.Post.get_absolute_url", "blog.models.Post.url", "url(self)"] in changes
+    b.apply(call_b)
+    reasons = [h["hookSpecificOutput"]["permissionDecisionReason"] for h in b.holds]
+    out = b.stop(sleep=never)
+    if out is not None:
+        reasons.append(out["reason"])
+    assert any("renamed to blog.models.Post.url (url(self))" in r for r in reasons), reasons

@@ -46,6 +46,9 @@ class SignatureChange:
     qualname: str
     old_signature: str
     new_signature: str
+    # For a removal that is really a rename: the new qualname and its signature.
+    renamed_to: str = ""
+    renamed_signature: str = ""
 
 
 @dataclass(frozen=True)

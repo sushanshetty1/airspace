@@ -138,6 +138,18 @@ def _localize(text: str, root: Path, changes: list[tuple[str, str]]) -> str:
     return text.replace(BRANCH_NOTE, LOCAL_NOTE if here else NOT_HERE_NOTE)
 
 
+def _rename_hint(text: str, airspace, symbols: list[str]) -> str:
+    """When a removal was a rename, say what it was renamed to."""
+    if "renamed or removed" not in text or not symbols:
+        return text
+    try:
+        renames = airspace.renamed(sorted(set(symbols)))
+    except Exception:
+        return text
+    hints = [f"{old} was renamed to {new} ({sig})." for old, (new, sig) in sorted(renames.items())]
+    return text + ("\n" + " ".join(hints) if hints else "")
+
+
 def _context(event: str, briefings: list[Briefing], messages: list[str]) -> dict | None:
     parts = [p for p in (briefing_context(briefings), message_context(messages)) if p]
     if not parts:
@@ -178,8 +190,9 @@ def handle_pre(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
-                    "permissionDecisionReason": _localize(
-                        verdict.reason, root, [(b.symbol, b.new_signature) for b in verdict.briefings]
+                    "permissionDecisionReason": _rename_hint(
+                        _localize(verdict.reason, root, [(b.symbol, b.new_signature) for b in verdict.briefings]),
+                        airspace, [b.symbol for b in verdict.briefings] + verdict.path[-1:],
                     )
                     + ("\n" + messages if messages else ""),
                 }
@@ -311,6 +324,7 @@ def handle_stop(
                 airspace.block_landing(task, fingerprint, violations[0]["caller"])
                 messages = message_context(_messages(airspace, agent, task))
                 reason = _localize(landing_hold(violations), root, [(v["symbol"], v["new_sig"]) for v in violations])
+                reason = _rename_hint(reason, airspace, [v["symbol"] for v in violations])
                 return {"decision": "block", "reason": reason + ("\n" + messages if messages else "")}
         airspace.land(task)
         return _context("Stop", airspace.pending_briefings(task), _messages(airspace, agent, task))

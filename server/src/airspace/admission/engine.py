@@ -391,6 +391,15 @@ class Airspace:
 
     # Contract changes and briefings
 
+    def renamed(self, qualnames: list[str]) -> dict[str, tuple[str, str]]:
+        """For removed symbols that were renamed: qualname -> (new qualname, new signature), latest change wins."""
+        rows = self._q(
+            """MATCH (cc:ContractChange) WHERE cc.qualname IN $qs AND cc.new_sig = '' AND coalesce(cc.renamed_to, '') <> ''
+            RETURN cc.qualname, cc.renamed_to, cc.renamed_sig ORDER BY cc.at, cc.seq""",
+            {"qs": qualnames},
+        )
+        return {r[0]: (r[1], r[2]) for r in rows}
+
     def record_changes(self, task_id: str, changes: list[SignatureChange]) -> list[str]:
         """Record contract changes and hold the callers they break.
 
@@ -416,11 +425,11 @@ class Airspace:
                 f"""MATCH (t:Task {{id: $task}})
                 {_NEXT_SEQ}
                 CREATE (cc:ContractChange {{id: $id, qualname: $q, old_sig: $old, new_sig: $new, at: $now,
-                        seq: n.value}})
+                        renamed_to: $renamed_to, renamed_sig: $renamed_sig, seq: n.value}})
                 CREATE (t)-[:CHANGED]->(cc)
                 RETURN cc.id""",
                 {"seq_name": "change", "task": task_id, "q": ch.qualname, "id": cid, "old": ch.old_signature,
-                 "new": ch.new_signature, "now": now},
+                 "new": ch.new_signature, "now": now, "renamed_to": ch.renamed_to, "renamed_sig": ch.renamed_signature},
             )
             if not rows:
                 continue

@@ -191,7 +191,10 @@ def test_removed_symbol_is_reported_with_an_empty_signature(blog_repo):
     tool_input = {"file_path": "blog/models.py", "old_string": "def get_absolute_url(self):", "new_string": "def url(self):"}
     analysis = analyze_edit(blog_repo, "Edit", tool_input, KNOWN)
     assert analysis.touched == ["blog.models.Post.url"]
-    assert analysis.signature_changes == [SignatureChange("blog.models.Post.get_absolute_url", "get_absolute_url(self)", "")]
+    # Same class, same parameters, one new method: a rename, reported as a removal that names its successor.
+    assert analysis.signature_changes == [
+        SignatureChange("blog.models.Post.get_absolute_url", "get_absolute_url(self)", "", "blog.models.Post.url", "url(self)")
+    ]
 
 
 FEEDS_ANCHOR = "        return truncate_words(render_post(post), 40)\n"
