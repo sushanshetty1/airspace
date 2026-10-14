@@ -13,6 +13,7 @@ import { collisionIdFrom, workspaceIdFrom } from './tower/nav'
 const Tower = lazy(() => import('./tower/Tower'))
 const WorkspaceTower = lazy(() => import('./tower/WorkspaceTower'))
 const Playground = lazy(() => import('./playground/Playground'))
+const Preflight = lazy(() => import('./preflight/Preflight'))
 const AppPage = lazy(() => import('./account/AppPage'))
 
 /** The path, kept in sync with pushState navigation and the back button. */
@@ -68,6 +69,13 @@ export default function App() {
     return (
       <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
         <AppPage />
+      </Suspense>
+    )
+  }
+  if (path === '/preflight' || path === '/preflight/') {
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
+        <Preflight />
       </Suspense>
     )
   }

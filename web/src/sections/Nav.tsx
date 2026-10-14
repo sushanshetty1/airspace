@@ -46,6 +46,12 @@ const links = [
   { id: 'proof', label: 'Results' },
 ]
 
+/** Pages of their own, after the home page sections. */
+const pages = [
+  { href: '/preflight', label: 'Pre-flight' },
+  { href: '/playground', label: 'Playground' },
+]
+
 /** Which section is under the nav right now, so the matching link can light up. */
 function useActiveSection() {
   const [active, setActive] = useState<string | null>(null)
@@ -68,7 +74,8 @@ function useActiveSection() {
 export function Nav() {
   const active = useActiveSection()
   const [open, setOpen] = useState(false)
-  const onPlayground = window.location.pathname.startsWith('/playground')
+  const here = window.location.pathname
+  const onPage = (href: string) => here === href || here.startsWith(href + '/')
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/[0.97] backdrop-blur-md">
@@ -77,7 +84,7 @@ export function Nav() {
           <Wordmark />
         </a>
 
-        <nav className="hidden h-full items-stretch md:flex" aria-label="Sections">
+        <nav className="hidden h-full items-stretch lg:flex" aria-label="Sections">
           {links.map((l) => {
             const on = active === l.id
             return (
@@ -85,21 +92,27 @@ export function Nav() {
                 key={l.id}
                 href={sectionHref(l.id)}
                 aria-current={on ? 'true' : undefined}
-                className={`relative flex items-center px-3.5 text-[14.5px] font-medium transition-colors ${on ? 'text-text' : 'text-muted hover:text-text'}`}
+                className={`relative flex items-center px-2.5 text-[14.5px] whitespace-nowrap xl:px-3.5 font-medium transition-colors ${on ? 'text-text' : 'text-muted hover:text-text'}`}
               >
                 {l.label}
-                {on && <motion.span layoutId="nav-active" className="absolute inset-x-4 -bottom-px h-[2px] bg-accent" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />}
+                {on && <motion.span layoutId="nav-active" className="absolute inset-x-3 -bottom-px xl:inset-x-4 h-[2px] bg-accent" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />}
               </a>
             )
           })}
-          <a
-            href="/playground"
-            aria-current={onPlayground ? 'page' : undefined}
-            className={`relative flex items-center px-3.5 text-[14.5px] font-medium transition-colors ${onPlayground ? 'text-text' : 'text-muted hover:text-text'}`}
-          >
-            Playground
-            {onPlayground && <span className="absolute inset-x-4 -bottom-px h-[2px] bg-accent" />}
-          </a>
+          {pages.map((p) => {
+            const on = onPage(p.href)
+            return (
+              <a
+                key={p.href}
+                href={p.href}
+                aria-current={on ? 'page' : undefined}
+                className={`relative flex items-center px-2.5 text-[14.5px] whitespace-nowrap xl:px-3.5 font-medium transition-colors ${on ? 'text-text' : 'text-muted hover:text-text'}`}
+              >
+                {p.label}
+                {on && <span className="absolute inset-x-3 -bottom-px xl:inset-x-4 h-[2px] bg-accent" />}
+              </a>
+            )
+          })}
         </nav>
 
         <div className="flex items-center gap-1">
@@ -117,7 +130,7 @@ export function Nav() {
             onClick={() => setOpen((o) => !o)}
             aria-expanded={open}
             aria-label={open ? 'Close menu' : 'Open menu'}
-            className="grid size-9 place-items-center text-text md:hidden"
+            className="grid size-9 place-items-center text-text lg:hidden"
           >
             {open ? <X size={20} weight="bold" /> : <List size={20} weight="bold" />}
           </button>
@@ -131,18 +144,20 @@ export function Nav() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden border-t border-line md:hidden"
+            className="overflow-hidden border-t border-line lg:hidden"
             aria-label="Sections"
           >
             <Container className="flex flex-col py-3">
               {links.map((l) => (
-                <a key={l.id} href={sectionHref(l.id)} onClick={() => setOpen(false)} className="border-b border-line py-3.5 text-[16px] font-medium text-text last:border-b-0">
+                <a key={l.id} href={sectionHref(l.id)} onClick={() => setOpen(false)} className="border-t border-line py-3.5 text-[16px] font-medium text-text first:border-t-0">
                   {l.label}
                 </a>
               ))}
-              <a href="/playground" aria-current={onPlayground ? 'page' : undefined} className="py-3.5 text-[16px] font-medium text-text">
-                Playground
-              </a>
+              {pages.map((p) => (
+                <a key={p.href} href={p.href} aria-current={onPage(p.href) ? 'page' : undefined} className="border-t border-line py-3.5 text-[16px] font-medium text-text">
+                  {p.label}
+                </a>
+              ))}
               <AccountMenuLink onNavigate={() => setOpen(false)} />
             </Container>
           </motion.nav>

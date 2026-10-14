@@ -115,7 +115,7 @@ export function SignInLink() {
   const me = useMe()
   if (me.status !== 'ready' || me.me.user || !me.me.signin) return null
   return (
-    <a href={signInHref('/app')} className="ml-2 flex h-9 items-center px-1.5 text-[14.5px] font-medium text-muted transition-colors hover:text-text max-md:hidden">
+    <a href={signInHref('/app')} className="ml-2 flex h-9 items-center px-1.5 text-[14.5px] font-medium whitespace-nowrap text-muted transition-colors hover:text-text max-lg:hidden">
       Sign in
     </a>
   )
