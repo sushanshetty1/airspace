@@ -1,78 +1,106 @@
 {
  "version": 1,
- "recorded_at": 1791964310.310158,
+ "recorded_at": 1791966803.156518,
  "events": [
   {
-   "id": "8418d2b7a8954fb7a242939e6be74b7d",
-   "at": 1791963911.02333,
+   "id": "5a2564bb5b214fed8dc061be7125fb38",
+   "at": 1791966500.29753,
    "kind": "cleared",
    "agent": "agent-a",
-   "task": "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b",
+   "task": "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261",
    "text": "was cleared to edit",
    "code": "utils.text.slugify"
   },
   {
-   "id": "9824e268bf9842d7bd8d4b156b32ccc1",
-   "at": 1791963911.03075,
+   "id": "9e0de45769e64caa9ca4210d43e78c39",
+   "at": 1791966500.30715,
    "kind": "contract",
    "agent": "agent-a",
-   "task": "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b",
+   "task": "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261",
    "text": "changed the signature of",
    "code": "utils.text.slugify"
   },
   {
-   "id": "1939373d45c046d5b58732cbe5a50a76",
-   "at": 1791963916.42421,
+   "id": "170cc3d0fc304cf7b17747a1df86fceb",
+   "at": 1791966504.38209,
    "kind": "hold",
    "agent": "agent-b",
-   "task": "cef36e05-74c9-49fc-aafc-5d845a5e01a8",
+   "task": "452d2694-8935-4584-8ab2-275faf682d29",
    "text": "was held editing",
    "code": "blog.views.render_post"
   },
   {
-   "id": "e8fc5f9449914088ba24bd49fcab87dd",
-   "at": 1791963916.42421,
+   "id": "d1ccbd562a934b8b9af331713d9d3842",
+   "at": 1791966504.38209,
    "kind": "briefed",
    "agent": "agent-b",
-   "task": "cef36e05-74c9-49fc-aafc-5d845a5e01a8",
+   "task": "452d2694-8935-4584-8ab2-275faf682d29",
    "text": "got the new signature of",
    "code": "utils.text.slugify"
   },
   {
-   "id": "7d237236f4024651895df19185188394",
-   "at": 1791963917.45058,
+   "id": "6de16cb3967d4930ab466262b94efe27",
+   "at": 1791966510.84744,
    "kind": "landed",
    "agent": "agent-a",
-   "task": "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b",
+   "task": "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261",
    "text": "landed",
    "code": ""
   },
   {
-   "id": "583e9a11ba9f48bbbabef45918e23591",
-   "at": 1791963935.04202,
+   "id": "15cee50a9cfc4475a78c3dfad15257b8",
+   "at": 1791966516.09972,
+   "kind": "cleared",
+   "agent": "agent-b",
+   "task": "452d2694-8935-4584-8ab2-275faf682d29",
+   "text": "was cleared to edit",
+   "code": "blog.views.render_post"
+  },
+  {
+   "id": "e28111dd13f14a57b5aefb1fcaf94483",
+   "at": 1791966516.09972,
+   "kind": "resolved",
+   "agent": "agent-b",
+   "task": "452d2694-8935-4584-8ab2-275faf682d29",
+   "text": "cleared the collision at",
+   "code": "utils.text.slugify"
+  },
+  {
+   "id": "b165bc5a0a3c4bef9ed06455830d1d27",
+   "at": 1791966526.07124,
    "kind": "landed",
    "agent": "agent-b",
-   "task": "cef36e05-74c9-49fc-aafc-5d845a5e01a8",
+   "task": "452d2694-8935-4584-8ab2-275faf682d29",
    "text": "landed",
    "code": ""
   }
  ],
  "frames": [
   {
-   "at": 1791963911.03075,
+   "at": 1791966500.30715,
    "state": {
-    "now": 1791963911.510928,
+    "now": 1791966500.455777,
     "agents": [
      {
       "id": "agent-a",
       "paused": false,
       "status": "active",
       "tasks": [
-       "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b"
+       "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261"
       ],
       "claims": [
        "utils.text.slugify"
       ],
+      "held": false
+     },
+     {
+      "id": "agent-b",
+      "paused": false,
+      "status": "active",
+      "tasks": [
+       "452d2694-8935-4584-8ab2-275faf682d29"
+      ],
+      "claims": [],
       "held": false
      }
     ],
@@ -112,6 +140,12 @@
         "hop": 2
        }
       ]
+     },
+     {
+      "id": "agent-b",
+      "center": null,
+      "claims": [],
+      "cone": []
      }
     ],
     "symbols": {
@@ -181,16 +215,16 @@
    }
   },
   {
-   "at": 1791963916.42421,
+   "at": 1791966504.38209,
    "state": {
-    "now": 1791963916.576233,
+    "now": 1791966504.514179,
     "agents": [
      {
       "id": "agent-a",
       "paused": false,
       "status": "active",
       "tasks": [
-       "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b"
+       "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261"
       ],
       "claims": [
        "utils.text.slugify"
@@ -202,7 +236,7 @@
       "paused": false,
       "status": "active",
       "tasks": [
-       "cef36e05-74c9-49fc-aafc-5d845a5e01a8"
+       "452d2694-8935-4584-8ab2-275faf682d29"
       ],
       "claims": [],
       "held": true
@@ -210,8 +244,8 @@
     ],
     "collisions": [
      {
-      "id": "ff758d6f0f0c434d8384d480fe93dec4",
-      "at": 1791963916.42421,
+      "id": "867facc4ee9343eaa784f2214ca5d1e7",
+      "at": 1791966504.38209,
       "kind": "contract",
       "symbol": "utils.text.slugify",
       "held_agent": "agent-b",
@@ -335,7 +369,7 @@
      ]
     ],
     "collision": {
-     "id": "ff758d6f0f0c434d8384d480fe93dec4",
+     "id": "867facc4ee9343eaa784f2214ca5d1e7",
      "symbol": "utils.text.slugify",
      "caller": "blog.views.render_post",
      "held_agent": "agent-b",
@@ -345,16 +379,16 @@
    }
   },
   {
-   "at": 1791963917.45058,
+   "at": 1791966510.84744,
    "state": {
-    "now": 1791963917.601012,
+    "now": 1791966511.0913222,
     "agents": [
      {
       "id": "agent-a",
       "paused": false,
       "status": "landed",
       "tasks": [
-       "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b"
+       "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261"
       ],
       "claims": [
        "utils.text.slugify"
@@ -366,7 +400,7 @@
       "paused": false,
       "status": "active",
       "tasks": [
-       "cef36e05-74c9-49fc-aafc-5d845a5e01a8"
+       "452d2694-8935-4584-8ab2-275faf682d29"
       ],
       "claims": [],
       "held": true
@@ -374,8 +408,8 @@
     ],
     "collisions": [
      {
-      "id": "ff758d6f0f0c434d8384d480fe93dec4",
-      "at": 1791963916.42421,
+      "id": "867facc4ee9343eaa784f2214ca5d1e7",
+      "at": 1791966504.38209,
       "kind": "contract",
       "symbol": "utils.text.slugify",
       "held_agent": "agent-b",
@@ -499,7 +533,7 @@
      ]
     ],
     "collision": {
-     "id": "ff758d6f0f0c434d8384d480fe93dec4",
+     "id": "867facc4ee9343eaa784f2214ca5d1e7",
      "symbol": "utils.text.slugify",
      "caller": "blog.views.render_post",
      "held_agent": "agent-b",
@@ -509,16 +543,215 @@
    }
   },
   {
-   "at": 1791963935.04202,
+   "at": 1791966516.09972,
    "state": {
-    "now": 1791963935.2997491,
+    "now": 1791966516.156031,
     "agents": [
      {
       "id": "agent-a",
       "paused": false,
       "status": "landed",
       "tasks": [
-       "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b"
+       "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261"
+      ],
+      "claims": [
+       "utils.text.slugify"
+      ],
+      "held": false
+     },
+     {
+      "id": "agent-b",
+      "paused": false,
+      "status": "active",
+      "tasks": [
+       "452d2694-8935-4584-8ab2-275faf682d29"
+      ],
+      "claims": [
+       "blog.views.render_post"
+      ],
+      "held": false
+     }
+    ],
+    "collisions": [
+     {
+      "id": "867facc4ee9343eaa784f2214ca5d1e7",
+      "at": 1791966504.38209,
+      "kind": "contract",
+      "symbol": "utils.text.slugify",
+      "held_agent": "agent-b",
+      "owner_agent": "agent-a",
+      "resolution": "resolved"
+     }
+    ]
+   },
+   "radar": {
+    "agents": [
+     {
+      "id": "agent-b",
+      "center": "blog.views.render_post",
+      "claims": [
+       "blog.views.render_post"
+      ],
+      "cone": [
+       {
+        "qualname": "blog.feeds.LatestPosts.item_description",
+        "hop": 1
+       },
+       {
+        "qualname": "blog.views.post_list",
+        "hop": 1
+       },
+       {
+        "qualname": "tests.test_views.test_render_post",
+        "hop": 1
+       }
+      ]
+     },
+     {
+      "id": "agent-a",
+      "center": "utils.text.slugify",
+      "claims": [
+       "utils.text.slugify"
+      ],
+      "cone": [
+       {
+        "qualname": "blog.models.Post.save",
+        "hop": 1
+       },
+       {
+        "qualname": "tags.models.Tag.save",
+        "hop": 1
+       },
+       {
+        "qualname": "tests.test_text.test_slugify",
+        "hop": 1
+       },
+       {
+        "qualname": "tags.views.tag_create",
+        "hop": 2
+       },
+       {
+        "qualname": "tests.test_models.test_post_save",
+        "hop": 2
+       },
+       {
+        "qualname": "tests.test_views.test_render_post",
+        "hop": 2
+       }
+      ]
+     }
+    ],
+    "symbols": {
+     "blog.feeds.LatestPosts.item_description": {
+      "label": "LatestPosts.item_description",
+      "kind": "method",
+      "is_test": false
+     },
+     "blog.models.Post.save": {
+      "label": "Post.save",
+      "kind": "method",
+      "is_test": false
+     },
+     "blog.views.render_post": {
+      "label": "render_post",
+      "kind": "function",
+      "is_test": false
+     },
+     "blog.views.post_list": {
+      "label": "post_list",
+      "kind": "function",
+      "is_test": false
+     },
+     "tags.models.Tag.save": {
+      "label": "Tag.save",
+      "kind": "method",
+      "is_test": false
+     },
+     "tags.views.tag_create": {
+      "label": "tag_create",
+      "kind": "function",
+      "is_test": false
+     },
+     "tests.test_models.test_post_save": {
+      "label": "test_post_save",
+      "kind": "function",
+      "is_test": true
+     },
+     "tests.test_text.test_slugify": {
+      "label": "test_slugify",
+      "kind": "function",
+      "is_test": true
+     },
+     "tests.test_views.test_render_post": {
+      "label": "test_render_post",
+      "kind": "function",
+      "is_test": true
+     },
+     "utils.text.slugify": {
+      "label": "slugify",
+      "kind": "function",
+      "is_test": false
+     }
+    },
+    "edges": [
+     [
+      "blog.feeds.LatestPosts.item_description",
+      "blog.views.render_post"
+     ],
+     [
+      "blog.models.Post.save",
+      "utils.text.slugify"
+     ],
+     [
+      "blog.views.post_list",
+      "blog.views.render_post"
+     ],
+     [
+      "tags.models.Tag.save",
+      "utils.text.slugify"
+     ],
+     [
+      "tags.views.tag_create",
+      "tags.models.Tag.save"
+     ],
+     [
+      "tests.test_models.test_post_save",
+      "blog.models.Post.save"
+     ],
+     [
+      "tests.test_text.test_slugify",
+      "utils.text.slugify"
+     ],
+     [
+      "tests.test_views.test_render_post",
+      "blog.models.Post.save"
+     ],
+     [
+      "tests.test_views.test_render_post",
+      "blog.views.render_post"
+     ]
+    ],
+    "collision": {
+     "id": "867facc4ee9343eaa784f2214ca5d1e7",
+     "symbol": "utils.text.slugify",
+     "caller": "blog.views.render_post",
+     "held_agent": "agent-b",
+     "owner_agent": "agent-a",
+     "resolution": "resolved"
+    }
+   }
+  },
+  {
+   "at": 1791966526.07124,
+   "state": {
+    "now": 1791966526.2787971,
+    "agents": [
+     {
+      "id": "agent-a",
+      "paused": false,
+      "status": "landed",
+      "tasks": [
+       "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261"
       ],
       "claims": [
        "utils.text.slugify"
@@ -530,21 +763,23 @@
       "paused": false,
       "status": "landed",
       "tasks": [
-       "cef36e05-74c9-49fc-aafc-5d845a5e01a8"
+       "452d2694-8935-4584-8ab2-275faf682d29"
       ],
-      "claims": [],
-      "held": true
+      "claims": [
+       "blog.views.render_post"
+      ],
+      "held": false
      }
     ],
     "collisions": [
      {
-      "id": "ff758d6f0f0c434d8384d480fe93dec4",
-      "at": 1791963916.42421,
+      "id": "867facc4ee9343eaa784f2214ca5d1e7",
+      "at": 1791966504.38209,
       "kind": "contract",
       "symbol": "utils.text.slugify",
       "held_agent": "agent-b",
       "owner_agent": "agent-a",
-      "resolution": "held"
+      "resolution": "resolved"
      }
     ]
    },
@@ -552,9 +787,24 @@
     "agents": [
      {
       "id": "agent-b",
-      "center": null,
-      "claims": [],
-      "cone": []
+      "center": "blog.views.render_post",
+      "claims": [
+       "blog.views.render_post"
+      ],
+      "cone": [
+       {
+        "qualname": "blog.feeds.LatestPosts.item_description",
+        "hop": 1
+       },
+       {
+        "qualname": "blog.views.post_list",
+        "hop": 1
+       },
+       {
+        "qualname": "tests.test_views.test_render_post",
+        "hop": 1
+       }
+      ]
      },
      {
       "id": "agent-a",
@@ -591,6 +841,11 @@
      }
     ],
     "symbols": {
+     "blog.feeds.LatestPosts.item_description": {
+      "label": "LatestPosts.item_description",
+      "kind": "method",
+      "is_test": false
+     },
      "blog.models.Post.save": {
       "label": "Post.save",
       "kind": "method",
@@ -598,6 +853,11 @@
      },
      "blog.views.render_post": {
       "label": "render_post",
+      "kind": "function",
+      "is_test": false
+     },
+     "blog.views.post_list": {
+      "label": "post_list",
       "kind": "function",
       "is_test": false
      },
@@ -634,7 +894,19 @@
     },
     "edges": [
      [
+      "blog.feeds.LatestPosts.item_description",
+      "blog.views.render_post"
+     ],
+     [
       "blog.models.Post.save",
+      "utils.text.slugify"
+     ],
+     [
+      "blog.views.post_list",
+      "blog.views.render_post"
+     ],
+     [
+      "blog.views.render_post",
       "utils.text.slugify"
      ],
      [
@@ -663,20 +935,20 @@
      ]
     ],
     "collision": {
-     "id": "ff758d6f0f0c434d8384d480fe93dec4",
+     "id": "867facc4ee9343eaa784f2214ca5d1e7",
      "symbol": "utils.text.slugify",
      "caller": "blog.views.render_post",
      "held_agent": "agent-b",
      "owner_agent": "agent-a",
-     "resolution": "held"
+     "resolution": "resolved"
     }
    }
   }
  ],
  "collisions": {
-  "ff758d6f0f0c434d8384d480fe93dec4": {
-   "id": "ff758d6f0f0c434d8384d480fe93dec4",
-   "at": 1791963916.42421,
+  "867facc4ee9343eaa784f2214ca5d1e7": {
+   "id": "867facc4ee9343eaa784f2214ca5d1e7",
+   "at": 1791966504.38209,
    "kind": "contract",
    "symbol": "utils.text.slugify",
    "caller": "blog.views.render_post",
@@ -685,12 +957,12 @@
     "utils.text.slugify"
    ],
    "held_agent": "agent-b",
-   "held_task": "cef36e05-74c9-49fc-aafc-5d845a5e01a8",
+   "held_task": "452d2694-8935-4584-8ab2-275faf682d29",
    "owner_agent": "agent-a",
-   "owner_task": "ae31870e-ab42-4db6-8e4a-59d3b0f7a25b",
+   "owner_task": "fa9fbe5e-5956-48a3-a7fe-7a134bf3a261",
    "old_sig": "slugify(value, allow_unicode=False)",
    "new_sig": "slugify(value, *, unicode=False)",
-   "resolution": "held"
+   "resolution": "resolved"
   }
  },
  "insights": {
@@ -699,6 +971,11 @@
     "qualname": "utils.text.slugify",
     "collisions": 1,
     "betweenness": 0.0
+   },
+   {
+    "qualname": "blog.views.render_post",
+    "collisions": 0,
+    "betweenness": 2.0
    },
    {
     "qualname": "tags.models.Tag.save",

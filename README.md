@@ -50,15 +50,16 @@ This is what an agent sees:
 
 Your agents work in their own Claude Code terminals. **Tower** is the web app where you see all of them at once and step in when you need to. Everything it shows is read live from the graph, and everything you do there is enforced on the agent's next tool call.
 
+<img alt="Tower during a real run: agent-b is held where its airspace overlaps agent-a's, at slugify, which agent-a is changing." src="assets/readme/tower-hold.png" width="100%">
+
 | You see | You can do |
 | --- | --- |
-| **Radar:** the code graph, each agent's cone in its own colour, collisions as they happen | **Release** a hold, once or for the rest of the task |
-| **Flight log:** every clearance check, with agent, file, verdict, reason and time | **Pause** or resume an agent; its edits are held until you resume it |
-| **Activity:** each agent's tool calls, streamed from its session | **Hand off** a symbol from one task to another |
-| **Collision:** the two tasks, the path between them, the contract change, who was briefed | **Message** an agent; the note arrives with its next tool call |
-| **Hot zones:** symbols that collided across sessions | **Approve** a contract change before its dependents are briefed |
+| **Radar:** each agent's airspace with the symbols it claims and their callers; the overlap turns orange on a hold | **Release** a hold the agent should not wait for |
+| **Activity:** every clearance, hold, briefing, contract change and landing, as it happens | **Pause** or resume an agent; its edits are held until you resume it |
+| **Collision:** the held agent, the changing agent, the symbol, and the path between them | **Message** an agent; the note arrives with its next tool call |
+| **Replay:** a recorded run of two real Claude Code sessions, when no agent is flying | |
 
-Every hold message in the terminal links to its collision in Tower, so you can go from a blocked edit to the path behind it in one click.
+Hot zones, the symbols where agents collide most across sessions, come from `airspace insights` and the `hot_zones` MCP tool.
 
 ### Why a graph
 
@@ -146,17 +147,31 @@ RETURN k.fence
 
 ## Does it work?
 
-We run the same parallel workload three ways, using the grading method from [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396). Tests run on each agent's patch alone and on the merge, and only failures caused by the merge count.
+Two real Claude Code agents work at the same time on one small repo. Agent A changes a contract (a keyword argument, a parameter, a method name, a constructor, a return value) while agent B writes new code that calls it. Each pair runs under three conditions, three times each, graded after [*Passes Alone, Fails Together*](https://arxiv.org/abs/2609.25396): both agents' hidden tests run on the merge of their branches.
 
-| Condition | Interference | Parallelism kept | Wall-clock | Tokens |
-| --- | --- | --- | --- | --- |
-| Worktrees only | | | | |
-| Broadcast (each agent is told what the others changed) | | | | |
-| Airspace | | | | |
+| Condition | Merged build green | Median time per pair | Cost per pair |
+| --- | --- | --- | --- |
+| Worktrees only (each agent on its own branch) | **0 of 18** | 25 s | $0.27 |
+| Broadcast (each agent is also told the other's task) | **3 of 18** | 28 s | $0.27 |
+| Airspace | **17 of 18** | 43 s | $0.31 |
 
-The table fills in once the runs are done. We won't publish a number we haven't measured.
+| What agent A changes while agent B calls it | Worktrees | Broadcast | Airspace |
+| --- | --- | --- | --- |
+| A keyword argument is renamed (`slugify`) | 0 / 3 | 0 / 3 | 3 / 3 |
+| A parameter becomes keyword-only (`truncate_words`) | 0 / 3 | 0 / 3 | 3 / 3 |
+| A method is renamed (`Post.get_absolute_url`) | 0 / 3 | 0 / 3 | 3 / 3 |
+| A required parameter is added (`render_post`) | 0 / 3 | 0 / 3 | 3 / 3 |
+| A constructor gains an argument (`Post.__init__`) | 0 / 3 | 0 / 3 | 2 / 3 |
+| A method stops returning a value (`Tag.save`) | 0 / 3 | 3 / 3 | 3 / 3 |
 
-**Honest limits.** The paper found interference in 97% of runs on constructed Django tasks, but in only 1 of 417 pairs of real merged PRs. Constructed tasks show whether a coordination method works; they don't show how often the problem happens in practice. Airspace's code graph is built from Python `ast`, so dynamic dispatch and string imports can hide edges, and unresolved calls are reported, not guessed.
+Every run is in [`server/bench/results/final`](server/bench/results/final): both diffs, the test output and the cost. Run it yourself with `uv run python -m airspace.bench.runner --repeat 3`.
+
+**What the numbers mean.**
+- Under Airspace, agent B is held at the edit that would break, reads agent A's new contract in the hold, and writes against it. B's patch then fails on its own old branch and passes merged. The paper's alone-then-merged grading calls that a failed task; the merged build is what a team ships, so it is the headline.
+- Airspace is slower per pair because a held agent waits for the change it depends on.
+- The one miss: agent B was held, understood the hold, and stopped to ask whether to write code that fails its local tests until the merge. The hold note now says that such a failure goes away at the merge.
+
+**Honest limits.** The paper found interference in 97% of runs on constructed Django tasks, but in only 1 of 417 pairs of real merged PRs. Constructed tasks show whether a coordination method works; they don't show how often the problem happens in practice. Airspace's code graph is built from Python `ast`, so dynamic dispatch and string imports can hide edges, and unresolved calls are reported, not guessed. A change in behaviour that keeps the signature and the return shape (a different value of the same type) is not caught.
 
 ## What's in this repo
 
