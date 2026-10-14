@@ -1,0 +1,75 @@
+{
+  "conditions": {
+    "worktrees": {
+      "pairs": 6,
+      "graded": 6,
+      "interference": 6,
+      "interference_rate": 1.0,
+      "clean": 0,
+      "conflict": 0,
+      "task_failed": 0,
+      "errors": 0,
+      "median_wall_seconds": 22.3,
+      "cost_usd": 1.65,
+      "holds": 0
+    },
+    "broadcast": {
+      "pairs": 6,
+      "graded": 6,
+      "interference": 5,
+      "interference_rate": 0.833,
+      "clean": 1,
+      "conflict": 0,
+      "task_failed": 0,
+      "errors": 0,
+      "median_wall_seconds": 25.6,
+      "cost_usd": 1.6,
+      "holds": 0
+    },
+    "airspace": {
+      "pairs": 0,
+      "graded": 0,
+      "interference": 0,
+      "interference_rate": null,
+      "clean": 0,
+      "conflict": 0,
+      "task_failed": 0,
+      "errors": 0,
+      "median_wall_seconds": null,
+      "cost_usd": 0,
+      "holds": 0
+    }
+  },
+  "sets": {
+    "post-requires-author": {
+      "kind": "constructor",
+      "broadcast": "interference",
+      "worktrees": "interference"
+    },
+    "rename-absolute-url": {
+      "kind": "rename",
+      "broadcast": "interference",
+      "worktrees": "interference"
+    },
+    "render-post-show-body": {
+      "kind": "signature",
+      "broadcast": "interference",
+      "worktrees": "interference"
+    },
+    "slugify-keyword-only": {
+      "kind": "signature",
+      "broadcast": "interference",
+      "worktrees": "interference"
+    },
+    "tag-save-returns-none": {
+      "kind": "behaviour",
+      "broadcast": "clean",
+      "worktrees": "interference"
+    },
+    "truncate-words-limit": {
+      "kind": "signature",
+      "broadcast": "interference",
+      "worktrees": "interference"
+    }
+  }
+}
