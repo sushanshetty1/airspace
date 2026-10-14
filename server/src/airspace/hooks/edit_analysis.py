@@ -8,7 +8,7 @@ import difflib
 from pathlib import Path
 
 from airspace.indexer.parse import parse_module
-from airspace.indexer.resolve import resolve_calls
+from airspace.indexer.resolve import resolve_calls, resolve_target
 from airspace.types import EditAnalysis, ModuleFacts, SymbolFact
 
 
@@ -82,6 +82,25 @@ def _empty(rel: str) -> ModuleFacts:
     return ModuleFacts(module="", file=rel, symbols=[], calls=[], imports={}, bases=[])
 
 
+def _clearance_calls(facts: ModuleFacts, universe: set[str]) -> set[tuple[str, str]]:
+    """Resolved calls, plus bare names that match exactly one symbol in the repo.
+
+    The stored graph never guesses. Clearance is stricter: an agent often writes a call before its import,
+    and that call must still count, so a bare name with a single possible target is taken to mean it.
+    """
+    pairs = set(resolve_calls(facts, universe))
+    by_name: dict[str, list[str]] = {}
+    for q in universe:
+        by_name.setdefault(q.rsplit(".", 1)[-1], []).append(q)
+    for c in facts.calls:
+        if "." in c.target or resolve_target(c.target, facts, c.caller, universe) is not None:
+            continue
+        matches = by_name.get(c.target, [])
+        if len(matches) == 1 and matches[0] != c.caller:
+            pairs.add((c.caller, matches[0]))
+    return pairs
+
+
 def analyze_edit(repo_root: Path, tool_name: str, tool_input: dict, known: set[str]) -> EditAnalysis | None:
     repo_root = Path(repo_root)
     file_path = tool_input.get("file_path")
@@ -112,7 +131,8 @@ def analyze_edit(repo_root: Path, tool_name: str, tool_input: dict, known: set[s
     touched = [s.qualname for s in new.symbols if s.qualname in hit]
 
     universe = known | new_names | {s.qualname for s in old.symbols}
-    before = set(resolve_calls(old, universe))
-    in_touched = set(touched)
-    new_calls = [p for p in resolve_calls(new, universe) if p[0] in in_touched and p not in before]
+    # Any call that exists after the edit and not before is new, wherever it sits in the file:
+    # adding an import can turn an existing call into a real dependency.
+    before = _clearance_calls(old, universe)
+    new_calls = sorted(_clearance_calls(new, universe) - before)
     return EditAnalysis(rel, touched, new_calls, parse_ok=True)

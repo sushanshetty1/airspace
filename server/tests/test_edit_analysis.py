@@ -107,3 +107,45 @@ def test_analyze_edit_new_file(blog_repo):
 def test_analyze_edit_syntax_error(blog_repo):
     tool_input = {"file_path": str(blog_repo / "utils" / "text.py"), "old_string": "def slugify(value, allow_unicode=False):", "new_string": "def slugify(value, *, unicode=False:"}
     assert analyze_edit(blog_repo, "Edit", tool_input, KNOWN) == EditAnalysis("utils/text.py", [], [], parse_ok=False)
+
+
+# Agents often add a call before its import, in separate edits. Neither order may let a collision through.
+
+def _known():
+    from helpers import BLOG_SYMBOLS
+
+    return {s[0] for s in BLOG_SYMBOLS}
+
+
+def test_call_without_import_resolves_by_unique_name(blog_repo):
+    tool_input = {
+        "file_path": "blog/views.py",
+        "old_string": "    url = post.get_absolute_url()",
+        "new_string": "    url = post.get_absolute_url()\n    slug = slugify(post.title, True)",
+    }
+    analysis = analyze_edit(blog_repo, "Edit", tool_input, _known())
+    assert ("blog.views.render_post", "utils.text.slugify") in analysis.new_calls
+
+
+def test_import_first_then_call(blog_repo):
+    known = _known()
+    add_import = {"file_path": "blog/views.py", "old_string": "from blog.models import Post", "new_string": "from blog.models import Post\nfrom utils.text import slugify"}
+    assert analyze_edit(blog_repo, "Edit", add_import, known).new_calls == []
+    views = blog_repo / "blog/views.py"
+    views.write_text(apply_tool_input("Edit", add_import, views.read_text()))
+    add_call = {
+        "file_path": "blog/views.py",
+        "old_string": "    url = post.get_absolute_url()",
+        "new_string": "    url = post.get_absolute_url()\n    slug = slugify(post.title, True)",
+    }
+    assert analyze_edit(blog_repo, "Edit", add_call, known).new_calls == [("blog.views.render_post", "utils.text.slugify")]
+
+
+def test_ambiguous_bare_name_is_not_guessed(blog_repo):
+    tool_input = {
+        "file_path": "blog/views.py",
+        "old_string": "    url = post.get_absolute_url()",
+        "new_string": "    url = post.get_absolute_url()\n    save()",
+    }
+    analysis = analyze_edit(blog_repo, "Edit", tool_input, _known())
+    assert all(callee.rsplit(".", 1)[1] != "save" for _, callee in analysis.new_calls)
