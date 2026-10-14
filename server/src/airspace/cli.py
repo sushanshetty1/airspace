@@ -1,4 +1,4 @@
-"""The airspace command: index | hook pre|post | install-hooks | status."""
+"""The airspace command: index | hook pre|post | install-hooks | status | serve | mcp | insights."""
 
 import argparse
 import json
@@ -35,6 +35,26 @@ def _index_repo(graph, root: Path):
     from airspace.indexer.writer import index_repo
 
     return index_repo(graph, root)
+
+
+def _airspace(root: Path):
+    from airspace.api.app import open_airspace
+
+    return open_airspace(root)
+
+
+def _serve(root: Path, host: str, port: int) -> None:
+    import uvicorn
+
+    from airspace.api.app import default_app
+
+    uvicorn.run(default_app(root), host=host, port=port)
+
+
+def _mcp(root: Path) -> None:
+    from airspace.mcp_server.server import run_stdio
+
+    run_stdio(root)
 
 
 # Commands.
@@ -154,6 +174,25 @@ def _cmd_status(root: Path) -> int:
     return 0
 
 
+def _cmd_insights(root: Path) -> int:
+    try:
+        insights = _airspace(root).insights()
+    except Exception as e:
+        print(f"airspace: FalkorDB unavailable ({e})", file=sys.stderr)
+        return 1
+    zones = insights.get("hot_zones") or []
+    print(f"Hot zones ({len(zones)})")
+    for z in zones:
+        n = z.get("collisions", 0)
+        print(f"  {z['qualname']}  {n} collision{'' if n == 1 else 's'}, betweenness {z.get('betweenness', 0)}")
+    groups = insights.get("parallel_groups") or []
+    print(f"Parallel groups ({len(groups)})")
+    for g in groups:
+        note = "in conflict" if g.get("conflict") else "no conflicts"
+        print(f"  {', '.join(g.get('agents') or [])}  ({note})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="airspace", description="Air-traffic control for parallel coding agents.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -162,9 +201,16 @@ def main(argv: list[str] | None = None) -> int:
         ("index", "index a Python repo into FalkorDB"),
         ("install-hooks", "add the Airspace hooks to <root>/.claude/settings.json"),
         ("status", "show active tasks, their claims and recent collisions"),
+        ("mcp", "run the Airspace MCP server over stdio"),
+        ("insights", "show hot zones and the groups of agents that can fly in parallel"),
+        ("serve", "run the HTTP API for Tower"),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--root", type=Path, default=Path.cwd(), help="repository root (default: current directory)")
+
+    serve = sub.choices["serve"]
+    serve.add_argument("--host", default="127.0.0.1", help="interface to bind (default: 127.0.0.1)")
+    serve.add_argument("--port", type=int, default=8787, help="port to listen on (default: 8787)")
 
     hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
     hook.add_argument("event", choices=["pre", "post"])
@@ -177,6 +223,14 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_index(root)
     if args.command == "install-hooks":
         return _cmd_install_hooks(root)
+    if args.command == "serve":
+        _serve(root, args.host, args.port)
+        return 0
+    if args.command == "mcp":
+        _mcp(root)
+        return 0
+    if args.command == "insights":
+        return _cmd_insights(root)
     return _cmd_status(root)
 
 
