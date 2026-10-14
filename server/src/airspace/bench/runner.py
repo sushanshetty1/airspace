@@ -76,7 +76,7 @@ def _commit(repo: Path, message: str) -> None:
 def _setup(tmp: Path) -> Path:
     base = tmp / "repo"
     shutil.copytree(FIXTURE, base, ignore=shutil.ignore_patterns("__pycache__"))
-    (base / ".gitignore").write_text(".claude/\n__pycache__/\n")
+    (base / ".gitignore").write_text(".claude/\n__pycache__/\n*.log\n.pytest_cache/\n")
     subprocess.run(["git", "init", "-q", "-b", "main", str(base)], check=True)
     _commit(base, "base")
     for name in ("a", "b"):
@@ -84,12 +84,22 @@ def _setup(tmp: Path) -> Path:
     return base
 
 
-def _claude(cwd: Path, text: str, env: dict, agent: str) -> AgentRun:
+def _claude(cwd: Path, text: str, env: dict, agent: str, python: str = sys.executable) -> AgentRun:
     run = AgentRun(agent=agent)
     started = time.time()
     try:
         r = subprocess.run(
-            ["claude", "-p", text, "--permission-mode", "acceptEdits", "--output-format", "json", "--max-turns", "25"],
+            [
+                "claude", "-p", text,
+                "--permission-mode", "acceptEdits",
+                # The test command is the only shell command an agent may run.
+                "--allowedTools", f"Bash({python} -m pytest:*)",
+                # Isolated from the machine's own user settings, hooks and MCP servers; project settings still
+                # load, which is where the airspace condition installs its hooks.
+                "--setting-sources", "project,local",
+                "--strict-mcp-config", "--mcp-config", '{"mcpServers": {}}',
+                "--output-format", "json", "--max-turns", "25",
+            ],
             cwd=cwd, env=env, capture_output=True, text=True, timeout=AGENT_TIMEOUT,
         )
         out = json.loads(r.stdout or "{}")
@@ -134,7 +144,7 @@ def run_pair(t: TaskSet, condition: str, python: str = sys.executable) -> PairRe
         started = time.time()
         with ThreadPoolExecutor(max_workers=2) as pool:
             futures = {
-                name: pool.submit(_claude, tmp / name, prompt(getattr(t, name), other[name], python), {**env, "AIRSPACE_AGENT": f"agent-{name}"}, f"agent-{name}")
+                name: pool.submit(_claude, tmp / name, prompt(getattr(t, name), other[name], python), {**env, "AIRSPACE_AGENT": f"agent-{name}"}, f"agent-{name}", python)
                 for name in ("a", "b")
             }
             runs = {name: f.result() for name, f in futures.items()}
