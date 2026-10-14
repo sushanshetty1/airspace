@@ -54,6 +54,21 @@ Stop it with `docker compose -f docker-compose.prod.yml down`. Add `-v` to delet
 
 With `DOMAIN` set, Caddy gets a certificate from Let's Encrypt on the first request, serves HTTPS on 443 and redirects HTTP to HTTPS. Without it, Caddy serves plain HTTP on port 80 of the container (published on `HTTP_PORT`, 8080 by default).
 
+## Run it behind an existing Traefik
+
+If another proxy already owns ports 80 and 443 (Dokploy's Traefik, for example), add `docker-compose.traefik.yml`. The web container then publishes no ports. Traefik routes `DOMAIN` to it over its own network and gets the certificate.
+
+```sh
+# .env
+DOMAIN=airspace.example.com
+# TRAEFIK_NETWORK=dokploy-network        (the network Traefik watches)
+# TRAEFIK_CERT_RESOLVER=letsencrypt      (the certificate resolver in Traefik's config)
+
+docker compose -f docker-compose.prod.yml -f docker-compose.traefik.yml up -d --build
+```
+
+The HTTP router uses Traefik's `redirect-to-https@file` middleware, which Dokploy defines. Point the domain's DNS at the server before the first start, so the certificate request succeeds.
+
 ## Update
 
 ```sh
