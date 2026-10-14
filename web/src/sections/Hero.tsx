@@ -38,7 +38,7 @@ export function Hero() {
           transition={{ duration: 0.8, ease, delay: 0.08 }}
           className="mt-6 max-w-[540px] text-[18px] leading-relaxed text-muted text-pretty sm:text-[20px]"
         >
-          Run several Claude Code sessions on one feature. Airspace holds the edit that would break another agent's work.
+          Run several Claude Code sessions on one feature. A graph of your code decides which edit would break another agent's work, and Airspace holds it before it is written.
         </motion.p>
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease, delay: 0.16 }} className="mt-9 flex flex-wrap gap-3">
           <ButtonLink href="#tower">

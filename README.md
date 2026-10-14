@@ -13,11 +13,20 @@
   <a href="LICENSE"><img alt="Apache-2.0 licence" src="https://img.shields.io/badge/license-Apache--2.0-111112?style=flat-square"></a>
 </p>
 
-<p align="center"><b><a href="https://airspace.sushans.dev">airspace.sushans.dev</a></b> · <a href="https://airspace.sushans.dev/tower">Tower</a> · <a href="https://airspace.sushans.dev/playground">Playground</a></p>
+<p align="center"><b><a href="https://airspace.sushans.dev">airspace.sushans.dev</a></b> · <a href="https://airspace.sushans.dev/tower">Tower</a> · <a href="https://airspace.sushans.dev/preflight">Pre-flight</a> · <a href="https://airspace.sushans.dev/playground">Playground</a></p>
 
 <!-- hero.gif: four agents, one collision on the radar, a held edit, a briefing, a green merge. Recorded on Oct 18. -->
 
 **Airspace is air-traffic control for parallel coding agents.** Split a feature across four Claude Code sessions and each one passes its tests on its own. Merge them, and `main` is red: one agent changed a function that another was busy calling. Airspace keeps a live graph of how your code connects. It checks every edit against that graph before the edit is written, and holds the one that would collide.
+
+**The graph decides; Airspace acts.** Every decision is a FalkorDB query, never a model call, and every decision is enforced:
+
+- **Before agents start,** pre-flight plans the work: which tasks can run in parallel and which must coordinate, with the path between them.
+- **Before every edit,** clearance holds the one that would break another agent's work, and tells the agent the new contract.
+- **Before an agent finishes,** the landing check sends it back if a call it wrote no longer fits.
+- **Across sessions,** what agents learn stays on the graph, attached to the code it is about, and reaches the next agent that touches that code.
+
+On the real Flask repo, with real Claude Code agents: **9 of 9** parallel pairs merged green with Airspace, **0 of 9** without it.
 
 Built for two kinds of people:
 
@@ -326,7 +335,18 @@ The website lives in `web/` (`npm install && npm run dev`).
 
 ## FalkorDB Hackathon
 
-Built for the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb) (October 15 to 18, 2026), entering **Track 02 · Agent Memory and Coordination** and **Track 01 · Agents That Act on Connected Data**.
+Built for the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb) (October 15 to 18, 2026).
+
+**Track 01 · Agents That Act on Connected Data.** A graph makes the decision and Airspace takes the action:
+
+- The decision is Cypher over a live code graph: impact cones, call shapes checked against changed signatures, `shortestPath` for the explanation, `algo.WCC` to group parallel work, `algo.betweenness` for hot spots.
+- The action is enforced, not suggested: an edit is blocked before it is written, an agent is held at landing, the other agent is briefed, and Tower can pause, message or release.
+- Measured on Flask: 9 of 9 merges green with Airspace, 5 of 9 when each agent is told the other's task, 0 of 9 with worktrees alone.
+
+**Track 02 · Agent Memory and Coordination.** Agents remember across sessions and share what they know:
+
+- One shared graph per repo holds who is changing what, every contract change, every collision and how it was resolved.
+- Notes and fixes are attached to the symbols they are about, so the graph decides who hears them: the next agent that edits, calls, reads or is given a task about that code, in this session or a later one.
 
 The organisers confirmed that building may start before the event; work began on October 14.
 
