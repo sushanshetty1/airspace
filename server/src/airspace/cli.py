@@ -1,6 +1,7 @@
 """The airspace command: index | hook pre|post|any | install-hooks | status | serve | mcp | insights."""
 
 import argparse
+import os
 import json
 import re
 import shlex
@@ -52,7 +53,9 @@ def _serve(root: Path, host: str, port: int) -> None:
 
     from airspace.api.app import default_app
 
-    uvicorn.run(default_app(root), host=host, port=port)
+    # Behind a reverse proxy (Caddy in production), trust its forwarded headers so rate limits see real client IPs.
+    forwarded = os.environ.get("AIRSPACE_FORWARDED_IPS", "127.0.0.1")
+    uvicorn.run(default_app(root), host=host, port=port, proxy_headers=True, forwarded_allow_ips=forwarded)
 
 
 def _mcp(root: Path) -> None:
@@ -218,9 +221,16 @@ def main(argv: list[str] | None = None) -> int:
     hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
     hook.add_argument("event", choices=["pre", "post", "any"])
 
+    replay = sub.add_parser("replay", help="record or summarize a Tower replay of a real run")
+    replay.add_argument("rest", nargs=argparse.REMAINDER)
+
     args = parser.parse_args(argv)
     if args.command == "hook":
         return _cmd_hook(args.event)
+    if args.command == "replay":
+        from airspace.replay import main as replay_main
+
+        return replay_main(args.rest)
     root = args.root.resolve()
     if args.command == "index":
         return _cmd_index(root)
