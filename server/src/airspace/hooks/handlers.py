@@ -222,6 +222,7 @@ def handle_post(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) 
             airspace.record_changes(task, changes)
         # The Stop hook checks the calls in every file the task edited.
         airspace.record_edited_file(task, rel)
+        _note_seen(airspace, root, rel)
         return _context("PostToolUse", airspace.pending_briefings(task), _messages(airspace, agent, task))
     except Exception as e:
         _failed(e)
@@ -256,6 +257,44 @@ def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
         _note(f"airspace: {type(e).__name__} ({detail}), briefings not delivered")
         briefings = []
     return _context("PreToolUse", briefings, _messages(airspace, agent, task))
+
+
+def _note_seen(airspace, root: Path, rel: str) -> None:
+    """The file as this edit left it, so a later shell write is told apart from the edit tools' own."""
+    from airspace.hooks.reconcile import scope_of
+
+    path = root / rel
+    if path.is_file():
+        airspace.note_seen(scope_of(root), rel, path.read_text(encoding="utf-8"))
+
+
+def _reconcile(root: Path, agent: str, task: str, airspace, deps: Deps) -> list[str]:
+    from airspace.hooks.reconcile import reconcile
+
+    return reconcile(root, agent, task, airspace, deps, time.time())
+
+
+def handle_reconcile(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -> dict | None:
+    """PostToolUse for Bash: files the command wrote are brought into the graph as edits by this task."""
+    root, agent, task = identity(payload, env)
+    try:
+        airspace = deps.airspace(root)
+    except Exception:
+        _note(UNAVAILABLE)
+        return None
+    try:
+        reasons = _reconcile(root, agent, task, airspace, deps)
+        briefings = airspace.pending_briefings(task) if airspace.agent_of(task) else []
+        out = _context("PostToolUse", briefings, _messages(airspace, agent, task))
+        if reasons:
+            text = "\n".join(reasons)
+            if out:
+                text += "\n" + out["hookSpecificOutput"]["additionalContext"]
+            out = {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": text}}
+        return out
+    except Exception as e:
+        _failed(e)
+        return None
 
 
 def handle_prompt(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -> dict | None:
@@ -306,8 +345,19 @@ def handle_stop(
         _note(STOP_UNAVAILABLE)
         return None
     try:
+        # Files written outside the edit tools count before the landing check, so none of them escapes it.
+        try:
+            conflicts = _reconcile(root, agent, task, airspace, deps)
+        except Exception as e:
+            _failed(e, "shell writes not checked")
+            conflicts = []
         if airspace.agent_of(task) is None:
             return None  # nothing edited through Airspace
+        if conflicts:
+            fingerprint = hashlib.sha1("\n".join(conflicts).encode()).hexdigest()[:12]
+            if not (payload.get("stop_hook_active") and airspace.last_block(task) == fingerprint):
+                airspace.block_landing(task, fingerprint, "")
+                return {"decision": "block", "reason": "\n".join(conflicts)}
         deadline = clock() + wait_seconds
         while True:
             # Known names are read again each round: a rename made meanwhile keeps the old name resolvable.

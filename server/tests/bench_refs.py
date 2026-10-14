@@ -133,6 +133,18 @@ class Agent:
         self._note(out)
         return out
 
+    def shell_write(self, rel: str, content: str):
+        """A file written by a shell command (`cat > rel <<EOF`), which no edit hook sees, then PostToolUse Bash."""
+        from airspace.hooks.handlers import handle_reconcile
+
+        path = self.repo / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        out = handle_reconcile(self._payload("PostToolUse", "Bash", {"command": f"cat > {rel} <<'EOF'"}), self.deps,
+                               self.env)
+        self._note(out)
+        return out
+
     def other_tool(self, tool: str = "Bash", tool_input: dict | None = None):
         from airspace.hooks.handlers import handle_any
 

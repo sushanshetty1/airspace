@@ -21,6 +21,7 @@ _INDEXES = [
     ("Event", "at"),
     ("Message", "id"),
     ("Sequence", "id"),
+    ("Seen", "key"),
 ]
 
 

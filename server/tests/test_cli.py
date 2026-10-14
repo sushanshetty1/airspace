@@ -14,6 +14,7 @@ POST = f"{shlex.quote(sys.executable)} -m airspace.cli hook post"
 ANY = f"{shlex.quote(sys.executable)} -m airspace.cli hook any"
 STOP = f"{shlex.quote(sys.executable)} -m airspace.cli hook stop"
 STOP_ENTRY = {"hooks": [{"type": "command", "command": STOP, "timeout": 300}]}
+RECONCILE = POST.replace("hook post", "hook reconcile")
 ANY_MATCHER = "Bash|Read|Grep|Glob|Task|WebFetch|WebSearch|NotebookEdit"
 
 
@@ -32,8 +33,10 @@ def test_install_hooks_creates_settings(tmp_path, capsys):
         {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": PRE}]},
         {"matcher": ANY_MATCHER, "hooks": [{"type": "command", "command": ANY}]},
     ]
+    # A shell command can write files too; reconcile brings those into the graph after it runs.
     assert s["hooks"]["PostToolUse"] == [
-        {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": POST}]}
+        {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": POST}]},
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": POST.replace("hook post", "hook reconcile")}]},
     ]
     # Stop has no matcher; the timeout covers the holding pattern.
     assert s["hooks"]["Stop"] == [STOP_ENTRY]
@@ -59,7 +62,7 @@ def test_install_hooks_merges_existing_settings(tmp_path):
     assert s["hooks"]["Stop"] == existing["hooks"]["Stop"] + [STOP_ENTRY]
     assert s["hooks"]["PreToolUse"][0] == existing["hooks"]["PreToolUse"][0]
     assert commands(s, "PreToolUse") == ["./guard.sh", PRE, ANY]
-    assert commands(s, "PostToolUse") == [POST]
+    assert commands(s, "PostToolUse") == [POST, RECONCILE]
 
 
 def test_install_hooks_is_idempotent(tmp_path):
@@ -80,7 +83,7 @@ def test_install_hooks_recognises_an_existing_airspace_command(tmp_path):
     assert cli.main(["install-hooks", "--root", str(tmp_path)]) == 0
     s = read_settings(tmp_path)
     assert commands(s, "PreToolUse") == ["airspace hook pre", ANY]
-    assert commands(s, "PostToolUse") == [POST]
+    assert commands(s, "PostToolUse") == [POST, RECONCILE]
 
 
 def test_install_hooks_adds_any_hook(tmp_path, capsys):
@@ -98,7 +101,7 @@ def test_install_hooks_adds_any_hook(tmp_path, capsys):
     s = read_settings(tmp_path)
     assert s["hooks"]["PreToolUse"][1] == {"matcher": ANY_MATCHER, "hooks": [{"type": "command", "command": ANY}]}
     assert commands(s, "PreToolUse") == [PRE, ANY]
-    assert commands(s, "PostToolUse") == [POST]
+    assert commands(s, "PostToolUse") == [POST, RECONCILE]
     assert commands(s, "Stop") == [STOP]
     out = capsys.readouterr().out
     assert "hook any" in out and "hook stop" in out

@@ -543,6 +543,10 @@ class Airspace:
                 {"task": task_id, "qs": list(dict.fromkeys(qualnames))},
             )
 
+    def note_touched(self, task_id: str, qualnames: list[str]) -> None:
+        """Symbols the task changed without clearance (a write that has already happened): its own all the same."""
+        self._note_touched(task_id, qualnames)
+
     def record_edited_file(self, task_id: str, rel: str) -> None:
         """Remember a repo-relative file the task edited, once. A task not in the graph yet is left alone."""
         self._q(
@@ -551,6 +555,18 @@ class Airspace:
             SET t.files = CASE WHEN $rel IN files THEN files ELSE files + [$rel] END""",
             {"task": task_id, "rel": rel},
         )
+
+    def started_at(self, task_id: str) -> float | None:
+        rows = self._q("MATCH (t:Task {id: $task}) RETURN t.started_at", {"task": task_id})
+        return rows[0][0] if rows and rows[0][0] is not None else None
+
+    def seen_source(self, scope: str, rel: str) -> str | None:
+        """The last version of a file Airspace saw in one working copy, or None if it has seen none there."""
+        rows = self._q("MATCH (v:Seen {key: $key}) RETURN v.source", {"key": f"{scope}|{rel}"})
+        return rows[0][0] if rows else None
+
+    def note_seen(self, scope: str, rel: str, source: str) -> None:
+        self._q("MERGE (v:Seen {key: $key}) SET v.source = $source", {"key": f"{scope}|{rel}", "source": source})
 
     def edited_files(self, task_id: str) -> list[str]:
         rows = self._q("MATCH (t:Task {id: $task}) RETURN coalesce(t.files, [])", {"task": task_id})
