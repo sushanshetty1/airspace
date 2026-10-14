@@ -7,10 +7,13 @@ export type SymbolHit = { qualname: string; kind: string; signature: string | nu
 
 export type TaskInput = { name: string; symbols: string[] }
 
+/** What earlier sessions left on a task's symbols and their dependents. Older servers send none. */
+export type TaskHistory = { collisions?: number; notes?: number; changes?: number; last_at?: number | null }
+
 export type PairKind = 'same_symbol' | 'calls' | 'shared_dependents'
 
 export type PreflightAnswer = {
-  tasks: { name: string; symbols: string[]; cone: number; cone_sample: string[] }[]
+  tasks: { name: string; symbols: string[]; cone: number; cone_sample: string[]; history?: TaskHistory | null }[]
   pairs: { a: string; b: string; kind: PairKind; symbols: string[]; path: string[]; shared: number }[]
   groups: { tasks: string[]; coordinate: boolean }[]
   hot: { qualname: string; betweenness: number }[]

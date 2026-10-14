@@ -1,7 +1,7 @@
 // Replays: a recorded run that Tower plays back with the same views it uses live.
 // The server writes them with `python -m airspace.replay watch` and serves them at /api/replay.
 
-import { ApiError, type AirEvent, type CollisionDetail, type RadarData, type StateData } from './api'
+import { ApiError, type AirEvent, type CollisionDetail, type MemoryItem, type RadarData, type StateData } from './api'
 
 export type ReplayFrame = { at: number; state: StateData; radar: RadarData }
 
@@ -12,6 +12,8 @@ export type ReplayDoc = {
   /** One per moment something happened, oldest first. */
   frames: ReplayFrame[]
   collisions: Record<string, CollisionDetail>
+  /** Notes and fixes, as the recording saw them; older recordings have none. */
+  memory?: MemoryItem[]
 }
 
 async function getJson<T>(path: string): Promise<T> {

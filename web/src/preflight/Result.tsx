@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
-import type { PairKind, PreflightAnswer } from './api'
+import type { PairKind, PreflightAnswer, TaskHistory } from './api'
 import type { TaskLook } from './looks'
 import { Qualname } from './SymbolField'
 
@@ -53,6 +53,20 @@ function Heading({ children, note }: { children: ReactNode; note?: ReactNode }) 
       {note && <p className="mt-0.5 text-[13.5px] text-muted">{note}</p>}
     </div>
   )
+}
+
+const count = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.round(n) : 0)
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+/** "From earlier sessions: 3 collisions, 2 notes", naming only what there is; null when there is neither. */
+function historyLine(h: TaskHistory | null | undefined) {
+  if (!h || typeof h !== 'object') return null
+  const parts = [
+    [count(h.collisions), 'collision', 'collisions'],
+    [count(h.notes), 'note', 'notes'],
+  ] as const
+  const said = parts.filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many))
+  return said.length ? `From earlier sessions: ${said.join(', ')}` : null
 }
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
@@ -145,20 +159,24 @@ export function Result({ answer, looks }: { answer: PreflightAnswer; looks: Reco
         <div className="px-5 py-5 sm:px-6">
           <Heading note="Callers, tests and subclasses within two hops.">Dependents per task</Heading>
           <ul className="space-y-2.5">
-            {answer.tasks.map((t) => (
-              <li key={t.name} title={t.cone_sample.length ? t.cone_sample.join('\n') : undefined}>
-                <div className="flex items-baseline justify-between gap-3 text-[14px]">
-                  <span className="flex min-w-0 items-center gap-2 self-center">
-                    <TaskMark look={look(t.name)} />
-                    <span className="truncate text-text">{t.name}</span>
-                  </span>
-                  <span className="shrink-0 font-medium text-text tabular-nums">{t.cone}</span>
-                </div>
-                <div className="mt-1.5 h-1 rounded-full bg-surface-2">
-                  <div className="h-full rounded-full" style={{ width: `${Math.max(2, (t.cone / maxCone) * 100)}%`, background: look(t.name).color }} />
-                </div>
-              </li>
-            ))}
+            {answer.tasks.map((t) => {
+              const history = historyLine(t.history)
+              return (
+                <li key={t.name} title={t.cone_sample?.length ? t.cone_sample.join('\n') : undefined}>
+                  <div className="flex items-baseline justify-between gap-3 text-[14px]">
+                    <span className="flex min-w-0 items-center gap-2 self-center">
+                      <TaskMark look={look(t.name)} />
+                      <span className="truncate text-text">{t.name}</span>
+                    </span>
+                    <span className="shrink-0 font-medium text-text tabular-nums">{t.cone}</span>
+                  </div>
+                  <div className="mt-1.5 h-1 rounded-full bg-surface-2">
+                    <div className="h-full rounded-full" style={{ width: `${Math.max(2, (t.cone / maxCone) * 100)}%`, background: look(t.name).color }} />
+                  </div>
+                  {history && <p className="mt-1.5 text-[13px] text-muted">{history}</p>}
+                </li>
+              )
+            })}
           </ul>
         </div>
         <div className="px-5 py-5 sm:px-6">

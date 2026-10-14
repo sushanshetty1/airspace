@@ -87,7 +87,12 @@ RETURN o.id, a.id`}
             </div>
           </Cell>
 
-          <Cell className="bg-surface lg:col-span-2" title="It remembers." body="Holds and contract changes stay in the graph. Hot zones rank the symbols where agents collide most, by collisions and betweenness." delay={0.12}>
+          <Cell
+            className="bg-surface lg:col-span-2"
+            title="It remembers."
+            body="When a collision clears, Airspace writes the fix to the graph, on the symbol it is about. The next agent to touch that code hears it, in any later session."
+            delay={0.12}
+          >
             <div className="grid border-t border-line sm:grid-cols-2">
               <div className="px-6 py-6 sm:border-r sm:border-line sm:px-8">
                 <div className="flex items-center gap-2.5">
@@ -95,16 +100,18 @@ RETURN o.id, a.id`}
                   <Sign kind="HOLD">Hold</Sign>
                 </div>
                 <p className="mt-2.5 text-[15px] leading-relaxed text-muted">
-                  agent-a and agent-b collide at <span className="font-mono text-text">slugify</span>. One hold, one briefing.
+                  <span className="font-mono text-agent-b">agent-b</span> is held at <span className="font-mono text-text">slugify</span>, whose{' '}
+                  <span className="font-mono text-text">allow_unicode</span> is gone. It clears with <span className="font-mono text-text">unicode=True</span>, and Airspace writes that fix to the
+                  graph.
                 </p>
               </div>
               <div className="border-t border-line px-6 py-6 sm:border-t-0 sm:px-8">
                 <div className="flex items-center gap-2.5">
                   <span className="text-[14px] font-semibold text-text">Tuesday</span>
-                  <Sign kind="CLEARED">Cleared</Sign>
+                  <Sign kind="BRIEFED">Briefed</Sign>
                 </div>
                 <p className="mt-2.5 text-[15px] leading-relaxed text-muted">
-                  Hot zones list <span className="font-mono text-text">slugify</span> first. You give it and its callers to one agent. No collision.
+                  A new agent touches <span className="font-mono text-text">slugify</span>. Before it writes the call, it is told the fix: <span className="font-mono text-text">unicode=True</span>. No hold.
                 </p>
               </div>
             </div>

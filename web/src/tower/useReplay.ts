@@ -71,6 +71,10 @@ export function useReplay(load: () => Promise<ReplayDoc>): { live: Live; player:
 
   const frame = doc?.frames[index]
   const events = useMemo(() => (doc && frame ? doc.events.filter((e) => e.at <= frame.at) : []), [doc, frame])
+  const memory = useMemo(
+    () => (doc && frame && Array.isArray(doc.memory) ? doc.memory.filter((m) => m.at <= frame.at).sort((a, b) => b.at - a.at) : []),
+    [doc, frame],
+  )
 
   // Answers from the frame on screen, so the collision panel shows each collision as it stood then.
   const api: TowerApi = useMemo(
@@ -89,9 +93,13 @@ export function useReplay(load: () => Promise<ReplayDoc>): { live: Live; player:
       resume: off,
       message: off,
       release: off,
+      // Memory as it stood at the frame on screen, newest first.
+      recentMemory: async (limit = 20) => memory.slice(0, limit),
+      memory: async (symbols) => memory.filter((m) => symbols.includes(m.symbol)),
+      addNote: off,
       stream: () => () => {},
     }),
-    [doc, frame, events],
+    [doc, frame, events, memory],
   )
 
   const retry = useCallback(() => {
