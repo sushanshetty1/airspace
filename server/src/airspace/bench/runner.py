@@ -183,20 +183,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sets", nargs="*", help="task set ids (default: all)")
     parser.add_argument("--conditions", nargs="*", default=list(CONDITIONS))
     parser.add_argument("--jobs", type=int, default=3, help="pairs to run at once")
+    parser.add_argument("--repeat", type=int, default=1, help="runs of every set under every condition")
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
 
     sets = [t for t in load_tasks() if not args.sets or t.id in args.sets]
-    jobs = [(t, c) for t in sets for c in args.conditions]
+    jobs = [(t, c, k) for k in range(1, args.repeat + 1) for t in sets for c in args.conditions]
     out_dir = Path(args.out) if args.out else RESULTS / time.strftime("%Y%m%d-%H%M%S")
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Running {len(jobs)} pairs ({len(jobs) * 2} Claude Code sessions), {args.jobs} at a time. Results: {out_dir}")
 
     def one(job):
-        t, c = job
+        t, c, k = job
         r = run_pair(t, c)
-        (out_dir / f"{t.id}--{c}.json").write_text(json.dumps(asdict(r), indent=2))
-        print(f"  {t.id:28} {c:10} {r.outcome:13} {r.wall_seconds:6.0f}s  ${r.cost_usd:.2f}  holds={r.holds}", flush=True)
+        (out_dir / f"{t.id}--{c}--r{k}.json").write_text(json.dumps(asdict(r), indent=2))
+        print(f"  r{k} {t.id:28} {c:10} {r.outcome:13} merged={r.merged!s:5} {r.wall_seconds:6.0f}s  ${r.cost_usd:.2f}  holds={r.holds}", flush=True)
         return r
 
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:

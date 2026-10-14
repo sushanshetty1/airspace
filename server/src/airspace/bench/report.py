@@ -33,7 +33,8 @@ def summarize(results: list[dict]) -> dict:
         }
     by_set = {}
     for r in results:
-        by_set.setdefault(r["set_id"], {"kind": r["kind"]})[r["condition"]] = r["outcome"]
+        row = by_set.setdefault(r["set_id"], {"kind": r["kind"]})
+        row.setdefault(r["condition"], []).append({"outcome": r["outcome"], "merged": r.get("merged")})
     return {"conditions": conditions, "sets": by_set}
 
 
