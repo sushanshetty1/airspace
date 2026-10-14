@@ -9,6 +9,14 @@ from airspace.graph.db import connect, ensure_schema
 FIXTURE_REPO = Path(__file__).parent / "fixtures" / "blog"
 
 
+@pytest.fixture(autouse=True)
+def _private_config(tmp_path_factory, monkeypatch):
+    """No test reads the developer's own remotes.json or seen cache: a connected repo there must not change a test."""
+    home = tmp_path_factory.mktemp("airspace-home")
+    monkeypatch.setenv("AIRSPACE_CONFIG_DIR", str(home / "config"))
+    monkeypatch.setenv("AIRSPACE_CACHE_DIR", str(home / "cache"))
+
+
 @pytest.fixture(scope="session")
 def db():
     try:
