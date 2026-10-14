@@ -81,7 +81,7 @@ class Agent:
                 "tool_input": tool_input}
 
     def _note(self, out) -> None:
-        if out and "additionalContext" in out["hookSpecificOutput"]:
+        if out and "additionalContext" in out.get("hookSpecificOutput", {}):
             self.contexts.append(out["hookSpecificOutput"]["additionalContext"])
 
     def pre(self, tool: str, tool_input: dict):
@@ -123,9 +123,51 @@ class Agent:
         """Every edit of a patch, stopping at the first hold. True when all went through."""
         return all(self.edit(rel, tool, tool_input) for rel, tool, tool_input in tool_calls(patch))
 
+    def stop(self, stop_hook_active: bool = False, **timing):
+        """The Stop hook at the end of the agent's turn. `timing` passes wait_seconds, poll_seconds, sleep, clock."""
+        from airspace.hooks.handlers import handle_stop
+
+        payload = {"session_id": self.session, "cwd": str(self.repo), "hook_event_name": "Stop",
+                   "stop_hook_active": stop_hook_active, "last_assistant_message": "Done."}
+        out = handle_stop(payload, self.deps, self.env, **timing)
+        self._note(out)
+        return out
+
     def other_tool(self, tool: str = "Bash", tool_input: dict | None = None):
         from airspace.hooks.handlers import handle_any
 
         out = handle_any(self._payload("PreToolUse", tool, tool_input or {"command": "pytest -q"}), self.deps, self.env)
         self._note(out)
         return out
+
+
+class Escaped(BaseException):
+    """A failure inside a hook's sleep. Not an Exception, so the hook's fail-open handler cannot swallow it."""
+
+
+class FakeTime:
+    """A clock that only moves when the hook sleeps. `on_sleep[i]` runs at the i-th sleep."""
+
+    def __init__(self, *on_sleep):
+        self.now = 0.0
+        self.sleeps = 0
+        self.on_sleep = list(on_sleep)
+
+    def clock(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+        self.sleeps += 1
+        if self.sleeps <= len(self.on_sleep):
+            try:
+                self.on_sleep[self.sleeps - 1]()
+            except Exception as e:
+                raise Escaped(repr(e)) from e
+
+    def timing(self, **extra) -> dict:
+        return {"sleep": self.sleep, "clock": self.clock, **extra}
+
+
+def never(seconds: float) -> None:
+    raise Escaped("the stop hook waited")

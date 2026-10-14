@@ -1,6 +1,6 @@
 from helpers import BLOG_SYMBOLS
 
-from airspace.hooks.edit_analysis import analyze_edit, apply_tool_input
+from airspace.hooks.edit_analysis import analyze_edit, apply_tool_input, calls_in_file
 from airspace.types import CallSite, EditAnalysis, SignatureChange
 
 KNOWN = {row[0] for row in BLOG_SYMBOLS}
@@ -232,3 +232,40 @@ def test_removed_symbol_in_known_still_resolves(blog_repo):
     models.write_text(models.read_text().replace("def get_absolute_url(self):", "def url(self):"))
     analysis = analyze_edit(blog_repo, "Edit", _add_feeds_method("        return post.get_absolute_url()\n"), known)
     assert ("blog.feeds.LatestPosts.item_link", "blog.models.Post.get_absolute_url") in analysis.new_calls
+
+
+def test_calls_in_file_resolves_methods_and_constructors(blog_repo):
+    # The file as it is on disk now, resolved like an edit: unique method names through objects, constructors
+    # paired with __init__, and a bare name used before its import.
+    (blog_repo / "blog" / "feeds.py").write_text(
+        "from blog.models import Post\n\n\n"
+        "class LatestPosts:\n"
+        "    def item_link(self, post):\n"
+        "        return post.get_absolute_url()\n\n"
+        "    def item_new(self):\n"
+        "        return Post('Hi', body='x')\n\n"
+        "    def item_slug(self, post):\n"
+        "        return slugify(post.title,\n                       allow_unicode=True)\n"
+    )
+    calls = calls_in_file(blog_repo, "blog/feeds.py", KNOWN)
+    found = {(caller, callee): site for caller, callee, site in calls}
+
+    link = found[("blog.feeds.LatestPosts.item_link", "blog.models.Post.get_absolute_url")]
+    assert link == CallSite("blog.feeds.LatestPosts.item_link", 0, (), False, True)
+    assert link.text == "post.get_absolute_url()"
+    assert found[("blog.feeds.LatestPosts.item_new", "blog.models.Post")] == CallSite(
+        "blog.feeds.LatestPosts.item_new", 1, ("body",), False, False)
+    init = found[("blog.feeds.LatestPosts.item_new", "blog.models.Post.__init__")]
+    assert init == CallSite("blog.feeds.LatestPosts.item_new", 1, ("body",), False, True)
+    assert init.text == "Post('Hi', body='x')"
+    # A call written over two lines reads as one.
+    assert found[("blog.feeds.LatestPosts.item_slug", "utils.text.slugify")].text == (
+        "slugify(post.title, allow_unicode=True)"
+    )
+    assert all(isinstance(c, tuple) and len(c) == 3 for c in calls)
+
+
+def test_calls_in_file_missing_or_broken_file_is_empty(blog_repo):
+    assert calls_in_file(blog_repo, "blog/gone.py", KNOWN) == []
+    (blog_repo / "blog" / "broken.py").write_text("def f(:\n")
+    assert calls_in_file(blog_repo, "blog/broken.py", KNOWN) == []

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from airspace.hooks.handlers import Deps, briefing_context, handle_any, handle_post, handle_pre, identity
+from airspace.hooks.handlers import Deps, briefing_context, handle_any, handle_post, handle_pre, handle_stop, identity
 from airspace.types import Briefing, CallSite, EditAnalysis, SignatureChange, Verdict
 
 SESSION = "5e55f00d-0000-4000-8000-000000000000"
@@ -48,6 +48,13 @@ class FakeAirspace:
     def claim_pending(self, task_id):
         self.calls.append(("claim_pending", task_id))
         return []
+
+    def record_edited_file(self, task_id, rel):
+        self.calls.append(("record_edited_file", task_id, rel))
+
+    def agent_of(self, task_id):
+        self.calls.append(("agent_of", task_id))
+        return None
 
 
 def make_deps(fake=None, analysis=None, changes=None, analyze_calls=None, reindex_calls=None):
@@ -461,3 +468,44 @@ def test_briefing_context_names_the_broken_call_and_removals():
     assert "New signature" not in text
     for t in (briefing_context([caller_first, removed]),):
         assert chr(0x2014) not in t and chr(0x2013) not in t
+
+
+def test_post_records_edited_files(tmp_path):
+    change = SignatureChange("utils.text.slugify", "slugify(value, allow_unicode=False)", "slugify(value, *, unicode=False)")
+    fake = FakeAirspace()
+    handle_post(payload(tmp_path, file="utils/text.py", event="PostToolUse"), make_deps(fake, changes=[change]), ENV)
+    names = [c[0] for c in fake.calls]
+    assert ("record_edited_file", SESSION, "utils/text.py") in fake.calls
+    # After the task exists, so the first edit of a task is recorded too.
+    assert names.index("ensure_task") < names.index("record_edited_file")
+
+    fake = FakeAirspace()
+    handle_post(payload(tmp_path, file="notes.txt", event="PostToolUse"), make_deps(fake), ENV)
+    assert fake.calls == []
+
+
+def test_stop_without_a_task_is_silent(tmp_path):
+    fake = FakeAirspace()
+    p = {"session_id": SESSION, "cwd": str(tmp_path), "hook_event_name": "Stop", "stop_hook_active": False}
+    assert handle_stop(p, make_deps(fake), ENV) is None
+    assert fake.calls == [("agent_of", SESSION)]
+
+
+def test_stop_fails_open(tmp_path, capsys):
+    def down(root):
+        raise ConnectionError("Connection refused")
+
+    deps = make_deps()
+    deps.airspace = down
+    p = {"session_id": SESSION, "cwd": str(tmp_path), "hook_event_name": "Stop", "stop_hook_active": False}
+    assert handle_stop(p, deps, ENV) is None
+    captured = capsys.readouterr()
+    assert captured.out == "" and captured.err == "airspace: FalkorDB unavailable, landing not checked\n"
+
+    class Broken(FakeAirspace):
+        def agent_of(self, task_id):
+            raise RuntimeError("graph went away")
+
+    assert handle_stop(p, make_deps(Broken()), ENV) is None
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and err.startswith("airspace: ") and "landing not checked" in err

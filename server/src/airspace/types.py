@@ -28,6 +28,7 @@ class CallFact:
     kwargs: tuple[str, ...] = ()  # keyword names, not counting **kwargs
     star: bool = False  # the call unpacks *args or **kwargs
     via_instance: bool = False  # the receiver is a constructed instance: Tag(name).save()
+    text: str = field(default="", compare=False)  # the call as source, on one line: "slugify(post.title, True)"
 
 
 @dataclass
@@ -79,6 +80,7 @@ class CallSite:
     kwargs: tuple[str, ...]  # keyword names, not counting **kwargs
     star: bool  # unpacks *args or **kwargs
     bound: bool  # called through an instance (or a constructor checked against __init__): the first parameter is filled
+    text: str = field(default="", compare=False)  # the call as source, when known
 
 
 @dataclass

@@ -1,4 +1,4 @@
-"""The airspace command: index | hook pre|post|any | install-hooks | status | serve | mcp | insights."""
+"""The airspace command: index | hook pre|post|any|stop | install-hooks | status | serve | mcp | insights."""
 
 import argparse
 import os
@@ -9,14 +9,21 @@ import sys
 import time
 from pathlib import Path
 
-from airspace.hooks.handlers import Deps, default_deps, handle_any, handle_post, handle_pre
+from airspace.hooks.handlers import Deps, default_deps, handle_any, handle_post, handle_pre, handle_stop
 
 MATCHER = "Edit|Write|MultiEdit"
 # Every other tool an agent uses between edits, so a briefing reaches an agent that only runs tests or reads.
 ANY_MATCHER = "Bash|Read|Grep|Glob|Task|WebFetch|WebSearch|NotebookEdit"
-# (Claude Code hook event, airspace hook, matcher)
-_HOOKS = [("PreToolUse", "pre", MATCHER), ("PreToolUse", "any", ANY_MATCHER), ("PostToolUse", "post", MATCHER)]
-_HANDLERS = {"pre": handle_pre, "post": handle_post, "any": handle_any}
+# Seconds Claude Code gives the Stop hook. The holding pattern waits up to 240 s inside it.
+STOP_TIMEOUT = 300
+# (Claude Code hook event, airspace hook, matcher or None, timeout or None)
+_HOOKS = [
+    ("PreToolUse", "pre", MATCHER, None),
+    ("PreToolUse", "any", ANY_MATCHER, None),
+    ("PostToolUse", "post", MATCHER, None),
+    ("Stop", "stop", None, STOP_TIMEOUT),
+]
+_HANDLERS = {"pre": handle_pre, "post": handle_post, "any": handle_any, "stop": handle_stop}
 
 
 # Providers. Module level so tests can swap them.
@@ -122,14 +129,17 @@ def _cmd_install_hooks(root: Path) -> int:
             return 1
     hooks = settings.setdefault("hooks", {})
     report = []
-    for hook_event, event, matcher in _HOOKS:
+    for hook_event, event, matcher, timeout in _HOOKS:
         entries = hooks.setdefault(hook_event, [])
         if _has_airspace_hook(entries, event):
             report.append(f"  {hook_event}: airspace hook {event} already present")
             continue
         command = _hook_command(event)
-        entries.append({"matcher": matcher, "hooks": [{"type": "command", "command": command}]})
-        report.append(f"  {hook_event} ({matcher}): {command}")
+        hook: dict = {"type": "command", "command": command}
+        if timeout is not None:
+            hook["timeout"] = timeout
+        entries.append({"matcher": matcher, "hooks": [hook]} if matcher else {"hooks": [hook]})
+        report.append(f"  {hook_event} ({matcher or 'no matcher'}): {command}")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2) + "\n")
     print(f"Wrote {path}")
@@ -219,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--port", type=int, default=8787, help="port to listen on (default: 8787)")
 
     hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
-    hook.add_argument("event", choices=["pre", "post", "any"])
+    hook.add_argument("event", choices=list(_HANDLERS))
 
     replay = sub.add_parser("replay", help="record or summarize a Tower replay of a real run")
     replay.add_argument("rest", nargs=argparse.REMAINDER)

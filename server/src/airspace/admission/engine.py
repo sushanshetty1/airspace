@@ -26,7 +26,8 @@ _DEPENDS = "CALLS|COVERS|INHERITS"
 # Only another agent's live claim blocks; the agent's other tasks may hold the same symbol.
 _LEASE = """
 MATCH (t:Task {id: $task}), (s:Symbol {qualname: $q})
-OPTIONAL MATCH (oa:Agent)-[:FLYING]->(:Task)-[c:CLAIMS]->(s) WHERE oa.id <> $agent AND c.lease_until > $now
+OPTIONAL MATCH (oa:Agent)-[:FLYING]->(ot:Task)-[c:CLAIMS]->(s)
+WHERE oa.id <> $agent AND c.lease_until > $now AND coalesce(ot.status, 'active') <> 'landed'
 WITH t, s, count(c) AS held
 WHERE held = 0
 MERGE (t)-[k:CLAIMS]->(s)
@@ -44,6 +45,11 @@ _COLLISION_FIELDS = (
 )
 _RADAR_AGENTS = 4
 _STATE_COLLISIONS = 20
+
+# Task status. 'active' is flying; 'holding' waits at its Stop hook for another agent; 'landed' has stopped (a task
+# that edits again is 'active' once more); 'released' gave up its claims. A contract change stands until its task is
+# released, and Tower shows every task that has not been released.
+_STANDING = ["active", "holding", "landed"]
 
 
 def removed_qualnames(graph) -> set[str]:
@@ -72,7 +78,7 @@ class Airspace:
     # Tasks and leases
 
     def ensure_task(self, agent_id: str, task_id: str, intent: str = "") -> None:
-        # A task that edits again is flying again, so a released task becomes active on its next edit.
+        # A task that edits again is flying again: a released, holding or landed task is active on its next edit.
         self._q(
             """MERGE (a:Agent {id: $agent})
             ON CREATE SET a.paused = false
@@ -201,12 +207,12 @@ class Airspace:
         for caller, callee in new_calls:
             rows = self._q(
                 """MATCH (me:Task {id: $task})
-                MATCH (a:Agent)-[:FLYING]->(o:Task {status: 'active'})-[:CHANGED]->(cc:ContractChange {qualname: $callee})
-                WHERE a.id <> $agent
+                MATCH (a:Agent)-[:FLYING]->(o:Task)-[:CHANGED]->(cc:ContractChange {qualname: $callee})
+                WHERE a.id <> $agent AND o.status IN $standing
                 OPTIONAL MATCH (cc)-[b:BRIEFED]->(me)
                 RETURN cc.id, cc.qualname, cc.old_sig, cc.new_sig, o.id, a.id, b IS NOT NULL, coalesce(b.released, false)
                 ORDER BY cc.at, cc.seq""",
-                {"task": task_id, "agent": me, "callee": callee},
+                {"task": task_id, "agent": me, "callee": callee, "standing": _STANDING},
             )
             if not rows:
                 continue
@@ -282,6 +288,7 @@ class Airspace:
         # the graph until the post hook re-indexes the file, so it is claimed then (claim_pending).
         self._claim(task_id, touched)
         self._defer_claims(task_id, touched)
+        self._note_touched(task_id, touched)
         self.refresh_cone(task_id)
         if subject:
             self._event("cleared", me, task_id, subject, now)
@@ -427,7 +434,8 @@ class Airspace:
     ) -> None:
         """Caller first: another agent already wrote a call this change breaks, in code it has claimed.
 
-        Each such agent gets a held contract collision and a hold event. Its briefing stays pending, so its next
+        That agent may be flying, holding at its landing or landed. Each such agent gets a held contract collision
+        and a hold event. Its briefing stays pending, so its next
         tool call of any kind delivers it. Only stored call shapes count: an edge without shapes holds no one.
         """
         if kind == "class" and ch.new_signature:
@@ -439,11 +447,11 @@ class Airspace:
         rows = self._q(
             """MATCH (d:Symbol)-[r:CALLS|COVERS]->(s:Symbol)
             WHERE s.qualname IN $targets AND r.shapes IS NOT NULL
-            MATCH (a:Agent)-[:FLYING]->(t:Task {status: 'active'})-[c:CLAIMS]->(d)
-            WHERE a.id <> $agent AND c.lease_until > $now
+            MATCH (a:Agent)-[:FLYING]->(t:Task)-[c:CLAIMS]->(d)
+            WHERE a.id <> $agent AND c.lease_until > $now AND t.status IN $standing
             RETURN a.id, t.id, d.qualname, s.qualname, s.kind, r.shapes
             ORDER BY a.id, d.qualname, t.id""",
-            {"targets": targets, "agent": agent, "now": now},
+            {"targets": targets, "agent": agent, "now": now, "standing": _STANDING},
         )
         broken: dict[str, tuple[str, str]] = {}  # agent -> (its task, the caller whose call no longer fits)
         for other, other_task, caller, target, target_kind, shapes in rows:
@@ -510,6 +518,151 @@ class Airspace:
             self._event("briefed", agent, task_id, r[1], now)
             briefings.append(Briefing(r[0], r[1], r[2], r[3], r[4], r[6]))
         return briefings
+
+    # Landing. The Stop hook checks the calls in the files a task edited before the agent stops.
+
+    def _note_touched(self, task_id: str, qualnames: list[str]) -> None:
+        if qualnames:
+            self._q(
+                """MATCH (t:Task {id: $task})
+                SET t.touched = coalesce(t.touched, []) + [q IN $qs WHERE NOT q IN coalesce(t.touched, [])]""",
+                {"task": task_id, "qs": list(dict.fromkeys(qualnames))},
+            )
+
+    def record_edited_file(self, task_id: str, rel: str) -> None:
+        """Remember a repo-relative file the task edited, once. A task not in the graph yet is left alone."""
+        self._q(
+            """MATCH (t:Task {id: $task})
+            WITH t, coalesce(t.files, []) AS files
+            SET t.files = CASE WHEN $rel IN files THEN files ELSE files + [$rel] END""",
+            {"task": task_id, "rel": rel},
+        )
+
+    def edited_files(self, task_id: str) -> list[str]:
+        rows = self._q("MATCH (t:Task {id: $task}) RETURN coalesce(t.files, [])", {"task": task_id})
+        return list(rows[0][0]) if rows else []
+
+    def _own_symbols(self, task_id: str) -> set[str]:
+        """What the task touched or claims (at any lease): the code that is the task's own."""
+        rows = self._q(
+            """MATCH (t:Task {id: $task})
+            OPTIONAL MATCH (t)-[:CLAIMS]->(s:Symbol)
+            RETURN coalesce(t.touched, []), coalesce(t.pending_claims, []), collect(s.qualname)""",
+            {"task": task_id},
+        )
+        if not rows:
+            return set()
+        touched, pending, claimed = rows[0]
+        return set(touched) | set(pending) | set(claimed)
+
+    def stop_check(
+        self, task_id: str, calls: list[tuple[str, str, CallSite]]
+    ) -> tuple[list[dict], list[str]]:
+        """(violations, agents to wait for) for the calls in the task's files as they are now.
+
+        Only calls made from the task's own symbols count. A violation is a call that does not fit the latest
+        signature another agent gave its callee, or a call to a symbol another agent renamed or removed; each one is
+        recorded as a held contract collision, and the change counts as briefed (the Stop hook states it). The
+        agents to wait for are other agents with an active task holding a live claim on a callee: they may still
+        change it. An agent that is paused, or itself holding at its landing, is never waited for, so two agents
+        cannot wait for each other.
+        """
+        me = self._ensure_known(task_id)
+        now = self.clock()
+        own = self._own_symbols(task_id)
+        mine = [(caller, callee, site) for caller, callee, site in calls if caller in own]
+        callees = sorted({callee for _, callee, _ in mine})
+        if not callees:
+            return [], []
+
+        rows = self._q(
+            """MATCH (a:Agent)-[:FLYING]->(o:Task)-[:CHANGED]->(cc:ContractChange)
+            WHERE cc.qualname IN $callees AND a.id <> $agent AND o.status IN $standing
+            OPTIONAL MATCH (cc)-[b:BRIEFED]->(:Task {id: $task})
+            RETURN cc.qualname, cc.id, cc.old_sig, cc.new_sig, a.id, o.id, coalesce(b.released, false)
+            ORDER BY cc.at, cc.seq""",
+            {"callees": callees, "agent": me, "task": task_id, "standing": _STANDING},
+        )
+        changes: dict[str, tuple[str, list]] = {}  # callee -> (first old signature, latest change)
+        for row in rows:
+            first = changes.get(row[0], (row[2], row))[0]
+            changes[row[0]] = (first, row)
+
+        violations: list[dict] = []
+        seen: set[tuple[str, str, str]] = set()
+        for caller, callee, site in mine:
+            if callee not in changes:
+                continue
+            old_sig, (_, change_id, _, new_sig, other_agent, other_task, released) = changes[callee]
+            if released or not self._judgeable(callee, new_sig):
+                continue  # Tower released this hold, or a class line says nothing about calls
+            if call_fits(new_sig, site.nargs, site.kwargs, site.star, site.bound):
+                continue
+            key = (caller, callee, site.text)
+            if key in seen:
+                continue
+            seen.add(key)
+            violations.append({
+                "symbol": callee, "caller": caller, "call": site.text, "old_sig": old_sig, "new_sig": new_sig,
+                "agent": other_agent, "task": other_task, "change_id": change_id,
+            })
+
+        for v in {(v["caller"], v["symbol"]): v for v in violations}.values():
+            self._contract_collision(
+                now, me, task_id, v["agent"], v["task"], v["symbol"], v["caller"], v["old_sig"], v["new_sig"],
+                v["change_id"],
+            )
+            self._brief(v["change_id"], task_id, now)
+
+        waiting = self._q(
+            """MATCH (a:Agent)-[:FLYING]->(o:Task {status: 'active'})-[c:CLAIMS]->(s:Symbol)
+            WHERE s.qualname IN $callees AND a.id <> $agent AND c.lease_until > $now
+                  AND coalesce(a.paused, false) = false AND NOT (a)-[:FLYING]->(:Task {status: 'holding'})
+            RETURN DISTINCT a.id ORDER BY a.id""",
+            {"callees": callees, "agent": me, "now": now},
+        )
+        return violations, [r[0] for r in waiting]
+
+    def _set_status(self, task_id: str, status: str, unless: str, extra: str = "", params: dict | None = None):
+        """Set the task's status unless `unless` (a Cypher condition on t) holds. Returns its agent when it changed."""
+        rows = self._q(
+            f"""MATCH (a:Agent)-[:FLYING]->(t:Task {{id: $task}})
+            WHERE NOT ({unless})
+            SET t.status = $status{extra}
+            RETURN a.id LIMIT 1""",
+            {"task": task_id, "status": status, **(params or {})},
+        )
+        return rows[0][0] if rows else None
+
+    def holding(self, task_id: str, on_agent: str) -> None:
+        """The task waits at its landing for `on_agent`. One event per wait, however often it is called."""
+        agent = self._set_status(
+            task_id, "holding", "t.status = 'holding' AND t.holding_for = $on", ", t.holding_for = $on",
+            {"on": on_agent},
+        )
+        if agent is not None:
+            self._event("holding", agent, task_id, on_agent)
+
+    def land(self, task_id: str) -> None:
+        """The agent stopped. Its claims stay until their leases end, and its contract changes stand."""
+        now = self.clock()
+        agent = self._set_status(task_id, "landed", "t.status = 'landed'", ", t.landed_at = $now", {"now": now})
+        if agent is not None:
+            self._event("landed", agent, task_id, "", now)
+
+    def block_landing(self, task_id: str, fingerprint: str, caller: str) -> None:
+        """The Stop hook sent the agent back to work over these violations: it is active again, and held."""
+        agent = self.agent_of(task_id)
+        self._q(
+            "MATCH (t:Task {id: $task}) SET t.status = 'active', t.stop_block = $fp",
+            {"task": task_id, "fp": fingerprint},
+        )
+        self._event("hold", agent, task_id, caller)
+
+    def last_block(self, task_id: str) -> str | None:
+        """The fingerprint of the violations the last blocked stop reported, if any."""
+        rows = self._q("MATCH (t:Task {id: $task}) RETURN t.stop_block", {"task": task_id})
+        return rows[0][0] if rows else None
 
     def explain(self, from_q: str, to_q: str) -> list[str]:
         # shortestPath is only allowed inside WITH or RETURN in FalkorDB.
@@ -639,12 +792,12 @@ class Airspace:
     # Read models. Shapes are the API contract; the API serves them verbatim.
 
     def _live_claims(self, now: float) -> dict[str, list[tuple[str, float]]]:
-        """agent id -> [(qualname, claimed at)] for live claims of active tasks."""
+        """agent id -> [(qualname, claimed at)] for live claims of tasks that have not been released."""
         rows = self._q(
-            """MATCH (a:Agent)-[:FLYING]->(:Task {status: 'active'})-[c:CLAIMS]->(s:Symbol)
-            WHERE c.lease_until > $now
+            """MATCH (a:Agent)-[:FLYING]->(t:Task)-[c:CLAIMS]->(s:Symbol)
+            WHERE c.lease_until > $now AND t.status IN $standing
             RETURN a.id, s.qualname, max(coalesce(c.at, 0.0))""",
-            {"now": now},
+            {"now": now, "standing": _STANDING},
         )
         claims: dict[str, list[tuple[str, float]]] = {}
         for agent, q, at in rows:
@@ -669,8 +822,11 @@ class Airspace:
             })
             if task is not None:
                 entry["tasks"].append(task)
-                if status == "active":
-                    entry["status"] = "active"
+                # The liveliest task names the agent: active, then holding, then landed, then released.
+                if status in _STANDING and (
+                    entry["status"] == "released" or _STANDING.index(status) < _STANDING.index(entry["status"])
+                ):
+                    entry["status"] = status
         collisions = self._q(
             f"""MATCH (x:Collision)
             RETURN x.id, x.at, x.kind, x.symbol, x.held_agent, x.owner_agent, x.resolution
@@ -685,7 +841,11 @@ class Airspace:
 
     def radar(self) -> dict:
         now = self.clock()
-        active = memory.active_agents(self.graph)
+        # Holding and landed agents stay on the radar until more recently active agents take their place.
+        active = [r[0] for r in self._q(
+            "MATCH (a:Agent)-[:FLYING]->(t:Task) WHERE t.status IN $standing RETURN DISTINCT a.id ORDER BY a.id",
+            {"standing": _STANDING},
+        )]
         claims = self._live_claims(now)
         last_event = dict(self._q(
             "MATCH (e:Event) WHERE e.agent IN $agents RETURN e.agent, max(e.at)", {"agents": active}
@@ -740,13 +900,14 @@ class Airspace:
     def _cone_hops(self, agent: str, now: float, claimed: set[str]) -> list[tuple[str, int]]:
         """(qualname, hops to the nearest of the agent's claims), nearest first."""
         rows = self._q(
-            f"""MATCH (a:Agent {{id: $agent}})-[:FLYING]->(:Task {{status: 'active'}})-[:CONE]->(d:Symbol)
-            MATCH (a)-[:FLYING]->(:Task {{status: 'active'}})-[c:CLAIMS]->(s:Symbol)
-            WHERE c.lease_until > $now
+            f"""MATCH (a:Agent {{id: $agent}})-[:FLYING]->(t:Task)-[:CONE]->(d:Symbol)
+            WHERE t.status IN $standing
+            MATCH (a)-[:FLYING]->(u:Task)-[c:CLAIMS]->(s:Symbol)
+            WHERE c.lease_until > $now AND u.status IN $standing
             WITH d, s, shortestPath((d)-[:{_DEPENDS}*1..{self.cone_depth}]->(s)) AS p
             WHERE p IS NOT NULL
             RETURN d.qualname, min(length(p))""",
-            {"agent": agent, "now": now},
+            {"agent": agent, "now": now, "standing": _STANDING},
         )
         hops = [(q, int(h)) for q, h in rows if q not in claimed]
         return sorted(hops, key=lambda x: (x[1], x[0]))

@@ -18,6 +18,8 @@ export function AgentName({ id, look, className = '' }: { id: string; look?: Age
 export function AgentStatus({ agent }: { agent: AgentState }) {
   if (agent.held) return <Sign kind="HOLD">{signLabel.HOLD}</Sign>
   if (agent.paused) return <Sign kind="BRIEFED">Paused</Sign>
+  if (agent.status === 'holding') return <Sign kind="BRIEFED">Holding</Sign>
+  if (agent.status === 'landed') return <Sign kind="CLEARED">Landed</Sign>
   return <Sign kind="FILED">Flying</Sign>
 }
 

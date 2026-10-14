@@ -86,6 +86,7 @@ def _call_fact(node: ast.Call, caller: str, target: str) -> CallFact:
         kwargs=tuple(k.arg for k in node.keywords if k.arg is not None),
         star=star,
         via_instance=isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Call),
+        text=ast.unparse(node),
     )
 
 

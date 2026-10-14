@@ -12,6 +12,8 @@ from airspace.types import EditAnalysis, Verdict
 PRE = f"{shlex.quote(sys.executable)} -m airspace.cli hook pre"
 POST = f"{shlex.quote(sys.executable)} -m airspace.cli hook post"
 ANY = f"{shlex.quote(sys.executable)} -m airspace.cli hook any"
+STOP = f"{shlex.quote(sys.executable)} -m airspace.cli hook stop"
+STOP_ENTRY = {"hooks": [{"type": "command", "command": STOP, "timeout": 300}]}
 ANY_MATCHER = "Bash|Read|Grep|Glob|Task|WebFetch|WebSearch|NotebookEdit"
 
 
@@ -33,6 +35,8 @@ def test_install_hooks_creates_settings(tmp_path, capsys):
     assert s["hooks"]["PostToolUse"] == [
         {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": POST}]}
     ]
+    # Stop has no matcher; the timeout covers the holding pattern.
+    assert s["hooks"]["Stop"] == [STOP_ENTRY]
     assert str(tmp_path / ".claude" / "settings.json") in capsys.readouterr().out
 
 
@@ -52,7 +56,7 @@ def test_install_hooks_merges_existing_settings(tmp_path):
     s = read_settings(tmp_path)
     assert s["permissions"] == existing["permissions"]
     assert s["env"] == existing["env"]
-    assert s["hooks"]["Stop"] == existing["hooks"]["Stop"]
+    assert s["hooks"]["Stop"] == existing["hooks"]["Stop"] + [STOP_ENTRY]
     assert s["hooks"]["PreToolUse"][0] == existing["hooks"]["PreToolUse"][0]
     assert commands(s, "PreToolUse") == ["./guard.sh", PRE, ANY]
     assert commands(s, "PostToolUse") == [POST]
@@ -95,10 +99,13 @@ def test_install_hooks_adds_any_hook(tmp_path, capsys):
     assert s["hooks"]["PreToolUse"][1] == {"matcher": ANY_MATCHER, "hooks": [{"type": "command", "command": ANY}]}
     assert commands(s, "PreToolUse") == [PRE, ANY]
     assert commands(s, "PostToolUse") == [POST]
-    assert "hook any" in capsys.readouterr().out
+    assert commands(s, "Stop") == [STOP]
+    out = capsys.readouterr().out
+    assert "hook any" in out and "hook stop" in out
 
     assert cli.main(["install-hooks", "--root", str(tmp_path)]) == 0
     assert commands(read_settings(tmp_path), "PreToolUse") == [PRE, ANY]
+    assert commands(read_settings(tmp_path), "Stop") == [STOP]
 
 
 def test_cli_hook_any_roundtrip(tmp_path, monkeypatch, capsys):
@@ -122,6 +129,45 @@ def test_cli_hook_any_roundtrip(tmp_path, monkeypatch, capsys):
     assert out["hookEventName"] == "PreToolUse"
     assert "slugify(value, *, unicode=False)" in out["additionalContext"]
     assert "blog.views.render_post" in out["additionalContext"]
+
+
+def test_cli_hook_stop_roundtrip(tmp_path, monkeypatch, capsys):
+    from airspace.types import CallSite
+
+    class Blocked:
+        def agent_of(self, task_id):
+            return "agent-b"
+
+        def edited_files(self, task_id):
+            return ["blog/views.py"]
+
+        def stop_check(self, task_id, calls):
+            assert calls == [("blog.views.render_post", "utils.text.slugify", site)]
+            return [{"symbol": "utils.text.slugify", "caller": "blog.views.render_post", "call": site.text,
+                     "old_sig": "slugify(value, allow_unicode=False)", "new_sig": "slugify(value, *, unicode=False)",
+                     "agent": "agent-a", "task": "sess-aaaa", "change_id": "cc"}], []
+
+        def last_block(self, task_id):
+            return None
+
+        def block_landing(self, task_id, fingerprint, caller):
+            pass
+
+        def pending_messages(self, agent_id, task_id=None):
+            return []
+
+    site = CallSite("blog.views.render_post", 1, ("allow_unicode",), False, False,
+                    text="slugify(t, allow_unicode=True)")
+    deps = fake_deps()
+    deps.airspace = lambda root: Blocked()
+    deps.calls = lambda root, rel, known: [("blog.views.render_post", "utils.text.slugify", site)]
+    monkeypatch.setattr(cli, "_deps", lambda: deps)
+    payload = {"session_id": "bbbb1111", "cwd": str(tmp_path), "hook_event_name": "Stop", "stop_hook_active": False}
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(payload)))
+    assert cli.main(["hook", "stop"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["decision"] == "block"
+    assert "slugify(value, *, unicode=False)" in out["reason"] and "slugify(t, allow_unicode=True)" in out["reason"]
 
 
 class HoldingAirspace:
