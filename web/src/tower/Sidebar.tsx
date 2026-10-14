@@ -23,7 +23,7 @@ export function AgentStatus({ agent }: { agent: AgentState }) {
 
 type Pending = { agent: string; error: string | null; busy: boolean }
 
-function AgentRow({ agent, look, api, onDone }: { agent: AgentState; look: AgentLook; api: TowerApi; onDone: () => void }) {
+function AgentRow({ agent, look, api, onDone, readOnly }: { agent: AgentState; look: AgentLook; api: TowerApi; onDone: () => void; readOnly: boolean }) {
   const [pending, setPending] = useState<Pending | null>(null)
   const busy = pending?.busy ?? false
   const verb = agent.paused ? 'Resume' : 'Pause'
@@ -53,16 +53,18 @@ function AgentRow({ agent, look, api, onDone }: { agent: AgentState; look: Agent
           </p>
           <p className="mt-0.5 flex items-center justify-between gap-2 text-[13px] text-muted">
             <span className="truncate">{claims === 1 ? '1 claim' : `${claims} claims`}</span>
-            <button
-              type="button"
-              onClick={toggle}
-              disabled={busy}
-              aria-label={`${verb} ${agent.id}`}
-              className="-mr-1 inline-flex h-6 items-center gap-1 rounded-[6px] px-1.5 text-[12.5px] font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-50"
-            >
-              {agent.paused ? <PlayCircle size={14} weight="bold" /> : <PauseCircle size={14} weight="bold" />}
-              {busy ? (agent.paused ? 'Resuming' : 'Pausing') : verb}
-            </button>
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={toggle}
+                disabled={busy}
+                aria-label={`${verb} ${agent.id}`}
+                className="-mr-1 inline-flex h-6 items-center gap-1 rounded-[6px] px-1.5 text-[12.5px] font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-50"
+              >
+                {agent.paused ? <PlayCircle size={14} weight="bold" /> : <PauseCircle size={14} weight="bold" />}
+                {busy ? (agent.paused ? 'Resuming' : 'Pausing') : verb}
+              </button>
+            )}
           </p>
         </div>
       </div>
@@ -98,7 +100,7 @@ function Activity({ events, looks }: { events: AirEvent[]; looks: Record<string,
   )
 }
 
-export function Sidebar({ agents, events, looks, api, onChanged }: { agents: AgentState[]; events: AirEvent[]; looks: Record<string, AgentLook>; api: TowerApi; onChanged: () => void }) {
+export function Sidebar({ agents, events, looks, api, onChanged, readOnly = false }: { agents: AgentState[]; events: AirEvent[]; looks: Record<string, AgentLook>; api: TowerApi; onChanged: () => void; readOnly?: boolean }) {
   return (
     <div className="p-3">
       <h2 className="flex items-baseline justify-between px-2.5 pt-1 pb-2 text-[12.5px] font-semibold text-muted">
@@ -106,7 +108,7 @@ export function Sidebar({ agents, events, looks, api, onChanged }: { agents: Age
       </h2>
       <ul className="space-y-1">
         {agents.map((a) => (
-          <AgentRow key={a.id} agent={a} look={looks[a.id] ?? fallbackLook} api={api} onDone={onChanged} />
+          <AgentRow key={a.id} agent={a} look={looks[a.id] ?? fallbackLook} api={api} onDone={onChanged} readOnly={readOnly} />
         ))}
       </ul>
       <h2 className="px-2.5 pt-6 pb-2 text-[12.5px] font-semibold text-muted">Activity</h2>

@@ -1,22 +1,25 @@
-import { ArrowClockwise } from '@phosphor-icons/react'
-import { useCallback, useEffect, useMemo, type ReactNode } from 'react'
+import { ArrowClockwise, Pause, Play } from '@phosphor-icons/react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Wordmark } from '../ui'
 import { clock, httpApi, shortName, type CollisionSummary, type RadarSymbol, type TowerApi } from './api'
 import { CollisionPanel, ResolutionSign } from './CollisionPanel'
 import { agentLooks, type AgentLook } from './layout'
 import { LiveRadar } from './LiveRadar'
-import { createMockApi, mockVariant } from './mock'
+import { createMockApi, mockReplay, mockVariant } from './mock'
 import { collisionPath, navigate } from './nav'
+import { duration, fetchMode, fetchReplay } from './replay'
 import { AgentName, Sidebar } from './Sidebar'
-import { useLive, type Conn } from './useLive'
+import { useLive, type Conn, type Live } from './useLive'
+import { useReplay, type Player } from './useReplay'
 
-const connWord: Record<Conn, { text: string; className: string }> = {
+const connWord: Record<Conn | 'replay', { text: string; className: string }> = {
   live: { text: 'Live', className: 'text-ok' },
   reconnecting: { text: 'Reconnecting', className: 'text-muted' },
   offline: { text: 'Offline', className: 'text-bad' },
+  replay: { text: 'Replay', className: 'text-muted' },
 }
 
-function TopBar({ repo, conn }: { repo?: string; conn: Conn | null }) {
+function TopBar({ repo, conn }: { repo?: string; conn: Conn | 'replay' | null }) {
   return (
     <header className="flex h-13 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4 sm:px-5">
       <div className="flex min-w-0 items-center gap-3 text-[14px]">
@@ -142,17 +145,65 @@ function CollisionList({ collisions, selected, looks, symbols }: { collisions: C
   )
 }
 
-export default function Tower({ collisionId }: { collisionId: string | null }) {
-  const api: TowerApi = useMemo(() => {
-    const v = mockVariant(window.location.search)
-    return v ? createMockApi(v) : httpApi
-  }, [])
-  const live = useLive(api)
-  const { state, radar, events, phase } = live
+function ReplayBar({ player, sample }: { player: Player; sample: boolean }) {
+  const { index, count, playing, elapsed, total, toggle, seek } = player
+  const progress = count > 1 ? (index / (count - 1)) * 100 : 100
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-line bg-surface px-4 py-2 sm:flex-nowrap sm:px-5">
+      <p className="shrink-0 text-[13.5px] font-semibold text-text">{sample ? 'Replay of a sample run' : 'Replay of a real run'}</p>
+      <div className="flex min-w-0 basis-full items-center gap-3 sm:flex-1 sm:basis-auto">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={playing ? 'Pause the replay' : 'Play the replay'}
+          className="grid size-8 shrink-0 place-items-center rounded-[7px] text-text shadow-[inset_0_0_0_1px_var(--line-strong)] transition-colors hover:bg-surface-2"
+        >
+          {playing ? <Pause size={14} weight="fill" /> : <Play size={14} weight="fill" />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={Math.max(0, count - 1)}
+          step={1}
+          value={index}
+          onChange={(e) => seek(Number(e.target.value))}
+          aria-label="Replay position"
+          aria-valuetext={`Event ${index + 1} of ${count}, ${duration(elapsed)} into the run`}
+          className="scrub min-w-0 flex-1"
+          style={{ '--p': `${progress}%` } as CSSProperties}
+        />
+        <span className="shrink-0 text-[13px] text-muted tabular-nums">
+          {duration(elapsed)} <span className="text-faint">/ {duration(total)}</span>
+        </span>
+      </div>
+      <p className="hidden shrink-0 text-[13px] text-faint xl:block">Controls are off while a recording plays.</p>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    document.title = 'Tower | Airspace'
-  }, [])
+function RetryButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-5 inline-flex h-9 items-center gap-2 rounded-[8px] px-3 text-[13.5px] font-semibold text-text shadow-[inset_0_0_0_1px_var(--line-strong)] transition-colors hover:bg-surface-2"
+    >
+      <ArrowClockwise size={15} weight="bold" /> Try again
+    </button>
+  )
+}
+
+type ViewProps = {
+  live: Live
+  api: TowerApi
+  collisionId: string | null
+  /** A recording: actions are off and the replay bar sits under the top bar. */
+  replay?: { player: Player; sample: boolean }
+}
+
+function TowerView({ live, api, collisionId, replay }: ViewProps) {
+  const { state, radar, events, phase } = live
+  const readOnly = !!replay
 
   const looks = useMemo(
     () => agentLooks([...(state?.agents.map((a) => a.id) ?? []), ...(radar?.agents.map((a) => a.id) ?? []), ...events.map((e) => e.agent)]),
@@ -175,21 +226,23 @@ export default function Tower({ collisionId }: { collisionId: string | null }) {
 
   let body: ReactNode
   if (phase === 'loading') body = <Skeleton />
+  else if (phase === 'error' && replay)
+    body = (
+      <Notice title="Tower could not load the replay.">
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">The server has no recording, or it did not answer.</p>
+        <RetryButton onClick={live.retry} />
+      </Notice>
+    )
   else if (phase === 'error')
     body = (
       <Notice title="Tower cannot reach the Airspace server on port 8787.">
         <p className="mt-2 text-[15px] leading-relaxed text-muted">Start it from the repo:</p>
         <Commands lines={['airspace serve --root .']} />
-        <button
-          type="button"
-          onClick={live.retry}
-          className="mt-5 inline-flex h-9 items-center gap-2 rounded-[8px] px-3 text-[13.5px] font-semibold text-text shadow-[inset_0_0_0_1px_var(--line-strong)] transition-colors hover:bg-surface-2"
-        >
-          <ArrowClockwise size={15} weight="bold" /> Try again
-        </button>
+        <RetryButton onClick={live.retry} />
       </Notice>
     )
-  else if (empty)
+  else if (replay && replay.player.count === 0) body = <Notice title="This recording has no events yet." />
+  else if (empty && !replay)
     body = (
       <Notice title="No agents are flying yet.">
         <p className="mt-2 text-[15px] leading-relaxed text-muted">Index the repo and install the hooks:</p>
@@ -203,7 +256,7 @@ export default function Tower({ collisionId }: { collisionId: string | null }) {
     body = (
       <div className="flex flex-1 flex-col lg:grid lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="order-2 border-t border-line bg-surface lg:order-1 lg:min-h-0 lg:overflow-y-auto lg:border-t-0 lg:border-r">
-          <Sidebar agents={agents} events={events} looks={looks} api={api} onChanged={live.refresh} />
+          <Sidebar agents={agents} events={events} looks={looks} api={api} onChanged={live.refresh} readOnly={readOnly} />
         </aside>
         <main className={`order-1 flex flex-col lg:order-2 lg:min-h-0 lg:overflow-y-auto ${collisionId ? 'xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:overflow-hidden' : ''}`}>
           <section className="min-w-0 px-4 pt-5 pb-8 sm:px-8 xl:min-h-0 xl:overflow-y-auto" aria-label="Radar">
@@ -219,7 +272,7 @@ export default function Tower({ collisionId }: { collisionId: string | null }) {
           </section>
           {collisionId && (
             <section className="min-w-0 border-y border-line bg-surface xl:min-h-0 xl:overflow-y-auto xl:border-y-0 xl:border-l" aria-label="Collision">
-              <CollisionPanel key={collisionId} id={collisionId} api={api} tick={live.tick} agents={agents} looks={looks} symbols={radar?.symbols} onClose={close} onChanged={live.refresh} />
+              <CollisionPanel key={collisionId} id={collisionId} api={api} tick={live.tick} agents={agents} looks={looks} symbols={radar?.symbols} onClose={close} onChanged={live.refresh} readOnly={readOnly} />
             </section>
           )}
         </main>
@@ -229,8 +282,76 @@ export default function Tower({ collisionId }: { collisionId: string | null }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text lg:h-dvh">
-      <TopBar repo={state?.repo} conn={phase === 'loading' ? null : live.conn} />
+      <TopBar repo={state?.repo} conn={phase === 'loading' ? null : replay ? 'replay' : live.conn} />
+      {replay && phase === 'ready' && replay.player.count > 0 && <ReplayBar player={replay.player} sample={replay.sample} />}
       {body}
     </div>
   )
+}
+
+function LiveTower({ api, collisionId }: { api: TowerApi; collisionId: string | null }) {
+  const live = useLive(api)
+  return <TowerView live={live} api={api} collisionId={collisionId} />
+}
+
+const MODE_POLL_MS = 15000
+const loadSample = async () => mockReplay()
+
+function ReplayTower({ sample, collisionId, onLive }: { sample: boolean; collisionId: string | null; onLive?: () => void }) {
+  const { live, player, api } = useReplay(sample ? loadSample : fetchReplay)
+
+  // A deployed Tower plays the recording while nothing flies, and goes live once an agent does.
+  useEffect(() => {
+    if (!onLive) return
+    const t = window.setInterval(() => {
+      fetchMode()
+        .then((m) => m === 'live' && onLive())
+        .catch(() => {})
+    }, MODE_POLL_MS)
+    return () => window.clearInterval(t)
+  }, [onLive])
+
+  return <TowerView live={live} api={api} collisionId={collisionId} replay={{ player, sample }} />
+}
+
+type Mode = { kind: 'live'; api: TowerApi } | { kind: 'replay'; sample: boolean; forced: boolean } | { kind: 'deciding' }
+
+function firstMode(search: string): Mode {
+  const variant = mockVariant(search)
+  if (variant === 'replay') return { kind: 'replay', sample: true, forced: true }
+  if (variant) return { kind: 'live', api: createMockApi(variant) }
+  if (new URLSearchParams(search).get('replay') === '1') return { kind: 'replay', sample: false, forced: true }
+  return { kind: 'deciding' }
+}
+
+export default function Tower({ collisionId }: { collisionId: string | null }) {
+  const [mode, setMode] = useState<Mode>(() => firstMode(window.location.search))
+
+  useEffect(() => {
+    document.title = 'Tower | Airspace'
+  }, [])
+
+  // Ask the server whether to play its recording. A server without /api/mode, or none at all, means live.
+  useEffect(() => {
+    if (mode.kind !== 'deciding') return
+    let alive = true
+    fetchMode()
+      .then((m) => alive && setMode(m === 'replay' ? { kind: 'replay', sample: false, forced: false } : { kind: 'live', api: httpApi }))
+      .catch(() => alive && setMode({ kind: 'live', api: httpApi }))
+    return () => {
+      alive = false
+    }
+  }, [mode.kind])
+
+  const goLive = useCallback(() => setMode({ kind: 'live', api: httpApi }), [])
+
+  if (mode.kind === 'deciding')
+    return (
+      <div className="flex min-h-dvh flex-col bg-bg text-text lg:h-dvh">
+        <TopBar conn={null} />
+        <Skeleton />
+      </div>
+    )
+  if (mode.kind === 'replay') return <ReplayTower sample={mode.sample} collisionId={collisionId} onLive={mode.forced ? undefined : goLive} />
+  return <LiveTower api={mode.api} collisionId={collisionId} />
 }

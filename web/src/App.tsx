@@ -11,6 +11,7 @@ import { WhyGraph } from './sections/WhyGraph'
 import { collisionIdFrom } from './tower/nav'
 
 const Tower = lazy(() => import('./tower/Tower'))
+const Playground = lazy(() => import('./playground/Playground'))
 
 /** The path, kept in sync with pushState navigation and the back button. */
 function usePathname() {
@@ -50,6 +51,13 @@ export default function App() {
     return (
       <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
         <Tower collisionId={collisionIdFrom(path)} />
+      </Suspense>
+    )
+  }
+  if (path === '/playground' || path === '/playground/') {
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
+        <Playground />
       </Suspense>
     )
   }

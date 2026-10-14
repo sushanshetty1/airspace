@@ -72,6 +72,7 @@ export function CollisionPanel({
   symbols,
   onClose,
   onChanged,
+  readOnly = false,
 }: {
   id: string
   api: TowerApi
@@ -81,6 +82,8 @@ export function CollisionPanel({
   symbols?: Record<string, RadarSymbol>
   onClose: () => void
   onChanged: () => void
+  /** A recording: the actions are replaced by one line saying why. */
+  readOnly?: boolean
 }) {
   const [detail, setDetail] = useState<{ id: string; data: CollisionDetail | null } | null>(null)
   const [loadError, setLoadError] = useState(false)
@@ -242,52 +245,61 @@ export function CollisionPanel({
           </dl>
         )}
 
-        <form className="px-5 py-5" onSubmit={send} noValidate>
-          <label htmlFor={fieldId} className="text-[13px] font-semibold text-muted">
-            Message <span className="font-mono font-medium">{c.held_agent}</span>
-          </label>
-          <textarea
-            id={fieldId}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value)
-              if (textError) setTextError(null)
-            }}
-            rows={3}
-            placeholder={hasSigs ? `Use the new signature: ${c.new_sig}` : 'What should it do instead?'}
-            aria-invalid={!!textError || over}
-            aria-describedby={`${fieldId}-hint`}
-            className={`mt-2 block w-full resize-y rounded-[8px] bg-bg px-3 py-2.5 text-[14px] leading-relaxed text-text placeholder:text-faint focus:outline-none focus-visible:outline-none ${
-              textError || over ? 'shadow-[inset_0_0_0_1px_var(--bad)]' : 'shadow-[inset_0_0_0_1px_var(--line-strong)] focus:shadow-[inset_0_0_0_1px_var(--muted)]'
-            }`}
-          />
-          <div className="mt-3 flex items-center gap-3">
-            <p id={`${fieldId}-hint`} className="min-w-0 flex-1 text-[12.5px] leading-snug text-bad" aria-live="polite">
-              {textError ?? (over ? `Messages can be up to ${MESSAGE_MAX} characters.` : '')}
-            </p>
-            <span className={`shrink-0 font-mono text-[11.5px] ${over ? 'text-bad' : 'text-faint'}`}>
-              {text.length}/{MESSAGE_MAX}
-            </span>
-            <Action type="submit" primary disabled={busy !== null}>
-              <ChatCircleText size={16} weight="bold" /> {busy === 'message' ? 'Sending' : 'Send'}
-            </Action>
-          </div>
-        </form>
-
-        <section className="px-5 py-5">
-          <div className="flex flex-wrap gap-2">
-            <Action onClick={release} disabled={!held || busy !== null}>
-              <LockOpen size={16} weight="bold" /> {busy === 'release' ? 'Releasing' : 'Release hold'}
-            </Action>
-            <Action onClick={togglePause} disabled={busy !== null || !owner}>
-              {ownerPaused ? <PlayCircle size={16} weight="bold" /> : <PauseCircle size={16} weight="bold" />}
-              {busy === 'pause' ? (ownerPaused ? 'Resuming' : 'Pausing') : `${ownerPaused ? 'Resume' : 'Pause'} ${c.owner_agent}`}
-            </Action>
-          </div>
-          <p className={`mt-3 min-h-[20px] text-[13.5px] leading-relaxed ${feedback?.tone === 'bad' ? 'text-bad' : feedback?.tone === 'ok' ? 'text-text' : 'text-muted'}`} aria-live="polite">
-            {feedback?.text ?? (held ? `Send ${c.held_agent} the fix, or release the hold yourself.` : c.resolution === 'released' ? 'The hold was released from Tower.' : `${c.held_agent} cleared this collision.`)}
+        {readOnly ? (
+          <p className="px-5 py-5 text-[13.5px] leading-relaxed text-muted">
+            {held ? `${c.held_agent} is held at this point of the run. ` : c.resolution === 'released' ? 'The hold was released from Tower. ' : `${c.held_agent} cleared this collision. `}
+            Message, release and pause are off while a recording plays.
           </p>
-        </section>
+        ) : (
+          <>
+            <form className="px-5 py-5" onSubmit={send} noValidate>
+              <label htmlFor={fieldId} className="text-[13px] font-semibold text-muted">
+                Message <span className="font-mono font-medium">{c.held_agent}</span>
+              </label>
+              <textarea
+                id={fieldId}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value)
+                  if (textError) setTextError(null)
+                }}
+                rows={3}
+                placeholder={hasSigs ? `Use the new signature: ${c.new_sig}` : 'What should it do instead?'}
+                aria-invalid={!!textError || over}
+                aria-describedby={`${fieldId}-hint`}
+                className={`mt-2 block w-full resize-y rounded-[8px] bg-bg px-3 py-2.5 text-[14px] leading-relaxed text-text placeholder:text-faint focus:outline-none focus-visible:outline-none ${
+                  textError || over ? 'shadow-[inset_0_0_0_1px_var(--bad)]' : 'shadow-[inset_0_0_0_1px_var(--line-strong)] focus:shadow-[inset_0_0_0_1px_var(--muted)]'
+                }`}
+              />
+              <div className="mt-3 flex items-center gap-3">
+                <p id={`${fieldId}-hint`} className="min-w-0 flex-1 text-[12.5px] leading-snug text-bad" aria-live="polite">
+                  {textError ?? (over ? `Messages can be up to ${MESSAGE_MAX} characters.` : '')}
+                </p>
+                <span className={`shrink-0 font-mono text-[11.5px] ${over ? 'text-bad' : 'text-faint'}`}>
+                  {text.length}/{MESSAGE_MAX}
+                </span>
+                <Action type="submit" primary disabled={busy !== null}>
+                  <ChatCircleText size={16} weight="bold" /> {busy === 'message' ? 'Sending' : 'Send'}
+                </Action>
+              </div>
+            </form>
+
+            <section className="px-5 py-5">
+              <div className="flex flex-wrap gap-2">
+                <Action onClick={release} disabled={!held || busy !== null}>
+                  <LockOpen size={16} weight="bold" /> {busy === 'release' ? 'Releasing' : 'Release hold'}
+                </Action>
+                <Action onClick={togglePause} disabled={busy !== null || !owner}>
+                  {ownerPaused ? <PlayCircle size={16} weight="bold" /> : <PauseCircle size={16} weight="bold" />}
+                  {busy === 'pause' ? (ownerPaused ? 'Resuming' : 'Pausing') : `${ownerPaused ? 'Resume' : 'Pause'} ${c.owner_agent}`}
+                </Action>
+              </div>
+              <p className={`mt-3 min-h-[20px] text-[13.5px] leading-relaxed ${feedback?.tone === 'bad' ? 'text-bad' : feedback?.tone === 'ok' ? 'text-text' : 'text-muted'}`} aria-live="polite">
+                {feedback?.text ?? (held ? `Send ${c.held_agent} the fix, or release the hold yourself.` : c.resolution === 'released' ? 'The hold was released from Tower.' : `${c.held_agent} cleared this collision.`)}
+              </p>
+            </section>
+          </>
+        )}
       </div>
     </div>
   )

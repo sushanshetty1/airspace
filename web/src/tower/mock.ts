@@ -1,15 +1,17 @@
 // Sample data for Tower without a server: /tower?mock=1 (the marketing story),
 // ?mock=4 (four agents), ?mock=empty, ?mock=error and ?mock=loading.
+// ?mock=replay plays a short sample run through the replay player.
 // The mock answers actions too, so pause, release and message can be tried.
 
 import { ApiError, type AgentState, type AirEvent, type CollisionDetail, type RadarAgent, type RadarData, type RadarSymbol, type StateData, type TowerApi } from './api'
+import type { ReplayDoc, ReplayFrame } from './replay'
 
-export type MockVariant = 'story' | 'four' | 'empty' | 'error' | 'loading'
+export type MockVariant = 'story' | 'four' | 'empty' | 'error' | 'loading' | 'replay'
 
 export function mockVariant(search: string): MockVariant | null {
   const v = new URLSearchParams(search).get('mock')
   if (v === null) return null
-  if (v === 'empty' || v === 'error' || v === 'loading') return v
+  if (v === 'empty' || v === 'error' || v === 'loading' || v === 'replay') return v
   if (v === '4' || v === 'four') return 'four'
   return 'story'
 }
@@ -292,4 +294,48 @@ export function createMockApi(variant: MockVariant): TowerApi {
       }
     },
   }
+}
+
+/** ?mock=replay: the story as a recorded run, from the two plans to agent-b's cleared retry. */
+export function mockReplay(): ReplayDoc {
+  const story = storyWorld(false)
+  const t0 = at(10, 42, 3)
+  const ev = (n: number, dt: number, kind: AirEvent['kind'], who: string, text: string, code: string): AirEvent => ({ id: `r${n}`, at: t0 + dt, kind, agent: who, task: `${who}-task`, text, code })
+  const events: AirEvent[] = [
+    ev(1, 0, 'plan', 'agent-a', 'filed a plan for', 'utils.text.slugify'),
+    ev(2, 2, 'plan', 'agent-b', 'filed a plan for', 'blog.views.render_post'),
+    ev(3, 16, 'cleared', 'agent-a', 'was cleared to edit', 'utils.text.slugify'),
+    ev(4, 17, 'contract', 'agent-a', 'changed the signature of', 'utils.text.slugify'),
+    ev(5, 28, 'hold', 'agent-b', 'was held editing', 'blog.views.render_post'),
+    ev(6, 28.2, 'briefed', 'agent-b', 'got the new signature of', 'utils.text.slugify'),
+    ev(7, 51, 'cleared', 'agent-b', 'was cleared to edit', 'blog.views.render_post'),
+    ev(8, 51.1, 'resolved', 'agent-b', 'cleared the collision at', 'utils.text.slugify'),
+  ]
+  const c = { ...story.collisions.c_0007, at: events[4].at }
+  const a = agent('agent-a', ['utils.text.slugify'])
+  const b = agent('agent-b', ['blog.views.render_post'])
+  const frame = (e: AirEvent, agents: AgentState[], radarAgents: RadarAgent[], res: CollisionDetail['resolution'] | null): ReplayFrame => ({
+    at: e.at,
+    state: {
+      now: e.at,
+      repo: 'blog-api',
+      agents: clone(agents),
+      collisions: res ? [{ id: c.id, at: c.at, kind: c.kind, symbol: c.symbol, held_agent: c.held_agent, owner_agent: c.owner_agent, resolution: res }] : [],
+    },
+    radar: {
+      agents: clone(radarAgents),
+      symbols: storySymbols,
+      edges: storyEdges,
+      collision: res ? { id: c.id, symbol: c.symbol, caller: c.caller, held_agent: c.held_agent, owner_agent: c.owner_agent, resolution: res } : null,
+    },
+  })
+  const frames = [
+    frame(events[0], [a], [radarA], null),
+    frame(events[1], [a, b], [radarA, radarB], null),
+    frame(events[2], [a, b], [radarA, radarB], null),
+    frame(events[3], [a, b], [radarA, radarB], null),
+    frame(events[5], [a, { ...b, held: true }], [radarA, radarB], 'held'),
+    frame(events[7], [a, b], [radarA, radarB], 'resolved'),
+  ]
+  return { version: 1, recorded_at: events[7].at + 5, events, frames, collisions: { [c.id]: { ...c, resolution: 'resolved' } } }
 }

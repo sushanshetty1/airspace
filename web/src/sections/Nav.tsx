@@ -1,7 +1,7 @@
 import { GithubLogo, List, Moon, Sun, X } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { ButtonLink, Container, REPO_URL, Wordmark } from '../ui'
+import { ButtonLink, Container, REPO_URL, sectionHref, Wordmark } from '../ui'
 
 type Theme = 'light' | 'dark'
 
@@ -67,11 +67,12 @@ function useActiveSection() {
 export function Nav() {
   const active = useActiveSection()
   const [open, setOpen] = useState(false)
+  const onPlayground = window.location.pathname.startsWith('/playground')
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/[0.97] backdrop-blur-md">
       <Container className="flex h-16 items-center justify-between gap-6">
-        <a href="#top" aria-label="Airspace home">
+        <a href={sectionHref('top')} aria-label="Airspace home">
           <Wordmark />
         </a>
 
@@ -81,7 +82,7 @@ export function Nav() {
             return (
               <a
                 key={l.id}
-                href={`#${l.id}`}
+                href={sectionHref(l.id)}
                 aria-current={on ? 'true' : undefined}
                 className={`relative flex items-center px-3.5 text-[14.5px] font-medium transition-colors ${on ? 'text-text' : 'text-muted hover:text-text'}`}
               >
@@ -90,6 +91,14 @@ export function Nav() {
               </a>
             )
           })}
+          <a
+            href="/playground"
+            aria-current={onPlayground ? 'page' : undefined}
+            className={`relative flex items-center px-3.5 text-[14.5px] font-medium transition-colors ${onPlayground ? 'text-text' : 'text-muted hover:text-text'}`}
+          >
+            Playground
+            {onPlayground && <span className="absolute inset-x-4 -bottom-px h-[2px] bg-accent" />}
+          </a>
         </nav>
 
         <div className="flex items-center gap-1">
@@ -97,7 +106,7 @@ export function Nav() {
           <a href={REPO_URL} className="grid size-9 place-items-center text-muted transition-colors hover:text-text" aria-label="View on GitHub">
             <GithubLogo size={19} weight="bold" />
           </a>
-          <ButtonLink href="#tower" className="ml-2 h-9 px-3.5 text-[14px] max-sm:hidden">
+          <ButtonLink href={sectionHref('tower')} className="ml-2 h-9 px-3.5 text-[14px] max-sm:hidden">
             See it run
           </ButtonLink>
           <button
@@ -124,10 +133,13 @@ export function Nav() {
           >
             <Container className="flex flex-col py-3">
               {links.map((l) => (
-                <a key={l.id} href={`#${l.id}`} onClick={() => setOpen(false)} className="border-b border-line py-3.5 text-[16px] font-medium text-text last:border-b-0">
+                <a key={l.id} href={sectionHref(l.id)} onClick={() => setOpen(false)} className="border-b border-line py-3.5 text-[16px] font-medium text-text last:border-b-0">
                   {l.label}
                 </a>
               ))}
+              <a href="/playground" aria-current={onPlayground ? 'page' : undefined} className="py-3.5 text-[16px] font-medium text-text">
+                Playground
+              </a>
             </Container>
           </motion.nav>
         )}

@@ -3,6 +3,9 @@ import { useId, type ComponentProps, type ReactNode } from 'react'
 export const REPO_URL = 'https://github.com/sushanshetty1/airspace'
 export const PAPER_URL = 'https://arxiv.org/abs/2609.25396'
 
+/** A link to a home page section, from the home page or from another page such as /playground. */
+export const sectionHref = (id: string) => (window.location.pathname === '/' ? `#${id}` : `/#${id}`)
+
 /** Two overlapping airspaces; the orange lens is where they meet. */
 export function LogoMark({ className = 'h-6 w-auto' }: { className?: string }) {
   const clip = `logo${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
