@@ -202,7 +202,7 @@ def test_briefing_context_lists_every_briefing():
     text = briefing_context([SLUGIFY_BRIEFING, other])
     assert "utils.text.slugify" in text and "utils.text.truncate_words" in text
     assert "agent-a" in text and "agent-c" in text
-    assert "—" not in text and "–" not in text
+    assert chr(0x2014) not in text and chr(0x2013) not in text
 
 
 def test_pre_hook_fails_open_when_db_down(tmp_path, capsys):
