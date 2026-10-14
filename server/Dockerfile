@@ -22,6 +22,12 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
+# Flask at a pinned commit (BSD-3-Clause, licence kept): the real repo pre-flight and the playground run on.
+FROM ${PYTHON_IMAGE} AS flask
+ARG FLASK_COMMIT=d086db856be187255b8ec61ef409357393020f32
+ADD https://github.com/pallets/flask/archive/${FLASK_COMMIT}.tar.gz /tmp/flask.tar.gz
+RUN mkdir /flask && tar -xzf /tmp/flask.tar.gz -C /flask --strip-components=1
+
 FROM ${PYTHON_IMAGE} AS runtime
 RUN groupadd --system --gid 10001 airspace \
  && useradd --system --uid 10001 --gid airspace --create-home --home-dir /home/airspace airspace
@@ -29,6 +35,7 @@ RUN groupadd --system --gid 10001 airspace \
 COPY --from=build /app/.venv /app/.venv
 # The demo repository the deployed Tower shows: indexed on start by the entrypoint.
 COPY --chown=airspace:airspace tests/fixtures/blog /data/repo
+COPY --from=flask --chown=airspace:airspace /flask /data/flask
 COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # A recording of a real run, played by Tower when no agents are flying.
 COPY demo /app/demo
@@ -40,6 +47,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     AIRSPACE_ROOT=/data/repo \
     AIRSPACE_REPLAY=/app/demo/replay.json \
     AIRSPACE_PLAYGROUND_REPO=/data/repo \
+    AIRSPACE_FLASK_REPO=/data/flask \
     AIRSPACE_FORWARDED_IPS=*
 
 USER airspace
