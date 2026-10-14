@@ -1,6 +1,7 @@
 import { GithubLogo, List, Moon, Sun, X } from '@phosphor-icons/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
+import { AccountButton, AccountMenuLink, SignInLink } from '../account/AccountNav'
 import { ButtonLink, Container, REPO_URL, sectionHref, Wordmark } from '../ui'
 
 type Theme = 'light' | 'dark'
@@ -106,9 +107,11 @@ export function Nav() {
           <a href={REPO_URL} className="grid size-9 place-items-center text-muted transition-colors hover:text-text" aria-label="View on GitHub">
             <GithubLogo size={19} weight="bold" />
           </a>
+          <SignInLink />
           <ButtonLink href={sectionHref('tower')} className="ml-2 h-9 px-3.5 text-[14px] max-sm:hidden">
             See it run
           </ButtonLink>
+          <AccountButton />
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
@@ -140,6 +143,7 @@ export function Nav() {
               <a href="/playground" aria-current={onPlayground ? 'page' : undefined} className="py-3.5 text-[16px] font-medium text-text">
                 Playground
               </a>
+              <AccountMenuLink onNavigate={() => setOpen(false)} />
             </Container>
           </motion.nav>
         )}

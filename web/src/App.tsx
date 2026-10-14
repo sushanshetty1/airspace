@@ -8,10 +8,12 @@ import { Problem } from './sections/Problem'
 import { Proof } from './sections/Proof'
 import { TowerDemo } from './sections/TowerDemo'
 import { WhyGraph } from './sections/WhyGraph'
-import { collisionIdFrom } from './tower/nav'
+import { collisionIdFrom, workspaceIdFrom } from './tower/nav'
 
 const Tower = lazy(() => import('./tower/Tower'))
+const WorkspaceTower = lazy(() => import('./tower/WorkspaceTower'))
 const Playground = lazy(() => import('./playground/Playground'))
+const AppPage = lazy(() => import('./account/AppPage'))
 
 /** The path, kept in sync with pushState navigation and the back button. */
 function usePathname() {
@@ -51,6 +53,21 @@ export default function App() {
     return (
       <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
         <Tower collisionId={collisionIdFrom(path)} />
+      </Suspense>
+    )
+  }
+  const workspace = workspaceIdFrom(path)
+  if (workspace) {
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
+        <WorkspaceTower id={workspace} collisionId={collisionIdFrom(path)} />
+      </Suspense>
+    )
+  }
+  if (path === '/app' || path === '/app/') {
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-bg" />}>
+        <AppPage />
       </Suspense>
     )
   }

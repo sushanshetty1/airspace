@@ -1,13 +1,15 @@
 import { ArrowClockwise, Pause, Play } from '@phosphor-icons/react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { Wordmark } from '../ui'
-import { clock, httpApi, shortName, type CollisionSummary, type RadarSymbol, type TowerApi } from './api'
+import { connectCommands } from '../account/api'
+import { LogoMark, Wordmark } from '../ui'
+import { clock, createHttpApi, httpApi, shortName, type CollisionSummary, type RadarSymbol, type TowerApi } from './api'
 import { CollisionPanel, ResolutionSign } from './CollisionPanel'
 import { agentLooks, type AgentLook } from './layout'
 import { LiveRadar } from './LiveRadar'
 import { createMockApi, mockReplay, mockVariant } from './mock'
-import { collisionPath, navigate } from './nav'
+import { collisionPath, navigate, workspacePath } from './nav'
 import { duration, fetchMode, fetchReplay } from './replay'
+import { CommandLines } from './CommandLines'
 import { AgentName, Sidebar } from './Sidebar'
 import { useLive, type Conn, type Live } from './useLive'
 import { useReplay, type Player } from './useReplay'
@@ -19,36 +21,60 @@ const connWord: Record<Conn | 'replay', { text: string; className: string }> = {
   replay: { text: 'Replay', className: 'text-muted' },
 }
 
-function TopBar({ repo, conn }: { repo?: string; conn: Conn | 'replay' | null }) {
+/** A hosted workspace's Tower: its own graph, always live. */
+export type TowerWorkspace = { id: string; name: string }
+
+export function TopBar({ repo, conn, workspace }: { repo?: string; conn: Conn | 'replay' | null; workspace?: TowerWorkspace }) {
+  const crumb = workspace ? workspace.name : repo
   return (
     <header className="flex h-13 shrink-0 items-center justify-between gap-4 border-b border-line bg-surface px-4 sm:px-5">
       <div className="flex min-w-0 items-center gap-3 text-[14px]">
         <a href="/" className="shrink-0 rounded-[6px]" aria-label="Airspace home">
-          <Wordmark />
+          {workspace ? (
+            <>
+              <Wordmark className="max-sm:hidden" />
+              <LogoMark className="h-[19px] w-auto text-text sm:hidden" />
+            </>
+          ) : (
+            <Wordmark />
+          )}
         </a>
         <span className="text-faint" aria-hidden="true">
           /
         </span>
         <span className="font-semibold text-text">Tower</span>
-        {repo && (
+        {crumb && (
           <>
             <span className="text-faint" aria-hidden="true">
               /
             </span>
-            <span className="truncate text-muted">{repo}</span>
+            <span className={`truncate ${workspace ? 'font-medium text-text' : 'text-muted'}`}>{crumb}</span>
           </>
         )}
       </div>
-      {conn && (
-        <p className={`shrink-0 text-[13px] font-semibold ${connWord[conn].className}`} aria-live="polite">
-          {connWord[conn].text}
-        </p>
-      )}
+      <div className="flex shrink-0 items-center gap-4">
+        {conn && (
+          <p className={`text-[13px] font-semibold ${connWord[conn].className}`} aria-live="polite">
+            {connWord[conn].text}
+          </p>
+        )}
+        {workspace && (
+          <a href="/app" className="text-[13.5px] font-medium text-muted transition-colors hover:text-text">
+            Workspaces
+          </a>
+        )}
+      </div>
     </header>
   )
 }
 
-function Commands({ lines }: { lines: string[] }) {
+export function Commands({ lines, wrap = false }: { lines: string[]; wrap?: boolean }) {
+  if (wrap)
+    return (
+      <pre className="mt-5 rounded-[10px] border border-line bg-surface px-4 py-3.5 text-left font-mono text-[13px] leading-[1.9] whitespace-normal text-text">
+        <CommandLines lines={lines} />
+      </pre>
+    )
   return (
     <pre className="mt-5 overflow-x-auto rounded-[10px] border border-line bg-surface px-4 py-3.5 text-left font-mono text-[13px] leading-[1.9] text-text">
       {lines.join('\n')}
@@ -66,7 +92,7 @@ function EmptyScope() {
   )
 }
 
-function Notice({ title, children }: { title: string; children?: ReactNode }) {
+export function Notice({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-1 items-start justify-center px-5 py-16 sm:items-center sm:py-24">
       <div className="w-full max-w-[440px]">
@@ -78,7 +104,7 @@ function Notice({ title, children }: { title: string; children?: ReactNode }) {
   )
 }
 
-function Skeleton() {
+export function Skeleton() {
   return (
     <div className="flex flex-1 flex-col lg:grid lg:min-h-0 lg:grid-cols-[280px_minmax(0,1fr)]" aria-busy="true" aria-label="Loading Tower">
       <aside className="order-2 border-t border-line bg-surface p-3 lg:order-1 lg:border-t-0 lg:border-r">
@@ -115,7 +141,19 @@ function Skeleton() {
   )
 }
 
-function CollisionList({ collisions, selected, looks, symbols }: { collisions: CollisionSummary[]; selected: string | null; looks: Record<string, AgentLook>; symbols?: Record<string, RadarSymbol> }) {
+function CollisionList({
+  collisions,
+  selected,
+  looks,
+  symbols,
+  base,
+}: {
+  collisions: CollisionSummary[]
+  selected: string | null
+  looks: Record<string, AgentLook>
+  symbols?: Record<string, RadarSymbol>
+  base: string
+}) {
   if (!collisions.length) return null
   return (
     <section className="mx-auto mt-6 w-full max-w-[960px]">
@@ -125,7 +163,7 @@ function CollisionList({ collisions, selected, looks, symbols }: { collisions: C
           <li key={c.id} className={i > 0 ? 'border-t border-line' : ''}>
             <button
               type="button"
-              onClick={() => navigate(collisionPath(c.id))}
+              onClick={() => navigate(collisionPath(c.id, base))}
               aria-current={selected === c.id ? 'true' : undefined}
               className={`flex w-full items-center gap-3 px-4 py-3 text-left text-[13.5px] transition-colors hover:bg-surface-2 ${selected === c.id ? 'bg-surface-2' : ''}`}
             >
@@ -199,9 +237,10 @@ type ViewProps = {
   collisionId: string | null
   /** A recording: actions are off and the replay bar sits under the top bar. */
   replay?: { player: Player; sample: boolean }
+  workspace?: TowerWorkspace
 }
 
-function TowerView({ live, api, collisionId, replay }: ViewProps) {
+function TowerView({ live, api, collisionId, replay, workspace }: ViewProps) {
   const { state, radar, events, phase } = live
   const readOnly = !!replay
 
@@ -210,8 +249,9 @@ function TowerView({ live, api, collisionId, replay }: ViewProps) {
     [state, radar, events],
   )
 
-  const openCollision = useCallback((id: string) => navigate(collisionPath(id)), [])
-  const close = useCallback(() => navigate('/tower'), [])
+  const base = workspace ? workspacePath(workspace.id) : '/tower'
+  const openCollision = useCallback((id: string) => navigate(collisionPath(id, base)), [base])
+  const close = useCallback(() => navigate(base), [base])
 
   useEffect(() => {
     if (!collisionId) return
@@ -233,6 +273,13 @@ function TowerView({ live, api, collisionId, replay }: ViewProps) {
         <RetryButton onClick={live.retry} />
       </Notice>
     )
+  else if (phase === 'error' && workspace)
+    body = (
+      <Notice title="Tower could not load this workspace.">
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">The server did not answer, or your session ended. Tower keeps trying.</p>
+        <RetryButton onClick={live.retry} />
+      </Notice>
+    )
   else if (phase === 'error')
     body = (
       <Notice title="Tower cannot reach the Airspace server on port 8787.">
@@ -242,6 +289,20 @@ function TowerView({ live, api, collisionId, replay }: ViewProps) {
       </Notice>
     )
   else if (replay && replay.player.count === 0) body = <Notice title="This recording has no events yet." />
+  else if (empty && workspace)
+    body = (
+      <Notice title="No agents are flying yet.">
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">Connect your repo to this workspace with its key, and install the hooks:</p>
+        <Commands lines={connectCommands('ask_...')} wrap />
+        <p className="mt-5 text-[15px] leading-relaxed text-muted">
+          Use the key you got when you made the workspace. Lost it? Make a new one on the{' '}
+          <a href="/app" className="font-medium text-text underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-text">
+            workspaces page
+          </a>
+          . Then start two Claude Code sessions in the repo.
+        </p>
+      </Notice>
+    )
   else if (empty && !replay)
     body = (
       <Notice title="No agents are flying yet.">
@@ -268,7 +329,7 @@ function TowerView({ live, api, collisionId, replay }: ViewProps) {
               </p>
             </div>
             <div className="mt-4 sm:mt-6">{radar && radar.agents.length > 0 ? <LiveRadar radar={radar} state={state} looks={looks} onOpenCollision={openCollision} /> : <p className="py-16 text-center text-[14px] text-muted">No airspace to draw yet.</p>}</div>
-            <CollisionList collisions={state?.collisions ?? []} selected={collisionId} looks={looks} symbols={radar?.symbols} />
+            <CollisionList collisions={state?.collisions ?? []} selected={collisionId} looks={looks} symbols={radar?.symbols} base={base} />
           </section>
           {collisionId && (
             <section className="min-w-0 border-y border-line bg-surface xl:min-h-0 xl:overflow-y-auto xl:border-y-0 xl:border-l" aria-label="Collision">
@@ -282,16 +343,25 @@ function TowerView({ live, api, collisionId, replay }: ViewProps) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text lg:h-dvh">
-      <TopBar repo={state?.repo} conn={phase === 'loading' ? null : replay ? 'replay' : live.conn} />
+      <TopBar repo={state?.repo} conn={phase === 'loading' ? null : replay ? 'replay' : live.conn} workspace={workspace} />
       {replay && phase === 'ready' && replay.player.count > 0 && <ReplayBar player={replay.player} sample={replay.sample} />}
       {body}
     </div>
   )
 }
 
-function LiveTower({ api, collisionId }: { api: TowerApi; collisionId: string | null }) {
+function LiveTower({ api, collisionId, workspace }: { api: TowerApi; collisionId: string | null; workspace?: TowerWorkspace }) {
   const live = useLive(api)
-  return <TowerView live={live} api={api} collisionId={collisionId} />
+  return <TowerView live={live} api={api} collisionId={collisionId} workspace={workspace} />
+}
+
+/** Tower for a hosted workspace, on /api/w/<id>. Always live: workspaces have no recording. */
+export function WorkspaceTowerView({ workspace, collisionId }: { workspace: TowerWorkspace; collisionId: string | null }) {
+  const api = useMemo(() => createHttpApi(`/api/w/${encodeURIComponent(workspace.id)}`), [workspace.id])
+  useEffect(() => {
+    document.title = `${workspace.name} | Tower | Airspace`
+  }, [workspace.name])
+  return <LiveTower key={workspace.id} api={api} collisionId={collisionId} workspace={workspace} />
 }
 
 const MODE_POLL_MS = 15000
