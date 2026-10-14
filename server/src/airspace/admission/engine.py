@@ -63,6 +63,9 @@ def _label(qualname: str, kind: str | None) -> str:
     return ".".join(parts[-2:]) if kind == "method" and len(parts) > 1 else parts[-1]
 
 
+# How long a Read of a file counts as interest in it, for the holding pattern at landing.
+READ_INTEREST_SECONDS = 900
+
 class Airspace:
     def __init__(self, graph, lease_seconds: int = 900, cone_depth: int = 2, clock: Callable[[], float] = time.time):
         self.graph = graph
@@ -621,7 +624,27 @@ class Airspace:
             RETURN DISTINCT a.id ORDER BY a.id""",
             {"callees": callees, "agent": me, "now": now},
         )
-        return violations, [r[0] for r in waiting]
+        # Agents read a file before they change it. A soft interest (a recent Read of the file that defines a callee)
+        # counts too, so an agent that has not edited or claimed anything yet is still waited for. Waiting only:
+        # interest never holds anyone's edit.
+        reading = self._q(
+            """MATCH (a:Agent)-[:FLYING]->(o:Task {status: 'active'})-[r:READING]->(f:File)-[:DEFINES]->(s:Symbol)
+            WHERE s.qualname IN $callees AND a.id <> $agent AND r.at > $since
+                  AND coalesce(a.paused, false) = false AND NOT (a)-[:FLYING]->(:Task {status: 'holding'})
+            RETURN DISTINCT a.id ORDER BY a.id""",
+            {"callees": callees, "agent": me, "since": now - READ_INTEREST_SECONDS},
+        )
+        return violations, sorted({r[0] for r in waiting} | {r[0] for r in reading})
+
+    def note_reading(self, agent_id: str, task_id: str, rel: str) -> None:
+        """Record that a task read a file of the repo: a soft interest that landing agents wait for."""
+        self.ensure_task(agent_id, task_id)
+        self._q(
+            """MATCH (t:Task {id: $task}), (f:File {path: $rel})
+            MERGE (t)-[r:READING]->(f)
+            SET r.at = $now""",
+            {"task": task_id, "rel": rel, "now": self.clock()},
+        )
 
     def _set_status(self, task_id: str, status: str, unless: str, extra: str = "", params: dict | None = None):
         """Set the task's status unless `unless` (a Cypher condition on t) holds. Returns its agent when it changed."""

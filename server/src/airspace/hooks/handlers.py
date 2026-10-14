@@ -197,6 +197,13 @@ def handle_any(payload: dict, deps: Deps, env: Mapping[str, str] = os.environ) -
     except Exception:
         _note(ANY_UNAVAILABLE)
         return None
+    if payload.get("tool_name") == "Read":
+        rel = _rel_path(root, str((payload.get("tool_input") or {}).get("file_path") or ""))
+        if rel and rel.endswith(".py"):
+            try:
+                airspace.note_reading(agent, task, rel)
+            except Exception as e:
+                _failed(e)
     try:
         briefings = airspace.pending_briefings(task)
     except Exception as e:

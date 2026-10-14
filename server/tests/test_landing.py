@@ -217,3 +217,30 @@ def test_edited_files_are_recorded_once(indexed):
     assert b.apply(SLUG_B)  # two edits to one file
 
     assert Airspace(graph).edited_files(b.session) == ["blog/views.py"]
+
+
+def test_reading_the_callee_file_makes_a_lander_wait(indexed):
+    """agent-a has only read utils/text.py, with no edit or plan yet. agent-b still waits for it at landing."""
+    graph, a, b = indexed
+    a.other_tool("Read", {"file_path": str(a.repo / "utils/text.py")})
+    assert b.apply(SLUG_B)
+
+    def a_changes():
+        assert _status(graph, b.session) == "holding"
+        assert a.apply(SLUG_A), a.holds
+
+    def a_lands():
+        assert a.stop(sleep=never) is None
+
+    t = FakeTime(a_changes, a_lands)
+    reason = _reason(b.stop(**t.timing()))
+    assert NEW_SIG in reason and B_CALL in reason
+    assert _events(graph, "holding") == [["agent-b", "is holding for", "agent-a"]]
+
+
+def test_reading_an_unrelated_file_does_not_make_a_lander_wait(indexed):
+    graph, a, b = indexed
+    a.other_tool("Read", {"file_path": str(a.repo / "tags/models.py")})
+    assert b.apply(SLUG_B)
+    assert b.stop(sleep=never) is None
+    assert _status(graph, b.session) == "landed"
