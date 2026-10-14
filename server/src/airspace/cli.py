@@ -1,0 +1,184 @@
+"""The airspace command: index | hook pre|post | install-hooks | status."""
+
+import argparse
+import json
+import re
+import shlex
+import sys
+import time
+from pathlib import Path
+
+from airspace.hooks.handlers import Deps, default_deps, handle_post, handle_pre
+
+MATCHER = "Edit|Write|MultiEdit"
+_EVENTS = {"PreToolUse": "pre", "PostToolUse": "post"}
+
+
+# Providers. Module level so tests can swap them.
+
+
+def _deps() -> Deps:
+    return default_deps()
+
+
+def _graph(root: Path):
+    from airspace.graph.db import connect, ensure_schema, repo_graph
+
+    db = connect()
+    db.connection.ping()
+    graph = repo_graph(db, root)
+    ensure_schema(graph)
+    return graph
+
+
+def _index_repo(graph, root: Path):
+    from airspace.indexer.writer import index_repo
+
+    return index_repo(graph, root)
+
+
+# Commands.
+
+
+def _cmd_index(root: Path) -> int:
+    try:
+        graph = _graph(root)
+    except Exception as e:
+        print(f"airspace: FalkorDB unavailable ({e})", file=sys.stderr)
+        return 1
+    stats = _index_repo(graph, root)
+    print(f"Indexed {stats.files} files, {stats.symbols} symbols, {stats.calls} calls ({stats.unresolved} unresolved)")
+    return 0
+
+
+def _cmd_hook(event: str) -> int:
+    """Always exits 0: a hook must never break the agent's tool call."""
+    raw = sys.stdin.read()
+    try:
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise ValueError("payload is not an object")
+    except ValueError as e:
+        print(f"airspace: hook input is not a JSON object ({e})", file=sys.stderr)
+        return 0
+    try:
+        handler = handle_pre if event == "pre" else handle_post
+        out = handler(payload, _deps())
+    except Exception as e:
+        print(f"airspace: hook failed, edit not checked ({type(e).__name__}: {e})", file=sys.stderr)
+        return 0
+    if out is not None:
+        print(json.dumps(out))
+    return 0
+
+
+def _hook_command(event: str) -> str:
+    return f"{shlex.quote(sys.executable)} -m airspace.cli hook {event}"
+
+
+def _has_airspace_hook(entries: list, event: str) -> bool:
+    pattern = re.compile(rf"airspace(\.cli)?\s+hook\s+{event}\b")
+    for entry in entries:
+        for hook in entry.get("hooks", []) if isinstance(entry, dict) else []:
+            if isinstance(hook, dict) and pattern.search(str(hook.get("command", ""))):
+                return True
+    return False
+
+
+def _cmd_install_hooks(root: Path) -> int:
+    path = root / ".claude" / "settings.json"
+    settings: dict = {}
+    if path.exists():
+        try:
+            settings = json.loads(path.read_text() or "{}")
+        except ValueError as e:
+            print(f"airspace: {path} is not valid JSON ({e}); nothing written", file=sys.stderr)
+            return 1
+    hooks = settings.setdefault("hooks", {})
+    report = []
+    for hook_event, event in _EVENTS.items():
+        entries = hooks.setdefault(hook_event, [])
+        if _has_airspace_hook(entries, event):
+            report.append(f"  {hook_event}: airspace hook {event} already present")
+            continue
+        command = _hook_command(event)
+        entries.append({"matcher": MATCHER, "hooks": [{"type": "command", "command": command}]})
+        report.append(f"  {hook_event} ({MATCHER}): {command}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(settings, indent=2) + "\n")
+    print(f"Wrote {path}")
+    print("\n".join(report))
+    return 0
+
+
+_TASKS = """
+MATCH (t:Task) WHERE coalesce(t.status, 'active') = 'active'
+OPTIONAL MATCH (a:Agent)-[:FLYING]->(t)
+OPTIONAL MATCH (t)-[c:CLAIMS]->(s:Symbol) WHERE c.lease_until > $now
+RETURN t.id, a.id, collect(s.qualname)
+ORDER BY t.id
+"""
+
+_COLLISIONS = """
+MATCH (c:Collision)
+OPTIONAL MATCH (c)-[:AT]->(s:Symbol)
+OPTIONAL MATCH (c)-[:BETWEEN]->(t:Task)
+OPTIONAL MATCH (a:Agent)-[:FLYING]->(t)
+RETURN c.id, c.at, s.qualname, collect(coalesce(a.id, '?') + ' (' + t.id + ')')
+ORDER BY c.at DESC
+LIMIT 10
+"""
+
+
+def _when(at) -> str:
+    if isinstance(at, (int, float)):
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(at))
+    return str(at) if at is not None else "?"
+
+
+def _cmd_status(root: Path) -> int:
+    try:
+        graph = _graph(root)
+    except Exception as e:
+        print(f"airspace: FalkorDB unavailable ({e})", file=sys.stderr)
+        return 1
+    tasks = graph.query(_TASKS, {"now": time.time()}).result_set
+    print(f"Active tasks ({len(tasks)})")
+    for task_id, agent_id, claims in tasks:
+        claimed = ", ".join(sorted(claims)) or "none"
+        print(f"  {task_id}  {agent_id or '?'}  claims: {claimed}")
+    collisions = graph.query(_COLLISIONS).result_set
+    print(f"Recent collisions ({len(collisions)})")
+    for col_id, at, symbol, between in collisions:
+        print(f"  {col_id}  {_when(at)}  at {symbol or '?'}  between {', '.join(sorted(between)) or '?'}")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="airspace", description="Air-traffic control for parallel coding agents.")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    for name, help_text in (
+        ("index", "index a Python repo into FalkorDB"),
+        ("install-hooks", "add the Airspace hooks to <root>/.claude/settings.json"),
+        ("status", "show active tasks, their claims and recent collisions"),
+    ):
+        p = sub.add_parser(name, help=help_text)
+        p.add_argument("--root", type=Path, default=Path.cwd(), help="repository root (default: current directory)")
+
+    hook = sub.add_parser("hook", help="run a Claude Code hook (reads the hook JSON on stdin)")
+    hook.add_argument("event", choices=["pre", "post"])
+
+    args = parser.parse_args(argv)
+    if args.command == "hook":
+        return _cmd_hook(args.event)
+    root = args.root.resolve()
+    if args.command == "index":
+        return _cmd_index(root)
+    if args.command == "install-hooks":
+        return _cmd_install_hooks(root)
+    return _cmd_status(root)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
