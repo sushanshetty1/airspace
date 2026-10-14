@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <img alt="Status: pre-hackathon" src="https://img.shields.io/badge/status-pre--hackathon-ff5a1f?style=flat-square&labelColor=111112">
+  <img alt="Benchmark: 17 of 18 merges green" src="https://img.shields.io/badge/merges%20green-17%2F18-ff5a1f?style=flat-square&labelColor=111112">
   <img alt="Built on FalkorDB" src="https://img.shields.io/badge/built%20on-FalkorDB-111112?style=flat-square">
   <img alt="Works with Claude Code" src="https://img.shields.io/badge/works%20with-Claude%20Code-d97757?style=flat-square&labelColor=111112">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-server-111112?style=flat-square">
@@ -31,20 +31,18 @@ Built for two kinds of people:
    - **briefed** when it depends on a contract someone else is changing.
 3. **Brief, don't surprise.** When one agent changes a signature, every agent whose cone reaches it gets a briefing on its next tool call. The briefing gives the new signature and the exact path that connects the two pieces of work.
 
-This is what an agent sees:
+The edit tool returned this to agent-b in a real run, when it wrote `slugify(post.title, allow_unicode=True)` on its own branch after agent-a changed `slugify`:
 
 ```text
-● Edit(blog/views.py)
-  ⏸ Airspace · HOLD
-    utils.text.slugify is changing in agent-a
-    new   slugify(value, *, unicode=False)
-    path  blog.views.render_post ─CALLS→ utils.text.slugify
-    Use the new signature, or wait for agent-a to land.
-    tower http://localhost:4173/collisions/c_0007
-
-● Edit(blog/views.py)   slugify(post.title, unicode=True)
-  ✓ Airspace · cleared
+Airspace hold: utils.text.slugify is being changed by agent-a. New signature: slugify(value, *, unicode=False)
+(was slugify(value, allow_unicode=False)). This edit adds a call to it from blog.views.render_post. The call
+blog.views.render_post makes does not fit the new signature. Path: blog.views.render_post -> utils.text.slugify.
+A retry whose call matches the new signature will be cleared. That change is not in this working copy yet, so
+local tests still reflect the old signature until the branches are merged. A call that fits the new signature
+is the one that merges cleanly, and a local test failure caused only by that difference goes away at the merge.
 ```
+
+agent-b retried with `slugify(post.title, unicode=True)` and was cleared. The collision resolved, both agents landed, and the merged branches passed every test.
 
 ### Tower: watch and steer from the browser
 
