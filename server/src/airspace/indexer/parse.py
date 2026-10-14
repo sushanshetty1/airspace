@@ -1,6 +1,7 @@
 """Python source to ModuleFacts with the standard-library ast: symbols, raw call targets, imports and bases."""
 
 import ast
+import dataclasses
 import hashlib
 
 from airspace.types import CallFact, ModuleFacts, SymbolFact
@@ -9,8 +10,13 @@ _FUNCS = (ast.FunctionDef, ast.AsyncFunctionDef)
 
 
 def module_name(rel_path: str) -> str:
-    """"blog/views.py" -> "blog.views"; "pkg/__init__.py" -> "pkg"."""
+    """"blog/views.py" -> "blog.views"; "pkg/__init__.py" -> "pkg"; "src/flask/app.py" -> "flask.app".
+
+    A top-level src/ is a source root (the src layout), not a package: code imports flask, not src.flask.
+    """
     parts = rel_path.replace("\\", "/").removesuffix(".py").split("/")
+    if parts[0] == "src" and len(parts) > 1:
+        parts = parts[1:]
     if parts[-1] == "__init__" and len(parts) > 1:
         parts = parts[:-1]
     return ".".join(parts)
@@ -125,8 +131,31 @@ def _call_fact(node: ast.Call, caller: str, target: str, used: bool = True) -> C
     )
 
 
+def _constructed(func: ast.AST) -> dict[str, str]:
+    """Names this function binds exactly once, to a call such as `app = Flask(__name__)`: name -> the call's target.
+
+    `app.route(...)` then reads as a call on what `Flask(...)` returns, like `Flask(__name__).route(...)`. Resolution
+    decides whether that target is a class; a factory function, a parameter or a name bound twice stays unresolved.
+    """
+    stores: dict[str, int] = {}
+    calls: dict[str, str] = {}
+    for node in ast.walk(func):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            stores[node.id] = stores.get(node.id, 0) + 1
+        elif isinstance(node, ast.arg):
+            stores[node.arg] = stores.get(node.arg, 0) + 2  # a parameter: its type is the caller's business
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            value = node.value
+            if isinstance(value, ast.Call):
+                target = _dotted(value.func)
+                if target is not None:
+                    calls[node.targets[0].id] = target
+    return {name: target for name, target in calls.items() if stores.get(name) == 1}
+
+
 def _calls_in(func: ast.AST, caller: str) -> list[CallFact]:
     found = []
+    made = _constructed(func)
     for stmt in func.body:
         # A call that is a whole statement throws its result away; every other call uses it.
         discarded = {id(n.value) for n in ast.walk(stmt) if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)}
@@ -135,6 +164,10 @@ def _calls_in(func: ast.AST, caller: str) -> list[CallFact]:
                 target = _call_target(node.func)
                 if target is not None:
                     fact = _call_fact(node, caller, target, used=id(node) not in discarded)
+                    head, dot, rest = target.partition(".")
+                    if dot and head in made:
+                        # app.route(...) after app = Flask(...): a call on the instance, so its first parameter is bound.
+                        fact = dataclasses.replace(fact, target=f"{made[head]}.{rest}", via_instance=True)
                     found.append((node.lineno, node.col_offset, fact))
     # ast.walk is breadth-first; sort so the order follows the source.
     return [c for _, _, c in sorted(found, key=lambda t: (t[0], t[1]))]

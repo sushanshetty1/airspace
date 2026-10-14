@@ -61,7 +61,8 @@ def _graph_call(graph, method: str, args: list, kwargs: dict):
 
     if method == "graph.known":
         _bind(lambda: None, method, args, kwargs)
-        return sorted(known_qualnames(graph) | removed_qualnames(graph))
+        # Re-exports travel in the same list as "public=>defined", so older clients read them as plain names.
+        return (known_qualnames(graph) | removed_qualnames(graph)).encoded()
 
     if method == "graph.write_file":
         def write_file(rel, facts):

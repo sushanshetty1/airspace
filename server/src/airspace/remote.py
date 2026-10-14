@@ -298,8 +298,11 @@ class RemoteAirspace:
 
 
 def remote_known(client: RpcClient) -> set[str]:
-    """Every qualname in the workspace graph, renamed and removed ones included, as known() is locally."""
-    return set(client.call("graph.known") or [])
+    """Every qualname in the workspace graph, renamed and removed ones included, as known() is locally, with the
+    re-exports its packages declare."""
+    from airspace.indexer.resolve import Known
+
+    return Known.decoded(client.call("graph.known") or [])
 
 
 def _parse(root: Path, rel: str):

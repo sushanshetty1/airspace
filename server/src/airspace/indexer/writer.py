@@ -10,7 +10,15 @@ from pathlib import Path
 
 from airspace.graph.db import ensure_schema
 from airspace.indexer.parse import parse_module
-from airspace.indexer.resolve import resolve_calls, resolve_shapes, resolve_target
+from airspace.indexer.resolve import (
+    ALIAS_MARK,
+    Known,
+    class_bases,
+    exports,
+    resolve_calls,
+    resolve_shapes,
+    resolve_target,
+)
 from airspace.types import ModuleFacts, SignatureChange
 
 SKIP_DIRS = {"__pycache__", ".venv", "venv", "node_modules", "build", "dist"}
@@ -48,7 +56,10 @@ def _write_symbols(graph, facts: ModuleFacts) -> None:
          "sig": s.signature, "hash": s.sig_hash, "is_test": s.is_test}
         for s in facts.symbols
     ]
-    graph.query("MERGE (:File {path: $file})", {"file": facts.file})
+    graph.query(
+        "MERGE (f:File {path: $file}) SET f.exports = $exports",
+        {"file": facts.file, "exports": [f"{k}{ALIAS_MARK}{v}" for k, v in sorted(exports(facts).items())]},
+    )
     if rows:
         graph.query(
             """MATCH (f:File {path: $file})
@@ -107,8 +118,23 @@ def _delete_stale(graph, facts: ModuleFacts) -> None:
     )
 
 
-def known_qualnames(graph) -> set[str]:
-    return {row[0] for row in graph.query("MATCH (s:Symbol) RETURN s.qualname").result_set}
+def known_qualnames(graph) -> Known:
+    """Every symbol in the graph, with the re-exports its packages declare."""
+    names = [row[0] for row in graph.query("MATCH (s:Symbol) RETURN s.qualname").result_set]
+    rows = graph.query("MATCH (f:File) WHERE size(coalesce(f.exports, [])) > 0 RETURN f.exports").result_set
+    known = Known.decoded(names + [e for (exported,) in rows for e in exported])
+    for sub, base in graph.query("MATCH (a:Symbol)-[:INHERITS]->(b:Symbol) RETURN a.qualname, b.qualname").result_set:
+        known.bases.setdefault(sub, []).append(base)
+    return known
+
+
+def _with_bases(known: set[str], facts_list: list[ModuleFacts]) -> Known:
+    """known plus every class's resolved bases in these files, before calls resolve: self.x may live in a base."""
+    known = known if isinstance(known, Known) else Known(known)
+    for facts in facts_list:
+        for cls, found in class_bases(facts, known).items():
+            known.bases[cls] = found
+    return known
 
 
 def index_facts(graph, facts_list: list[ModuleFacts], reset: bool = False) -> IndexStats:
@@ -133,6 +159,7 @@ def _index(graph, facts_list: list[ModuleFacts], reset: bool, known: set[str] | 
         _delete_stale(graph, facts)
     if known is None:
         known = known_qualnames(graph)
+    known = _with_bases(known, facts_list)
     calls = unresolved = 0
     for facts in facts_list:
         c, u = _write_edges(graph, facts, known)
@@ -157,7 +184,8 @@ def index_repo(graph, repo_root: Path) -> IndexStats:
         if facts is not None:
             parsed.append(facts)
     # The whole repo is here, so calls resolve against it alone, not against symbols of files since deleted.
-    return _index(graph, parsed, reset=False, known={s.qualname for f in parsed for s in f.symbols})
+    known = Known({s.qualname for f in parsed for s in f.symbols}, {k: v for f in parsed for k, v in exports(f).items()})
+    return _index(graph, parsed, reset=False, known=known)
 
 
 def reindex_facts(graph, rel: str, facts: ModuleFacts | None) -> list[SignatureChange]:
@@ -181,7 +209,7 @@ def reindex_facts(graph, rel: str, facts: ModuleFacts | None) -> list[SignatureC
         for s in facts.symbols
         if s.qualname in old and old[s.qualname][1] != s.sig_hash
     ]
-    known = known_qualnames(graph) | {s.qualname for s in facts.symbols}
+    known = _with_bases(known_qualnames(graph) | Known({s.qualname for s in facts.symbols}, exports(facts)), [facts])
     _write_symbols(graph, facts)
     _delete_stale(graph, facts)
     _write_edges(graph, facts, known)

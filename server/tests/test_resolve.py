@@ -67,3 +67,72 @@ def test_resolve_calls_dedupes_in_order():
     src = "from utils.text import slugify, truncate_words\n\ndef f():\n    truncate_words(slugify(1))\n    slugify(2)\n"
     facts = parse_module("app/x.py", src)
     assert resolve_calls(facts, KNOWN) == [("app.x.f", "utils.text.truncate_words"), ("app.x.f", "utils.text.slugify")]
+
+
+# Real-repo shapes: the src layout, package re-exports, base classes, and instances made in the same function.
+
+from airspace.indexer.resolve import Known, class_bases, exports  # noqa: E402
+
+PKG = {
+    "src/shop/__init__.py": "from .app import App as App\nfrom .helpers import url_for\n",
+    "src/shop/scaffold.py": "class Scaffold:\n    def route(self, rule):\n        return rule\n",
+    "src/shop/app.py": (
+        "from .scaffold import Scaffold\n\n\n"
+        "class App(Scaffold):\n    def run(self):\n        return self.route('/')\n"
+    ),
+    "src/shop/helpers.py": "def url_for(endpoint):\n    return endpoint\n",
+    "tests/test_app.py": (
+        "import shop\nfrom shop import url_for\n\n\n"
+        "def test_index():\n    app = shop.App()\n    app.route('/x')\n    assert url_for('index')\n\n\n"
+        "def test_param(app):\n    app.route('/y')\n"
+    ),
+}
+
+
+def _pkg():
+    facts = {rel: parse_module(rel, src) for rel, src in PKG.items()}
+    known = Known({s.qualname for f in facts.values() for s in f.symbols},
+                  {k: v for f in facts.values() for k, v in exports(f).items()})
+    for f in facts.values():
+        known.bases.update(class_bases(f, known))
+    return facts, known
+
+
+def test_src_layout_is_a_source_root_not_a_package():
+    facts, _ = _pkg()
+    assert [s.qualname for s in facts["src/shop/helpers.py"].symbols] == ["shop.helpers.url_for"]
+    assert facts["src/shop/helpers.py"].file == "src/shop/helpers.py"
+
+
+def test_package_re_exports_resolve_to_where_a_name_is_defined():
+    facts, known = _pkg()
+    assert known.aliases == {"shop.App": "shop.app.App", "shop.url_for": "shop.helpers.url_for"}
+    t = facts["tests/test_app.py"]
+    assert resolve_target("url_for", t, "tests.test_app.test_index", known) == "shop.helpers.url_for"
+    assert resolve_target("shop.App", t, "tests.test_app.test_index", known) == "shop.app.App"
+
+
+def test_members_a_base_class_defines_resolve_through_the_bases():
+    facts, known = _pkg()
+    assert known.bases == {"shop.app.App": ["shop.scaffold.Scaffold"]}
+    app = facts["src/shop/app.py"]
+    assert resolve_target("self.route", app, "shop.app.App.run", known) == "shop.scaffold.Scaffold.route"
+
+
+def test_an_instance_made_in_the_same_function_is_a_bound_call_on_its_class():
+    facts, known = _pkg()
+    t = facts["tests/test_app.py"]
+    made = [c for c in t.calls if c.caller == "tests.test_app.test_index" and c.target.endswith(".route")]
+    assert [(c.target, c.via_instance) for c in made] == [("shop.App.route", True)]
+    assert resolve_target(made[0].target, t, made[0].caller, known) == "shop.scaffold.Scaffold.route"
+    # A parameter's type is the caller's business: test_param's app.route stays unresolved.
+    param = [c for c in t.calls if c.caller == "tests.test_app.test_param"]
+    assert [resolve_target(c.target, t, c.caller, known) for c in param] == [None]
+
+
+def test_known_names_round_trip_the_wire_with_their_re_exports_and_bases():
+    _, known = _pkg()
+    back = Known.decoded(known.encoded())
+    assert set(back) == set(known) and back.aliases == known.aliases and back.bases == known.bases
+    merged = {"x.y"} | back
+    assert isinstance(merged, Known) and merged.aliases == known.aliases and "x.y" in merged
