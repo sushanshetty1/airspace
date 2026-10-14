@@ -24,12 +24,12 @@ Built for two kinds of people:
 
 ## How it works
 
-1. **File a flight plan.** When an agent starts a task, Airspace marks the symbols it means to change. It then computes the task's **impact cone**: everything that calls, imports, overrides or tests those symbols, a few hops out.
-2. **Ask before every write.** A Claude Code `PreToolUse` hook checks each `Edit` and `Write` with Airspace. The answer is a graph query and a few rules, never a model call:
-   - **cleared** when the edit stays in the agent's own airspace;
-   - **hold** when it enters another agent's cone;
-   - **briefed** when it depends on a contract someone else is changing.
-3. **Brief, don't surprise.** When one agent changes a signature, every agent whose cone reaches it gets a briefing on its next tool call. The briefing gives the new signature and the exact path that connects the two pieces of work.
+1. **Claim what you touch.** When an agent edits a symbol, its task claims it under a lease. Its **impact cone** is everything that calls, overrides or tests what it claims, two hops out. An agent can also file a flight plan up front through the MCP server.
+2. **Ask before every write.** A Claude Code `PreToolUse` hook checks each `Edit`, `Write` and `MultiEdit` with Airspace before the file changes. The answer is a graph query and a few rules, never a model call:
+   - **hold** when the edit touches a symbol another agent has claimed, or adds a call that no longer fits a contract another agent changed;
+   - **cleared** otherwise. Python's own argument-binding rules decide whether a call fits a signature.
+3. **Brief, don't surprise.** When one agent changes a signature, every agent whose code depends on it gets a briefing on its next tool call: the old and new signature and, when known, the call it breaks.
+4. **Hold at landing.** When an agent stops, Airspace checks the calls in every file it edited against every contract change by another agent. While another agent is still working on something it calls, it waits; if a call no longer fits, it is sent back once with the change.
 
 The edit tool returned this to agent-b in a real run, when it wrote `slugify(post.title, allow_unicode=True)` on its own branch after agent-a changed `slugify`:
 
@@ -63,15 +63,15 @@ Hot zones, the symbols where agents collide most across sessions, come from `air
 
 | | |
 | --- | --- |
-| **Collisions are paths** | Two agents collide when their impact cones meet. That is a traversal over `CALLS`, `IMPORTS`, `INHERITS` and `COVERS`, not a text match. |
-| **Every hold explains itself** | `algo.SPpaths` returns the shortest path between the two pieces of work, and the agent and the radar both show it. |
-| **Parallel by default** | `algo.WCC` over the conflict graph splits tasks into groups. Groups run at the same time; only tasks inside a group wait for each other. |
-| **It remembers** | Holds, briefings and contract changes stay in the graph. Next session, the planner already knows the hot zones and splits work around them. |
+| **Collisions are paths** | Whether an edit reaches another agent's work is a traversal over `CALLS`, `INHERITS` and `COVERS`, not a text match. Each `CALLS` edge carries the shapes of its call sites, so a changed signature is checked against every real caller. |
+| **Every hold explains itself** | A hold names the caller, the changed symbol and the path between them. `explain` finds the shortest path between any two symbols with `shortestPath`. |
+| **Parallel by default** | Agents only wait when their work actually meets. `algo.WCC` over the conflict graph groups the agents that do, shown by `airspace insights`. |
+| **It remembers** | Holds, briefings and contract changes stay in the graph. Hot zones, ranked by collisions and `algo.betweenness`, come from `airspace insights` and the `hot_zones` MCP tool. |
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/architecture-dark.png">
-    <img alt="Architecture: your coding agents ask airspace/hooks before every edit. airspace/admission checks the FalkorDB graph with Cypher and graph algorithms and returns cleared, held or briefed. airspace/indexer re-indexes the code graph on save. The radar shows cones, collisions and paths live." src="assets/readme/architecture-light.png" width="100%">
+    <img alt="Architecture: your coding agents ask airspace/hooks before every edit. airspace/admission checks the FalkorDB graph with Cypher and graph algorithms and returns cleared or held, with briefings. airspace/indexer re-indexes the code graph on save. The radar shows cones, collisions and paths live." src="assets/readme/architecture-light.png" width="100%">
   </picture>
 </p>
 
@@ -82,7 +82,7 @@ Each repo gets its own graph in FalkorDB. It has two layers: the code, and the a
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/graph-model-dark.png">
-    <img alt="Graph model. Airspace layer: Agent FLYING Task; Collision BETWEEN Task; ContractChange BRIEFED Task. Task CLAIMS (mode, lease, fence) and CONE (depth) point down to Symbol in the code layer. Code layer: File DEFINES and IMPORTS Symbol; Symbol CALLS and INHERITS Symbol; Test COVERS Symbol; ContractChange ON Symbol; Collision AT Symbol." src="assets/readme/graph-model-light.png" width="100%">
+    <img alt="Graph model. Airspace layer: Agent FLYING Task; Collision BETWEEN Task; ContractChange BRIEFED Task. Task CLAIMS (lease_until, fence) and CONE point down to Symbol in the code layer. Code layer: File DEFINES Symbol; Symbol CALLS and INHERITS Symbol; a test Symbol COVERS Symbol; ContractChange ON Symbol; Collision AT Symbol." src="assets/readme/graph-model-light.png" width="100%">
   </picture>
 </p>
 
@@ -90,24 +90,25 @@ Each repo gets its own graph in FalkorDB. It has two layers: the code, and the a
 <summary>The same model as text</summary>
 
 ```text
-(:File {path})-[:DEFINES]->(:Symbol {qualname, kind, signature, sig_hash})
-(:Symbol)-[:CALLS]->(:Symbol)
-(:File)-[:IMPORTS]->(:Symbol)
+(:File {path})-[:DEFINES]->(:Symbol {qualname, kind, signature, sig_hash, is_test})
+(:Symbol)-[:CALLS {shapes}]->(:Symbol)
+(:Symbol)-[:COVERS {shapes}]->(:Symbol)        // from a test
 (:Symbol)-[:INHERITS]->(:Symbol)
-(:Test)-[:COVERS]->(:Symbol)
 
-(:Agent {id, harness})-[:FLYING]->(:Task {intent, status, base_commit})
-(:Task)-[:CLAIMS {mode, lease_until, fence}]->(:Symbol)
-(:Task)-[:CONE {depth}]->(:Symbol)
-(:Collision {at, resolution})-[:BETWEEN]->(:Task)
-(:Collision)-[:AT]->(:Symbol)
-(:ContractChange {old_sig, new_sig, at})-[:ON]->(:Symbol)
+(:Agent {id, paused})-[:FLYING]->(:Task {intent, status, touched, files})
+(:Task)-[:CLAIMS {lease_until, fence}]->(:Symbol)
+(:Task)-[:CONE]->(:Symbol)
+(:Task)-[:READING {at}]->(:File)
+(:Task)-[:CHANGED]->(:ContractChange {qualname, old_sig, new_sig, at})-[:ON]->(:Symbol)
 (:ContractChange)-[:BRIEFED]->(:Task)
+(:Collision {kind, resolution, at})-[:BETWEEN]->(:Task)
+(:Collision)-[:AT]->(:Symbol)
+(:Message {text, sender, at})-[:TO]->(:Agent)
 ```
 
 </details>
 
-The queries the product depends on (sketches, finalised during the event):
+Some of the queries the product runs on every edit:
 
 ```cypher
 // Impact cone: everything that depends on what a task holds a live claim on, up to 2 hops
@@ -117,11 +118,17 @@ MERGE (t)-[:CONE]->(d)
 ```
 
 ```cypher
-// Clearance: does this edit land in another active task's airspace?
-MATCH (target:Symbol {qualname: $qualname})
-MATCH (other:Task {status: 'active'})-[:CONE|CLAIMS]->(target)
-WHERE other.id <> $task
-RETURN other.id, other.intent
+// Clearance: does this edit touch a symbol another agent's active task holds under a live lease?
+MATCH (a:Agent)-[:FLYING]->(o:Task {status: 'active'})-[c:CLAIMS]->(:Symbol {qualname: $q})
+WHERE a.id <> $agent AND c.lease_until > $now
+RETURN o.id, a.id LIMIT 1
+```
+
+```cypher
+// Clearance: is this new call into a contract another agent has changed?
+MATCH (a:Agent)-[:FLYING]->(o:Task)-[:CHANGED]->(cc:ContractChange {qualname: $callee})
+WHERE a.id <> $agent AND o.status IN $standing
+RETURN cc.old_sig, cc.new_sig, a.id
 ```
 
 ```cypher
@@ -175,24 +182,23 @@ Every run is in [`server/bench/results/final`](server/bench/results/final): both
 
 | Path | What it is |
 | --- | --- |
-| [`server/src/airspace/indexer`](server/src/airspace/indexer) | Python `ast` → symbols, calls, imports, inheritance and test coverage, re-indexed per file |
+| [`server/src/airspace/indexer`](server/src/airspace/indexer) | Python `ast` to symbols, calls with their argument shapes, inheritance and test coverage, re-indexed per file |
 | [`server/src/airspace/graph`](server/src/airspace/graph) | FalkorDB connection, schema, indexes and the Cypher above |
-| [`server/src/airspace/admission`](server/src/airspace/admission) | Flight plans, cones, clearance, leases, briefings |
+| [`server/src/airspace/admission`](server/src/airspace/admission) | Claims, cones, clearance, call-shape checks, briefings, the landing check, insights |
 | [`server/src/airspace/hooks`](server/src/airspace/hooks) | Claude Code hooks: clearance before an edit, reindex after it, git reconcile after shell commands, briefings on every tool call, the holding pattern at `Stop` |
 | [`server/src/airspace/mcp_server`](server/src/airspace/mcp_server) | MCP tools: `file_flight_plan`, `check_symbols`, `briefings`, `explain`, `hot_zones` |
 | [`server/src/airspace/api`](server/src/airspace/api) | HTTP, server-sent events, Tower actions, replay and the playground |
 | [`server/src/airspace/bench`](server/src/airspace/bench) | The three-condition benchmark harness |
-| [`web`](web) | The site and Tower: live radar, flight log, collisions, pause, message and release, replay, playground (Vite, React) |
+| [`web`](web) | The site and Tower: live radar, activity, collisions, pause, message and release, replay, playground (Vite, React) |
 | [`docs/notes.md`](docs/notes.md) | Research, plan and decisions |
 
 ## Try it
 
 | Time | How | You need |
 | --- | --- | --- |
-| 0 min | Watch the demo video | Nothing |
 | 30 s | Open **Tower** and replay a recorded run of two real Claude Code sessions. Click a collision for its path. | A browser |
-| 2 min | **Playground**: pick what two agents will change in a real repo and get the verdict and the path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
-| 15 min | `airspace install-hooks` in any Python repo, then two Claude Code sessions | Docker, Claude Code |
+| 2 min | **Playground**: pick what two agents will change in a sample repo and get the verdict and the path. No agents and no API key, because clearance is a graph query, not a model call. | A browser |
+| 15 min | Index any Python repo, install the hooks, open two Claude Code sessions ([Quick start](#quick-start)) | Docker, Claude Code |
 
 ## Quick start
 
@@ -201,11 +207,11 @@ docker compose up -d falkordb                      # FalkorDB on :6379, Browser 
 cd server && uv sync
 
 uv run airspace index --root /path/to/your/repo          # build the code graph
-uv run airspace install-hooks --root /path/to/your/repo  # Claude Code PreToolUse, PostToolUse and Stop hooks
+uv run airspace install-hooks --root /path/to/your/repo  # Claude Code hooks: PreToolUse, PostToolUse, Stop, UserPromptSubmit
 uv run airspace status --root /path/to/your/repo         # agents, claims and recent collisions
 ```
 
-Open two Claude Code sessions in that repo (set `AIRSPACE_AGENT=agent-a` and `agent-b` to name them) and let them work on the same feature. Every `Edit`, `Write` and `MultiEdit` on a Python file is checked first. When a session stops, it holds while another agent is still changing a contract it calls, then lands only if its calls fit the new signatures.
+Open two Claude Code sessions in that repo (set `AIRSPACE_AGENT=agent-a` and `agent-b` to name them) and let them work on the same feature. Every `Edit`, `Write` and `MultiEdit` on a Python file is checked first. Files written by shell commands are reconciled with git after each command. When a session stops, it waits while another agent is still working on something it calls (up to four minutes), and is sent back once if its calls do not fit the new signatures.
 
 Run the tests (FalkorDB must be running):
 
@@ -217,9 +223,9 @@ The website lives in `web/` (`npm install && npm run dev`).
 
 ## Open decisions
 
-- [x] **Where the decision lives.** Clearance is Cypher plus rules, enforced by a hook that fails closed. No model is asked whether an edit is safe.
+- [x] **Where the decision lives.** Clearance is Cypher plus rules, enforced by a hook. No model is asked whether an edit is safe. If FalkorDB is unreachable the hook fails open and says so, so Airspace never stops an agent by being down.
 - [x] **First language.** Python, through the standard-library `ast`. Other languages come later through tree-sitter.
-- [x] **First harness.** Claude Code, through `PreToolUse` and `PostToolUse` hooks. Any MCP client can use the same tools.
+- [x] **First harness.** Claude Code, through `PreToolUse`, `PostToolUse`, `Stop` and `UserPromptSubmit` hooks. Any MCP client can use the same tools.
 - [x] **Storage.** Everything (code graph, flight plans, leases, history) lives in FalkorDB, one graph per repo. No side database.
 - [x] **Benchmark repo.** A small blog app with six constructed task pairs, so every pair runs in under a minute and the whole matrix can repeat.
 - [x] **Cone depth.** Two hops by default (`AIRSPACE_CONE_DEPTH`). Contract changes reach every direct caller, whatever the depth.
@@ -233,7 +239,7 @@ The website lives in `web/` (`npm install && npm run dev`).
 - [x] Briefings on contract changes, with call-shape checks and rename detection
 - [x] Holding pattern at landing, read and prompt interest, git reconcile for shell writes
 - [x] MCP server
-- [x] Tower: radar, flight log, activity and collision views
+- [x] Tower: radar, activity and collision views
 - [x] Tower actions: release, pause, message
 - [x] Tower playground and replay mode
 - [x] Hot-zone memory across sessions
@@ -254,7 +260,7 @@ The website lives in `web/` (`npm install && npm run dev`).
 
 Built for the [FalkorDB Hackathon](https://www.wemakedevs.org/hackathons/falkordb) (October 15 to 18, 2026), entering **Track 02 · Agent Memory and Coordination** and **Track 01 · Agents That Act on Connected Data**.
 
-All product code is written during the event. Before it, this repo held only notes, diagrams and empty scaffolding.
+The organisers confirmed that building may start before the event; work began on October 14.
 
 We use AI coding assistants (Claude Code) for research, scaffolding and pair programming, and say so here as rule 11 requires. We can explain every part of the graph model, the queries and the design.
 

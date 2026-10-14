@@ -39,14 +39,14 @@
   <div class="layer" style="top:100px;"><b>Airspace</b> · agents, tasks, leases</div>
   <div class="layer" style="top:740px;"><b>Code</b> · indexed from your repo</div>
 
-  <div class="card ink" style="left:120px; top:200px; width:560px; height:160px;"><h2>Agent</h2><p>id · harness</p></div>
-  <div class="card" style="left:880px; top:200px; width:600px; height:190px;"><h2>Task</h2><p>intent · status · base_commit</p></div>
-  <div class="card" style="left:1680px; top:170px; width:720px; height:150px;"><h2>Collision</h2><p>at · resolution</p></div>
+  <div class="card ink" style="left:120px; top:200px; width:560px; height:160px;"><h2>Agent</h2><p>id · paused</p></div>
+  <div class="card" style="left:880px; top:200px; width:600px; height:190px;"><h2>Task</h2><p>intent · status · files</p></div>
+  <div class="card" style="left:1680px; top:170px; width:720px; height:150px;"><h2>Collision</h2><p>kind · resolution · at</p></div>
   <div class="card" style="left:1680px; top:400px; width:720px; height:150px;"><h2>ContractChange</h2><p>old_sig · new_sig · at</p></div>
 
   <div class="card" style="left:120px; top:860px; width:560px; height:200px;"><h2>File</h2><p>path</p></div>
   <div class="card hot" style="left:880px; top:860px; width:680px; height:200px;"><h2>Symbol</h2><p>qualname · kind · signature</p></div>
-  <div class="card" style="left:1680px; top:1050px; width:720px; height:150px;"><h2>Test</h2><p>qualname</p></div>
+  <div class="card" style="left:1680px; top:1050px; width:720px; height:150px;"><h2>Test</h2><p>a Symbol with is_test</p></div>
 
   <svg width="2560" height="1340" viewBox="0 0 2560 1340">
     <defs>
@@ -64,7 +64,6 @@
       <path d="M2402 245 H2450 V1000 H1568" marker-end="url(#arr)"/>           <!-- AT -->
       <path d="M1678 1125 H1460 V1068" marker-end="url(#arr)"/>                <!-- COVERS -->
       <path d="M682 920 H872" marker-end="url(#arr)"/>                         <!-- DEFINES -->
-      <path d="M682 1000 H872" marker-end="url(#arr)"/>                        <!-- IMPORTS -->
       <path d="M980 1062 V1150 H1080 V1068" marker-end="url(#arr)"/>           <!-- CALLS -->
       <path d="M1180 1062 V1150 H1280 V1068" marker-end="url(#arr)"/>          <!-- INHERITS -->
     </g>
@@ -72,18 +71,17 @@
       <rect class="bg" x="712" y="236" width="130" height="34" rx="4"/><text class="lbl lbl-strong" x="777" y="262" text-anchor="middle">FLYING</text>
       <rect class="bg" x="1515" y="201" width="136" height="34" rx="4"/><text class="lbl lbl-strong" x="1583" y="227" text-anchor="middle">BETWEEN</text>
       <rect class="bg" x="1460" y="431" width="140" height="34" rx="4"/><text class="lbl lbl-strong" x="1530" y="457" text-anchor="middle">BRIEFED</text>
-      <text class="lbl lbl-strong" x="978" y="560">CLAIMS</text><text class="lbl" x="978" y="592">mode · lease</text><text class="lbl" x="978" y="624">fence</text>
-      <text class="lbl lbl-strong" x="1278" y="560">CONE</text><text class="lbl" x="1278" y="592">depth</text>
+      <text class="lbl lbl-strong" x="978" y="560">CLAIMS</text><text class="lbl" x="978" y="592">lease_until</text><text class="lbl" x="978" y="624">fence</text>
+      <text class="lbl lbl-strong" x="1278" y="560">CONE</text>
       <text class="lbl lbl-strong" x="1918" y="760">ON</text>
       <text class="lbl lbl-strong" x="2432" y="700" text-anchor="end">AT</text>
       <rect class="bg" x="1500" y="1081" width="120" height="34" rx="4"/><text class="lbl lbl-strong" x="1560" y="1107" text-anchor="middle">COVERS</text>
       <rect class="bg" x="707" y="876" width="140" height="34" rx="4"/><text class="lbl lbl-strong" x="777" y="902" text-anchor="middle">DEFINES</text>
-      <rect class="bg" x="707" y="1012" width="140" height="34" rx="4"/><text class="lbl lbl-strong" x="777" y="1038" text-anchor="middle">IMPORTS</text>
       <text class="lbl lbl-strong" x="1030" y="1190" text-anchor="middle">CALLS</text>
       <text class="lbl lbl-strong" x="1230" y="1190" text-anchor="middle">INHERITS</text>
     </g>
   </svg>
 
-  <div class="foot">A task's cone is every symbol that can reach what it claims. Two agents collide where their cones meet.</div>
+  <div class="foot">A task's cone is every symbol that depends on what it claims. A hold is one agent touching what another claims, or calling what another changed.</div>
 </body>
 </html>
