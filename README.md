@@ -15,7 +15,10 @@
 
 <p align="center"><b><a href="https://airspace.sushans.dev">airspace.sushans.dev</a></b> · <a href="https://airspace.sushans.dev/tower">Tower</a> · <a href="https://airspace.sushans.dev/preflight">Pre-flight</a> · <a href="https://airspace.sushans.dev/playground">Playground</a></p>
 
-<!-- hero.gif: four agents, one collision on the radar, a held edit, a briefing, a green merge. Recorded on Oct 18. -->
+<p align="center">
+  <a href="https://github.com/sushanshetty1/airspace/releases/tag/demo-video"><img alt="Watch the 2:48 demo" src="assets/readme/video-poster.jpg" width="100%"></a>
+  <br><sub><a href="https://github.com/sushanshetty1/airspace/releases/tag/demo-video">Watch the demo (2:48)</a></sub>
+</p>
 
 **Airspace is air-traffic control for parallel coding agents.** Split a feature across four Claude Code sessions and each one passes its tests on its own. Merge them, and `main` is red: one agent changed a function that another was busy calling. Airspace keeps a live graph of how your code connects. It checks every edit against that graph before the edit is written, and holds the one that would collide.
 
