@@ -7,10 +7,12 @@
 // delivery flows across scenes). Responses are cached under voice/cache by a hash of the voice, the settings and the
 // scene's text, so only scenes whose text changed are generated again, and paid for.
 //
-// Assembly makes the narration continuous: every chunk (a caption-sized line) is cut out of its scene's audio at
-// its character alignment with a short pad and fades, any pause inside a line longer than MAX_INNER is shortened,
-// and each line starts `gap` seconds (0.15 to 0.35; one longer pause is allowed, set on a scene) after the
-// previous line's last sound. The track is loudness-matched to -16 LUFS once, as a whole, and an even room tone
+// Assembly makes the narration continuous: every chunk (a caption-sized line) is cut out of its scene's audio where
+// its sound starts and stops, with a short pad and fades; every pause of GATE_MIN or more is gated to one clean
+// silence and a pause inside a line is shortened to MAX_INNER; and each line starts `gap` seconds (0.15 to 0.35; one
+// longer pause is allowed, set on a scene) after the previous line's last sound. The assembled track is then held to
+// the pause rule (no pause over MAX_PAUSE, no two pauses within 0.5 s; scripts/pauses.mjs checks the same rule on
+// the render). The track is loudness-matched to -16 LUFS once, as a whole, and an even room tone
 // at about -66 dBFS runs under all of it so no join drops to digital silence. Written to public/voice/narration.wav;
 // timing to src/timing.json.
 
@@ -33,10 +35,14 @@ const TAIL = PACE.tail ?? 2.5
 const PRE = 0.06 // pad kept before a line's first character
 const POST = 0.16 // and after its last, for the decay
 const FADE = 0.012
-const MAX_INNER = 0.34 // a pause inside a line is shortened to this
+const MAX_INNER = 0.3 // a pause inside a line is shortened to this
+const GATE_MIN = 0.25 // a pause this long or longer is gated to one clean silence
+const MAX_PAUSE = 0.36 // no pause between or inside lines runs longer, at silencedetect's -35 dB
+const DELIBERATE = [] // output times of the deliberate pauses (a scene's own `gap` over 0.5 s)
+const LINE_GAPS = [] // output times of the pauses between lines, [end of one, start of the next]
 // Sound means louder than SILENT_DB once the track is loudness-matched (silencedetect checks -40 dBFS), held for
 // 90 ms, so a lone click is not sound.
-const SILENT_DB = -42
+const SILENT_DB = -33
 let LOUD = 0.01
 fs.mkdirSync(CACHE, { recursive: true })
 fs.mkdirSync(OUT, { recursive: true })
@@ -152,28 +158,50 @@ function loudnorm(file) {
   fs.renameSync(tmp, file)
 }
 
-/** Spans inside [a, b) (seconds) quieter than -45 dBFS for longer than MAX_INNER: the pauses to shorten. */
-function innerPauses(pcm, a, b) {
+/**
+ * The quiet spans of a file, in seconds: under LOUD for at least GATE_MIN, with a click or a breath shorter than
+ * 90 ms inside one not breaking it. Everything in them is gated to silence (the room tone covers it), so each pause
+ * is one clean silence, never two with a fragment between.
+ */
+function quietSpans(pcm) {
   const hop = Math.round(0.01 * RATE)
   const win = Math.round(0.03 * RATE)
   const quiet = []
-  for (let i = Math.round(a * RATE); i + win <= Math.round(b * RATE); i += hop) {
+  for (let i = 0; i + win <= pcm.length; i += hop) {
     let sum = 0
     for (let k = 0; k < win; k++) sum += pcm[i + k] * pcm[i + k]
-    quiet.push([i / RATE, Math.sqrt(sum / win) < LOUD])
+    quiet.push(Math.sqrt(sum / win) < LOUD)
   }
   const spans = []
   let from = null
-  for (const [j, [t, q]] of quiet.entries()) {
-    if (q && from === null) from = t
-    // A click (under 90 ms of sound) does not end a pause.
-    const sustained = quiet.slice(j, j + 9).every(([, x]) => !x)
+  for (let j = 0; j <= quiet.length; j++) {
+    const q = j < quiet.length && quiet[j]
+    if (q && from === null) from = j
+    const sustained = j >= quiet.length || quiet.slice(j, j + 9).every((x) => !x)
     if (!q && from !== null && sustained) {
-      if (t - from > MAX_INNER) spans.push([from, t])
+      // The quiet run ends where the last window of it ends, less the window's reach into the sound.
+      const a = (from * hop) / RATE
+      const b = (j * hop) / RATE
+      if (b - a >= GATE_MIN) spans.push([a, b])
       from = null
     }
   }
   return spans
+}
+
+/** The file with its quiet spans gated to silence, with short ramps inside each span's edges. */
+function gated(pcm, spans) {
+  const out = Float32Array.from(pcm)
+  const r = Math.round(0.015 * RATE)
+  for (const [a, b] of spans) {
+    const i0 = Math.round(a * RATE)
+    const i1 = Math.min(out.length, Math.round(b * RATE))
+    for (let i = i0; i < i1; i++) {
+      const g = Math.min(1, Math.max(0, Math.min(i - i0, i1 - i) / r))
+      out[i] *= 1 - g
+    }
+  }
+  return out
 }
 
 const out = []
@@ -258,6 +286,8 @@ for (const [i, scene] of script.scenes.entries()) {
     const gain = -16 - Number(JSON.parse(err.slice(err.lastIndexOf('{'), err.lastIndexOf('}') + 1)).input_i)
     LOUD = Math.pow(10, (SILENT_DB - gain) / 20)
   }
+  const spans = quietSpans(pcm)
+  const clean = gated(pcm, spans)
   // Where sound really starts and stops near a line's alignment: the alignment's last character often runs on past
   // the voice, so the gap is measured on the audio itself.
   const rms = (t) => {
@@ -306,7 +336,8 @@ for (const [i, scene] of script.scenes.entries()) {
     const segB = Math.min(k < scene.chunks.length - 1 ? (e + nextStart) / 2 : total, e + POST)
 
     // Pauses inside the line, shortened: a map from source time to line time.
-    const cuts = innerPauses(pcm, s + 0.05, e - 0.05).map(([p, q]) => {
+    const inner = spans.filter(([p, q]) => p > s + 0.02 && q < e - 0.02 && q - p > MAX_INNER)
+    const cuts = inner.map(([p, q]) => {
       const keep = MAX_INNER
       const mid = (p + q) / 2
       return { from: mid - (q - p - keep) / 2, to: mid + (q - p - keep) / 2 }
@@ -323,10 +354,12 @@ for (const [i, scene] of script.scenes.entries()) {
 
     const gap = k === 0 ? (scene.gap ?? GAP) : (c.gap ?? GAP)
     const T = lastEnd === null ? START : lastEnd + gap // output time of the line's first sound
+    if (gap > 0.5 && lastEnd !== null) DELIBERATE.push(T)
+    if (lastEnd !== null) LINE_GAPS.push([lastEnd, T])
     const shift = T - map(s)
     let o = map(segA) + shift
     for (const [p, q] of pieces) {
-      const seg = faded(pcm.subarray(Math.round(p * RATE), Math.round(q * RATE)))
+      const seg = faded(clean.subarray(Math.round(p * RATE), Math.round(q * RATE)))
       place(seg, o)
       o += seg.length / RATE
     }
@@ -345,6 +378,77 @@ for (const [i, scene] of script.scenes.entries()) {
   timing.scenes[scene.id] = { start: chunks[0].start, end: chunks.at(-1).end, chunks, words }
 }
 
+// The pause rule, enforced on the assembled track at the level the finished track will have: silencedetect at
+// -35 dB, 0.15 s. No pause runs over MAX_PAUSE, and no two pauses come within 0.5 s of each other (the shorter one
+// of such a pair is cut to under 0.15 s). The lead-in, the deliberate pause before the results and the end are left
+// alone. Cuts fall in the middle of a silence, and every time in the timing moves with them.
+{
+  const tmp = path.join(OUT, 'assembled.wav')
+  fs.writeFileSync(tmp, wav16(Float32Array.from(out)))
+  const pass = spawnSync('ffmpeg', ['-hide_banner', '-i', tmp, '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11:print_format=json', '-f', 'null', '-'])
+  const err = pass.stderr.toString()
+  const gain = -16 - Number(JSON.parse(err.slice(err.lastIndexOf('{'), err.lastIndexOf('}') + 1)).input_i)
+  fs.rmSync(tmp)
+  const thr = Math.pow(10, (-36.5 - gain) / 20)
+  const allowed = (a, b) => a < 0.05 || b > remap(lastEnd) - 0.01 || DELIBERATE.some((t) => a <= remap(t) && b >= remap(t) - 0.02)
+  const silences = () => {
+    const w = Math.round(0.005 * RATE)
+    const runs = []
+    let from = null
+    for (let i = 0; i + w <= out.length; i += w) {
+      let peak = 0
+      for (let k = 0; k < w; k++) peak = Math.max(peak, Math.abs(out[i + k]))
+      if (peak < thr && from === null) from = i
+      if (peak >= thr && from !== null) {
+        if ((i - from) / RATE >= 0.15) runs.push([from / RATE, i / RATE])
+        from = null
+      }
+    }
+    return runs.filter(([a, b]) => !allowed(a, b))
+  }
+  const cuts = []
+  // Times after a cut move back by it. Cuts were made one at a time, each in the times of the track it cut.
+  const remap = (t) => cuts.reduce((v, c) => (v >= c.to ? v - (c.to - c.from) : v > c.from ? c.from : v), t)
+  const cut = (a, b, keep) => {
+    // Remove the middle of [a, b] so `keep` seconds remain.
+    const mid = (a + b) / 2
+    const from = mid - (b - a - keep) / 2
+    const to = mid + (b - a - keep) / 2
+    out.splice(Math.round(from * RATE), Math.round((to - from) * RATE))
+    cuts.push({ from, to })
+  }
+  for (let round = 0; round < 50; round++) {
+    const runs = silences()
+    const long = runs.find(([a, b]) => b - a > MAX_PAUSE)
+    if (long) {
+      cut(long[0], long[1], MAX_PAUSE - 0.02)
+      continue
+    }
+    const pair = runs.findIndex((r, i) => i + 1 < runs.length && runs[i + 1][0] - r[1] < 0.6)
+    if (pair < 0) break
+    const [x, y] = [runs[pair], runs[pair + 1]]
+    // A pause between lines keeps its length (0.15 to 0.35 s); the pause inside a line gives way.
+    const isGap = ([a, b]) => LINE_GAPS.some(([e, s]) => a <= remap(e) + 0.1 && b >= remap(s) - 0.1)
+    const shorter = isGap(x) && !isGap(y) ? y : isGap(y) && !isGap(x) ? x : x[1] - x[0] <= y[1] - y[0] ? x : y
+    cut(shorter[0], shorter[1], 0.12)
+  }
+  // Times after a cut move back by it. Cuts were made one at a time, each in the times of the track it cut.
+  for (const s of Object.values(timing.scenes)) {
+    for (const c of s.chunks) {
+      c.start = +remap(c.start).toFixed(3)
+      c.end = +remap(c.end).toFixed(3)
+    }
+    for (const w of s.words) {
+      w.start = +remap(w.start).toFixed(3)
+      w.end = +remap(w.end).toFixed(3)
+    }
+    s.start = s.chunks[0].start
+    s.end = s.chunks.at(-1).end
+  }
+  lastEnd = remap(lastEnd)
+  console.log(`pause rule: ${cuts.length} cut${cuts.length === 1 ? '' : 's'} (${cuts.map((c) => (c.to - c.from).toFixed(2)).join(' ')} s)`)
+}
+
 // The tail, then loudness, then the room tone under everything.
 place(new Float32Array(Math.round(TAIL * RATE)), lastEnd)
 const file = path.join(OUT, 'narration.wav')
@@ -354,9 +458,11 @@ const norm = decode(file)
 let b0 = 0
 let b1 = 0
 let b2 = 0
+let seed = 12345
+const random = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648)
 for (let i = 0; i < norm.length; i++) {
-  // Pink-ish noise (Paul Kellet's economy filter), about -66 dBFS RMS.
-  const w = Math.random() * 2 - 1
+  // Pink-ish noise (Paul Kellet's economy filter), about -66 dBFS RMS, the same on every run.
+  const w = random() * 2 - 1
   b0 = 0.99765 * b0 + w * 0.099046
   b1 = 0.963 * b1 + w * 0.2965164
   b2 = 0.57 * b2 + w * 1.0526913

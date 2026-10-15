@@ -67,10 +67,21 @@ export function Memory() {
   const term = pop(sec, c(1) + 0.15, fps)
   const lines: TermLine[] = [
     { at: c(1) + 0.3, kind: 'prompt', cps: 70, text: 'Make post_list in blog/views.py link each post by its slug.' },
-    { at: word('told', c(1)) - 0.25, kind: 'note', text: FIX_TOLD },
-    { at: word('writes', c(1)) + 0.1, kind: 'tool', text: 'Edit blog/views.py' },
+    { at: word('told', c(1)) - 0.35, kind: 'status', text: 'UserPromptSubmit hook additional context:' },
+    {
+      at: word('told', c(1)) - 0.2,
+      kind: 'body',
+      text: FIX_TOLD,
+      tokens: [
+        { text: 'utils.text.slugify', color: C.text, bold: true },
+        { text: 'slugify(post.title, allow_unicode=True)', color: '#ff9b9b' },
+        { text: 'slugify(value, *, unicode=False)', color: '#8fe0b5' },
+        { text: 'slugify(post.title, unicode=True)', color: '#8fe0b5' },
+      ],
+      marks: [{ text: 'slugify(post.title, unicode=True)', at: word('fix', c(1)) - 0.1 }],
+    },
+    { at: word('writes', c(1)) + 0.1, kind: 'tool', text: 'Update(blog/views.py)' },
     { at: word('call', c(1)) + 0.1, kind: 'add', text: '<li id="{slugify(p.title)}">' },
-    { at: word('call', c(1)) + 0.5, kind: 'ok', text: 'Airspace: cleared' },
   ]
   return (
     <AbsoluteFill>

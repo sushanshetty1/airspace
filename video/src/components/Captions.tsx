@@ -34,8 +34,11 @@ export function Captions() {
   const outP = interpolate(left, [0, 0.1], [0, 1], { extrapolateRight: 'clamp' })
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, top: BAND.top, bottom: 1080 - BAND.bottom, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* A quiet dark band, so a caption stays readable whatever a transition passes under it. */}
+      <div style={{ position: 'absolute', left: 0, right: 0, top: -14, bottom: -8, background: 'linear-gradient(to bottom, rgba(6,8,10,0), rgba(6,8,10,0.72) 26%, rgba(6,8,10,0.72))' }} />
       <div
         style={{
+          position: 'relative',
           maxWidth: 1480,
           textAlign: 'center',
           fontFamily: SANS,

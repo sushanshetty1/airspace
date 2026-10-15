@@ -27,7 +27,8 @@ export const C = {
 }
 
 export const SANS = "'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif"
-export const MONO = "'JetBrains Mono', ui-monospace, monospace"
+// Menlo after JetBrains Mono for any glyph the bundled latin subset lacks.
+export const MONO = "'JetBrains Mono', Menlo, ui-monospace, monospace"
 
 export const FPS = 30
 export const W = 1920

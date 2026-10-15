@@ -114,18 +114,17 @@ export function RingMark({ ring, cam, sec }: { ring: Ring; cam: Cam; sec: number
           style={{
             position: 'absolute',
             left: a.x,
-            top: ring.below ? b.y + 10 : a.y - 44,
+            top: ring.below ? b.y + 10 : a.y - 38,
             opacity: out * tag,
             transform: `translateY(${(1 - tag) * 8}px)`,
+            // The query behind what is ringed, as plain code text: no badge.
             fontFamily: MONO,
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: 500,
-            color: C.bg,
-            background: color,
-            padding: '5px 11px',
-            borderRadius: 7,
+            color: C.text,
             whiteSpace: 'nowrap',
-            boxShadow: '0 10px 30px -8px rgba(0,0,0,0.7)',
+            fontVariantLigatures: 'none',
+            textShadow: `0 0 10px ${C.bg}, 0 0 4px ${C.bg}, 0 0 2px ${C.bg}`,
           }}
         >
           {ring.label}

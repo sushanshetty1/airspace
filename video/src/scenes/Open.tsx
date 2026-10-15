@@ -4,7 +4,7 @@
 
 import { AbsoluteFill, interpolate } from 'remotion'
 import { C, MONO, SANS, ease, easeInOut } from '../brand'
-import { Sign, clamp, pop, ramp, useSec } from '../components/ui'
+import { clamp, pop, ramp, useSec } from '../components/ui'
 import { useSceneTime } from '../timeline'
 
 const MAIN_Y = 500
@@ -39,7 +39,7 @@ function BranchCard({ x, y, color, agent, branch, lines, pass, mark }: { x: numb
           <span style={{ color: C.muted }}>{branch}</span>
         </div>
         <div style={{ opacity: pass, transform: `scale(${0.8 + 0.2 * pass})` }}>
-          <Sign kind="cleared">3 tests pass</Sign>
+          <span style={{ fontFamily: MONO, fontSize: 16, color: C.ok }}>3 passed</span>
         </div>
       </div>
       <div style={{ padding: '14px 18px 16px', fontFamily: MONO, fontSize: 18.5, lineHeight: 1.75 }}>
@@ -145,7 +145,7 @@ export function Open() {
             width: 440,
             background: C.surface,
             borderRadius: 14,
-            boxShadow: `0 30px 70px -30px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(255,93,93,0.35)`,
+            boxShadow: `0 30px 70px -30px rgba(0,0,0,0.9), inset 0 0 0 1px ${C.line}`,
             padding: '16px 18px 18px',
             opacity: Math.min(1, fail * 1.4),
             transform: `translateY(${(1 - fail) * 24}px)`,
@@ -155,7 +155,7 @@ export function Open() {
             <span>
               <span style={{ fontFamily: MONO, color: C.muted }}>main</span> after the merge
             </span>
-            <span style={{ fontFamily: SANS, fontWeight: 600, fontSize: 15, color: C.bad, background: C.badSoft, padding: '3px 9px', borderRadius: 6 }}>Failed</span>
+            <span style={{ fontFamily: MONO, fontSize: 16, color: C.bad }}>failed</span>
           </div>
           <div style={{ marginTop: 12, fontFamily: MONO, fontSize: 15.5, lineHeight: 1.55, color: '#ffb1b1', whiteSpace: 'pre-wrap' }}>
             {'TypeError: slugify() got an\nunexpected keyword argument\n'}

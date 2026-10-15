@@ -72,35 +72,6 @@ export function Wordmark({ size = 34, color = C.text }: { size?: number; color?:
   )
 }
 
-/** Status badge as the app draws it. */
-export function Sign({ kind, children, size = 1 }: { kind: 'hold' | 'cleared' | 'briefed' | 'landed' | 'plain'; children: ReactNode; size?: number }) {
-  const look = {
-    hold: { background: C.accent, color: C.accentInk },
-    cleared: { background: C.okSoft, color: C.ok },
-    landed: { background: C.okSoft, color: C.ok },
-    briefed: { background: C.surface2, color: C.text, boxShadow: `inset 0 0 0 1px ${C.lineStrong}` },
-    plain: { background: C.surface2, color: C.muted },
-  }[kind]
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        height: 26 * size,
-        padding: `0 ${10 * size}px`,
-        borderRadius: 7 * size,
-        fontFamily: SANS,
-        fontWeight: 600,
-        fontSize: 15 * size,
-        whiteSpace: 'nowrap',
-        ...look,
-      }}
-    >
-      {children}
-    </span>
-  )
-}
-
 /** A card the way the product draws a window: one hairline, a title bar. */
 export function Panel({ title, right, children, style }: { title?: ReactNode; right?: ReactNode; children: ReactNode; style?: CSSProperties }) {
   return (
@@ -157,10 +128,70 @@ export function Cypher({ code, size = 17, dim = 0 }: { code: string; size?: numb
 
 export type TermLine = {
   at: number
-  kind: 'prompt' | 'tool' | 'add' | 'del' | 'out' | 'hold' | 'ok' | 'note' | 'dim' | 'cmd'
+  /**
+   * prompt  the user's prompt, typed            cmd     a shell command, typed
+   * tool    a tool call, `● Update(path)`        add/del a diff line
+   * status  the `⎿` line under a tool call       body    hook or tool output, indented under it
+   * say     the agent's own message, `● ...`     out     plain output
+   */
+  kind: 'prompt' | 'cmd' | 'tool' | 'add' | 'del' | 'status' | 'body' | 'say' | 'out'
   text: string
   /** Characters per second for typed lines (prompt and cmd). */
   cps?: number
+  /** status: the colour of the line (a hook that blocked is muted red). */
+  color?: string
+  /** body: words coloured as a terminal colours them. */
+  tokens?: { text: string; color: string; bold?: boolean }[]
+  /** body: words a highlight sweeps behind when the voice names them, from `at` seconds. */
+  marks?: { text: string; at: number }[]
+}
+
+/**
+ * Claude Code's ⎿, drawn: the bundled mono subset has no glyph for it, and a fallback font draws it at the wrong
+ * size. One character wide, in the line's own colour.
+ */
+export function Elbow() {
+  return (
+    <span style={{ display: 'inline-block', width: '1ch', height: '1em', verticalAlign: '-0.05em', position: 'relative' }}>
+      <span style={{ position: 'absolute', left: '0.2ch', top: '0.04em', width: '0.7ch', height: '0.6em', borderLeft: '0.09em solid currentColor', borderBottom: '0.09em solid currentColor', opacity: 0.85 }} />
+    </span>
+  )
+}
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/** Body text with its tokens coloured and its marks swept. Plain monospace; nothing boxed. */
+function Body({ line, sec }: { line: TermLine; sec: number }) {
+  const tokens = line.tokens ?? []
+  const marks = line.marks ?? []
+  const all = [...tokens.map((t) => t.text), ...marks.map((m) => m.text)].filter(Boolean)
+  if (!all.length) return <>{line.text}</>
+  const re = new RegExp(`(${[...new Set(all)].sort((a, b) => b.length - a.length).map(escape).join('|')})`, 'g')
+  return (
+    <>
+      {line.text.split(re).map((part, i) => {
+        const tok = tokens.find((t) => t.text === part)
+        const mark = marks.find((m) => m.text === part)
+        const p = mark ? interpolate(sec - mark.at, [0, 0.45], [0, 1], { ...clamp, easing: ease }) : 0
+        if (!tok && !mark) return <span key={i}>{part}</span>
+        return (
+          <span
+            key={i}
+            style={{
+              color: tok?.color,
+              fontWeight: tok?.bold ? 600 : undefined,
+              backgroundImage: mark ? 'linear-gradient(rgba(237,239,241,0.16), rgba(237,239,241,0.16))' : undefined,
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: `${p * 100}% 100%`,
+              borderRadius: 3,
+            }}
+          >
+            {part}
+          </span>
+        )
+      })}
+    </>
+  )
 }
 
 /** A Claude Code session, drawn from a recorded run: each line arrives at its time; prompts and commands type. */
@@ -179,46 +210,57 @@ export function Terminal({ title, color, lines, sec, style, size = 16 }: { title
       }}
     >
       <div style={{ height: 42, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px', borderBottom: `1px solid ${C.line}`, fontFamily: SANS, fontSize: 15, color: C.muted }}>
-        <span style={{ width: 9, height: 9, borderRadius: 5, background: color, boxShadow: `0 0 10px ${color}` }} />
+        <span style={{ width: 8, height: 8, borderRadius: 4, background: color }} />
         {title}
       </div>
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '12px 18px 16px', overflow: 'hidden', fontVariantLigatures: 'none' }}>
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          padding: '12px 18px 16px',
+          overflow: 'hidden',
+          fontFamily: MONO,
+          fontSize: size,
+          lineHeight: 1.6,
+          fontVariantLigatures: 'none',
+        }}
+      >
         {shown.map((l, i) => {
           const age = sec - l.at
           const grow = interpolate(age, [0, 0.28], [0, 1], { ...clamp, easing: ease })
-          const typed = l.kind === 'prompt' || l.kind === 'cmd' ? Math.min(l.text.length, Math.floor(age * (l.cps ?? 42))) : l.text.length
-          const caret = (l.kind === 'prompt' || l.kind === 'cmd') && typed < l.text.length && Math.floor(age * 3) % 2 === 0
+          const typing = l.kind === 'prompt' || l.kind === 'cmd'
+          const typed = typing ? Math.min(l.text.length, Math.floor(age * (l.cps ?? 42))) : l.text.length
+          const caret = typing && typed < l.text.length && Math.floor(age * 3) % 2 === 0
+          // Lines under a tool call hang under its name, the way Claude Code indents them.
+          const indent = l.kind === 'status' || l.kind === 'body' || l.kind === 'out' ? 5 : 0
+          const prefix = { prompt: '> ', cmd: '$ ', tool: '● ', say: '● ', add: '+ ', del: '- ', status: '   ', body: '', out: '' }[l.kind]
           const look: CSSProperties = {
             prompt: { color: C.text },
             cmd: { color: C.text },
-            tool: { color: C.text, fontWeight: 600 },
-            add: { color: '#8fe0b5', background: 'rgba(60,207,142,0.08)' },
-            del: { color: '#ff9b9b', background: 'rgba(255,93,93,0.08)' },
+            tool: { color: C.text, fontWeight: 600, marginTop: 8 },
+            say: { color: C.text, marginTop: 8 },
+            add: { color: '#8fe0b5', background: 'rgba(60,207,142,0.08)', padding: '0 8px' },
+            del: { color: '#ff9b9b', background: 'rgba(255,93,93,0.08)', padding: '0 8px' },
+            status: { color: l.color ?? C.muted },
+            body: { color: '#c9ced3' },
             out: { color: C.muted },
-            dim: { color: C.faint },
-            hold: { color: '#ffd9c9', background: 'rgba(255,90,31,0.12)', boxShadow: `inset 3px 0 0 ${C.accent}` },
-            ok: { color: C.ok },
-            note: { color: '#d8e7f0', background: 'rgba(69,196,230,0.08)', boxShadow: `inset 3px 0 0 ${C.a}` },
           }[l.kind]
-          const prefix = { prompt: '> ', cmd: '$ ', tool: '● ', add: '+ ', del: '- ', out: '  ', dim: '  ', hold: '', ok: '✓ ', note: '' }[l.kind]
           return (
             <div key={i} style={{ display: 'grid', gridTemplateRows: `${grow}fr`, opacity: grow, flexShrink: 0 }}>
               <div style={{ minHeight: 0, overflow: 'hidden' }}>
-                <div
-                  style={{
-                    fontFamily: l.kind === 'hold' || l.kind === 'note' ? SANS : MONO,
-                    fontSize: l.kind === 'hold' || l.kind === 'note' ? size * 1.02 : size,
-                    lineHeight: l.kind === 'hold' || l.kind === 'note' ? 1.45 : 1.6,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    padding: l.kind === 'hold' || l.kind === 'note' ? '9px 12px' : l.kind === 'add' || l.kind === 'del' ? '0 8px' : '0',
-                    margin: l.kind === 'hold' || l.kind === 'note' ? '6px 0' : l.kind === 'tool' || l.kind === 'prompt' ? '8px 0 2px' : 0,
-                    borderRadius: 6,
-                    ...look,
-                  }}
-                >
-                  {prefix && <span style={{ color: l.kind === 'prompt' ? color : undefined, opacity: l.kind === 'prompt' ? 1 : 0.8 }}>{prefix}</span>}
-                  {l.text.slice(0, typed)}
+                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', paddingLeft: `${indent}ch`, textIndent: prefix && indent ? `-${prefix.length}ch` : undefined, ...look }}>
+                  {l.kind === 'status' ? (
+                    <>
+                      <Elbow />
+                      {'  '}
+                    </>
+                  ) : (
+                    prefix && <span style={{ color: l.kind === 'prompt' ? color : l.kind === 'say' ? C.text : undefined, opacity: l.kind === 'tool' ? 0.85 : 1 }}>{prefix}</span>
+                  )}
+                  {l.kind === 'body' ? <Body line={l} sec={sec} /> : l.text.slice(0, typed)}
                   {caret && <span style={{ display: 'inline-block', width: size * 0.55, height: size * 1.1, background: C.text, verticalAlign: 'text-bottom', marginLeft: 2 }} />}
                 </div>
               </div>

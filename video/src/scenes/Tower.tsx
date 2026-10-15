@@ -47,31 +47,49 @@ export function TowerScene() {
     [dur, 24.6 + (dur - land - 0.4) * 0.6],
   ]
 
-  const radar = { x: 530, y: 167, w: 819, h: 432 }
-  const aSpace = { x: 670, y: 205, w: 400, h: 390 }
-  const lens = { x: 930, y: 250, w: 150, h: 300 }
+  // Every label of the radar stays inside the frame: test_render_post reaches x 552, agent-b's airspace x 1331.
+  const radar = { x: 540, y: 165, w: 800, h: 430 }
+  const aSpace = { x: 540, y: 170, w: 540, h: 430 }
   const panel = { x: 1221, y: 120, w: 379, h: 330 }
   const sigs = { x: 1233, y: 318, w: 360, h: 110 }
 
+  // Terminal colours, as a terminal sets them: symbols bold, the new signature green, the old red, the path amber.
+  const holdTokens = [
+    { text: 'utils.text.slugify', color: C.text, bold: true },
+    { text: 'blog.views.render_post', color: C.text, bold: true },
+    { text: 'slugify(value, *, unicode=False)', color: '#8fe0b5' },
+    { text: 'slugify(value, allow_unicode=False)', color: '#ff9b9b' },
+    { text: 'blog.views.render_post -> utils.text.slugify', color: '#e8c48a' },
+    { text: 'agent-a', color: C.a },
+  ]
   const linesA: TermLine[] = [
     { at: c(2) + 0.1, kind: 'prompt', cps: 95, text: 'In utils/text.py, make the unicode option of slugify keyword-only and rename it, so the signature is exactly slugify(value, *, unicode=False). Update the body and every caller.' },
-    { at: c(2) + 2.3, kind: 'tool', text: 'Edit utils/text.py' },
+    { at: c(2) + 2.3, kind: 'tool', text: 'Update(utils/text.py)' },
     { at: c(2) + 2.6, kind: 'del', text: 'def slugify(value, allow_unicode=False):' },
     { at: c(2) + 2.75, kind: 'add', text: 'def slugify(value, *, unicode=False):' },
-    { at: c(2) + 3.3, kind: 'ok', text: 'Airspace: cleared' },
-    { at: c(2) + 4.2, kind: 'tool', text: 'Bash pytest -q' },
-    { at: c(2) + 4.7, kind: 'out', text: '3 passed' },
-    { at: c(5) + 4.2, kind: 'ok', text: 'Landed' },
+    { at: c(2) + 4.0, kind: 'tool', text: 'Bash(pytest -q)' },
+    { at: c(2) + 4.5, kind: 'status', text: '3 passed' },
+    { at: c(5) + 4.2, kind: 'say', text: 'slugify is now slugify(value, *, unicode=False), and all 3 tests pass.' },
   ]
   const linesB: TermLine[] = [
     { at: c(3) - 0.2, kind: 'prompt', cps: 95, text: 'In blog/views.py, make render_post add a data-slug attribute to the article tag, built as slugify(post.title, allow_unicode=True).' },
-    { at: c(3) + 1.5, kind: 'tool', text: 'Edit blog/views.py' },
+    { at: c(3) + 1.5, kind: 'tool', text: 'Update(blog/views.py)' },
     { at: c(3) + 1.8, kind: 'add', text: 'slug = slugify(post.title, allow_unicode=True)' },
-    { at: word('held', c(4)) - 0.1, kind: 'hold', text: HOLD_TEXT },
-    { at: c(6) + 0.25, kind: 'tool', text: 'Edit blog/views.py' },
+    { at: word('held', c(4)) - 0.15, kind: 'status', text: 'PreToolUse:Edit hook blocked:', color: '#e8836a' },
+    {
+      at: word('held', c(4)) + 0.05,
+      kind: 'body',
+      text: HOLD_TEXT,
+      tokens: holdTokens,
+      marks: [
+        { text: 'agent-a', at: word('who', c(5)) },
+        { text: 'slugify(value, *, unicode=False)', at: word('signature', c(5)) - 0.1 },
+        { text: 'blog.views.render_post -> utils.text.slugify', at: word('path', c(5)) - 0.1 },
+      ],
+    },
+    { at: c(6) + 0.25, kind: 'tool', text: 'Update(blog/views.py)' },
     { at: c(6) + 0.55, kind: 'add', text: 'slug = slugify(post.title, unicode=True)' },
-    { at: cleared - 0.1, kind: 'ok', text: 'Airspace: cleared' },
-    { at: land + 0.2, kind: 'ok', text: 'Landed' },
+    { at: land + 0.2, kind: 'say', text: "I changed the call in render_post to slugify(post.title, unicode=True) to match agent-a's new keyword-only signature." },
   ]
 
   const a = termIn(0.05)
@@ -86,9 +104,9 @@ export function TowerScene() {
           warp={warp}
           shots={[
             { at: 0, rect: null },
-            { at: c(2) + 0.3, rect: aSpace, stiffness: 55 },
-            { at: c(3) + 0.4, rect: radar, pad: 30 },
-            { at: c(4) + 0.1, rect: lens, max: 2.1 },
+            { at: c(2) + 0.3, rect: aSpace, pad: 20, stiffness: 55 },
+            { at: c(3) + 0.4, rect: radar, pad: 24 },
+            { at: c(4) + 0.1, rect: radar, pad: 14 },
             { at: c(5) - 0.85, rect: { x: 330, y: 110, w: 1270, h: 520 }, pad: 10 },
             { at: c(5) + 0.45, rect: panel, pad: 24, max: 2.2 },
             { at: c(6) + 0.2, rect: { x: 330, y: 110, w: 1270, h: 520 }, pad: 10 },

@@ -6,2693 +6,2693 @@
  "scenes": {
   "open": {
    "start": 0.7,
-   "end": 17.655,
+   "end": 17.39,
    "chunks": [
     {
      "text": "Split a feature between two coding agents, and each one passes its own tests.",
      "start": 0.7,
-     "end": 5.46
+     "end": 5.425
     },
     {
      "text": "Merge their branches, and the build is red.",
-     "start": 5.74,
-     "end": 7.875
+     "start": 5.705,
+     "end": 7.775
     },
     {
      "text": "One agent changed a function. The other, on its own branch, was still calling the old version.",
-     "start": 8.155,
-     "end": 13.39
+     "start": 8.055,
+     "end": 13.17
     },
     {
      "text": "With worktrees alone, we measured 0 of 18 merges green.",
-     "start": 13.67,
-     "end": 17.655
+     "start": 13.45,
+     "end": 17.39
     }
    ],
    "words": [
     {
      "w": "Split",
-     "start": 0.68,
-     "end": 1.08
+     "start": 0.665,
+     "end": 1.065
     },
     {
      "w": "a",
-     "start": 1.12,
-     "end": 1.16
+     "start": 1.105,
+     "end": 1.145
     },
     {
      "w": "feature",
-     "start": 1.24,
-     "end": 1.56
+     "start": 1.225,
+     "end": 1.545
     },
     {
      "w": "between",
-     "start": 1.72,
-     "end": 1.88
+     "start": 1.705,
+     "end": 1.865
     },
     {
      "w": "two",
-     "start": 2.04,
-     "end": 2.2
+     "start": 2.025,
+     "end": 2.185
     },
     {
      "w": "coding",
-     "start": 2.28,
-     "end": 2.6
+     "start": 2.265,
+     "end": 2.585
     },
     {
      "w": "agents",
-     "start": 2.68,
-     "end": 3.16
+     "start": 2.665,
+     "end": 3.145
     },
     {
      "w": "and",
-     "start": 3.28,
-     "end": 3.4
+     "start": 3.265,
+     "end": 3.385
     },
     {
      "w": "each",
-     "start": 3.48,
-     "end": 3.64
+     "start": 3.465,
+     "end": 3.625
     },
     {
      "w": "one",
-     "start": 3.72,
-     "end": 3.88
+     "start": 3.705,
+     "end": 3.865
     },
     {
      "w": "passes",
-     "start": 3.96,
-     "end": 4.36
+     "start": 3.945,
+     "end": 4.345
     },
     {
      "w": "its",
-     "start": 4.48,
-     "end": 4.6
+     "start": 4.465,
+     "end": 4.585
     },
     {
      "w": "own",
-     "start": 4.68,
-     "end": 4.84
+     "start": 4.665,
+     "end": 4.825
     },
     {
      "w": "tests",
-     "start": 4.92,
-     "end": 5.68
+     "start": 4.905,
+     "end": 5.665
     },
     {
      "w": "Merge",
-     "start": 5.8,
-     "end": 6.04
+     "start": 5.765,
+     "end": 6.005
     },
     {
      "w": "their",
-     "start": 6.12,
-     "end": 6.2
+     "start": 6.085,
+     "end": 6.165
     },
     {
      "w": "branches",
-     "start": 6.48,
-     "end": 6.92
+     "start": 6.445,
+     "end": 6.885
     },
     {
      "w": "and",
-     "start": 6.96,
-     "end": 7
+     "start": 6.925,
+     "end": 6.965
     },
     {
      "w": "the",
-     "start": 7.08,
-     "end": 7.12
+     "start": 7.045,
+     "end": 7.085
     },
     {
      "w": "build",
-     "start": 7.16,
-     "end": 7.32
+     "start": 7.125,
+     "end": 7.285
     },
     {
      "w": "is",
-     "start": 7.4,
-     "end": 7.48
+     "start": 7.365,
+     "end": 7.445
     },
     {
      "w": "red",
-     "start": 7.56,
-     "end": 7.88
+     "start": 7.525,
+     "end": 7.845
     },
     {
      "w": "One",
-     "start": 8.235,
-     "end": 8.395
+     "start": 8.13,
+     "end": 8.29
     },
     {
      "w": "agent",
-     "start": 8.475,
-     "end": 8.795
+     "start": 8.37,
+     "end": 8.69
     },
     {
      "w": "changed",
-     "start": 8.875,
-     "end": 9.195
+     "start": 8.77,
+     "end": 9.09
     },
     {
      "w": "a",
-     "start": 9.235,
-     "end": 9.275
+     "start": 9.13,
+     "end": 9.17
     },
     {
      "w": "function",
-     "start": 9.355,
-     "end": 9.835
+     "start": 9.25,
+     "end": 9.73
     },
     {
      "w": "The",
-     "start": 10.105,
-     "end": 10.185
+     "start": 9.92,
+     "end": 10
     },
     {
      "w": "other",
-     "start": 10.265,
-     "end": 10.665
+     "start": 10.08,
+     "end": 10.48
     },
     {
      "w": "on",
-     "start": 10.705,
-     "end": 10.745
+     "start": 10.52,
+     "end": 10.56
     },
     {
      "w": "its",
-     "start": 10.825,
-     "end": 10.985
+     "start": 10.64,
+     "end": 10.8
     },
     {
      "w": "own",
-     "start": 11.065,
-     "end": 11.145
+     "start": 10.88,
+     "end": 10.96
     },
     {
      "w": "branch",
-     "start": 11.225,
-     "end": 11.705
+     "start": 11.04,
+     "end": 11.52
     },
     {
      "w": "was",
-     "start": 11.785,
-     "end": 11.865
+     "start": 11.6,
+     "end": 11.68
     },
     {
      "w": "still",
-     "start": 11.945,
-     "end": 12.185
+     "start": 11.76,
+     "end": 12
     },
     {
      "w": "calling",
-     "start": 12.265,
-     "end": 12.585
+     "start": 12.08,
+     "end": 12.4
     },
     {
      "w": "the",
-     "start": 12.625,
-     "end": 12.665
+     "start": 12.44,
+     "end": 12.48
     },
     {
      "w": "old",
-     "start": 12.745,
-     "end": 12.905
+     "start": 12.56,
+     "end": 12.72
     },
     {
      "w": "version",
-     "start": 12.985,
-     "end": 13.465
+     "start": 12.8,
+     "end": 13.28
     },
     {
      "w": "With",
-     "start": 13.685,
-     "end": 13.845
+     "start": 13.465,
+     "end": 13.625
     },
     {
      "w": "worktrees",
-     "start": 13.965,
-     "end": 14.325
+     "start": 13.745,
+     "end": 14.105
     },
     {
      "w": "alone",
-     "start": 14.525,
-     "end": 14.885
+     "start": 14.305,
+     "end": 14.665
     },
     {
      "w": "we",
-     "start": 14.965,
-     "end": 15.045
+     "start": 14.745,
+     "end": 14.825
     },
     {
      "w": "measured",
-     "start": 15.085,
-     "end": 15.445
+     "start": 14.865,
+     "end": 15.225
     },
     {
      "w": "zero",
-     "start": 15.605,
-     "end": 15.925
+     "start": 15.385,
+     "end": 15.705
     },
     {
      "w": "of",
-     "start": 16.005,
-     "end": 16.245
+     "start": 15.785,
+     "end": 16.025
     },
     {
      "w": "eighteen",
-     "start": 16.325,
-     "end": 16.725
+     "start": 16.105,
+     "end": 16.505
     },
     {
      "w": "merges",
-     "start": 16.805,
-     "end": 17.205
+     "start": 16.585,
+     "end": 16.985
     },
     {
      "w": "green",
-     "start": 17.285,
-     "end": 17.925
+     "start": 17.065,
+     "end": 17.705
     }
    ]
   },
   "idea": {
-   "start": 17.935,
-   "end": 46.175,
+   "start": 17.67,
+   "end": 45.065,
    "chunks": [
     {
      "text": "Airspace is air-traffic control for coding agents.",
-     "start": 17.935,
-     "end": 20.995
+     "start": 17.67,
+     "end": 20.715
     },
     {
      "text": "It keeps a live graph of your code in FalkorDB: every function, every call, and the shape of each call.",
-     "start": 21.275,
-     "end": 27.795
+     "start": 20.995,
+     "end": 27.38
     },
     {
      "text": "The agents live on the same graph. What each one claims, and every caller and test two hops out, is its airspace.",
-     "start": 28.075,
-     "end": 35.415
+     "start": 27.66,
+     "end": 34.725
     },
     {
      "text": "Every edit is checked against the graph before it is written.",
-     "start": 35.695,
-     "end": 38.545
+     "start": 35.005,
+     "end": 37.825
     },
     {
      "text": "If it would break another agent's work, it is held, and the agent is told why.",
-     "start": 38.825,
-     "end": 42.995
+     "start": 38.105,
+     "end": 41.975
     },
     {
      "text": "The decision is a Cypher query, not a model call.",
-     "start": 43.275,
-     "end": 46.175
+     "start": 42.255,
+     "end": 45.065
     }
    ],
    "words": [
     {
      "w": "Airspace",
-     "start": 17.935,
-     "end": 18.575
+     "start": 17.67,
+     "end": 18.31
     },
     {
      "w": "is",
-     "start": 18.655,
-     "end": 18.895
+     "start": 18.39,
+     "end": 18.63
     },
     {
      "w": "air-traffic",
-     "start": 18.975,
-     "end": 19.455
+     "start": 18.71,
+     "end": 19.19
     },
     {
      "w": "control",
-     "start": 19.735,
-     "end": 20.015
+     "start": 19.47,
+     "end": 19.75
     },
     {
      "w": "for",
-     "start": 20.095,
-     "end": 20.175
+     "start": 19.83,
+     "end": 19.91
     },
     {
      "w": "coding",
-     "start": 20.335,
-     "end": 20.495
+     "start": 20.07,
+     "end": 20.23
     },
     {
      "w": "agents",
-     "start": 20.575,
-     "end": 21.495
+     "start": 20.31,
+     "end": 21.23
     },
     {
      "w": "It",
-     "start": 21.305,
-     "end": 21.385
+     "start": 21.02,
+     "end": 21.1
     },
     {
      "w": "keeps",
-     "start": 21.465,
-     "end": 21.705
+     "start": 21.18,
+     "end": 21.42
     },
     {
      "w": "a",
-     "start": 21.785,
-     "end": 21.865
+     "start": 21.5,
+     "end": 21.58
     },
     {
      "w": "live",
-     "start": 22.025,
-     "end": 22.185
+     "start": 21.74,
+     "end": 21.9
     },
     {
      "w": "graph",
-     "start": 22.345,
-     "end": 22.505
+     "start": 22.06,
+     "end": 22.22
     },
     {
      "w": "of",
-     "start": 22.545,
-     "end": 22.585
+     "start": 22.26,
+     "end": 22.3
     },
     {
      "w": "your",
-     "start": 22.665,
-     "end": 22.745
+     "start": 22.38,
+     "end": 22.46
     },
     {
      "w": "code",
-     "start": 22.825,
-     "end": 23.145
+     "start": 22.54,
+     "end": 22.86
     },
     {
      "w": "in",
-     "start": 23.225,
-     "end": 23.305
+     "start": 22.94,
+     "end": 23.02
     },
     {
      "w": "Falkor",
-     "start": 23.385,
-     "end": 23.785
+     "start": 23.1,
+     "end": 23.5
     },
     {
      "w": "DB",
-     "start": 23.865,
-     "end": 24.565
+     "start": 23.58,
+     "end": 24.22
     },
     {
      "w": "every",
-     "start": 24.605,
-     "end": 24.845
+     "start": 24.26,
+     "end": 24.5
     },
     {
      "w": "function",
-     "start": 25.205,
-     "end": 25.605
+     "start": 24.86,
+     "end": 25.26
     },
     {
      "w": "every",
-     "start": 25.645,
-     "end": 25.885
+     "start": 25.3,
+     "end": 25.54
     },
     {
      "w": "call",
-     "start": 26.205,
-     "end": 26.565
+     "start": 25.86,
+     "end": 26.22
     },
     {
      "w": "and",
-     "start": 26.605,
-     "end": 26.685
+     "start": 26.26,
+     "end": 26.34
     },
     {
      "w": "the",
-     "start": 26.765,
-     "end": 26.925
+     "start": 26.42,
+     "end": 26.58
     },
     {
      "w": "shape",
-     "start": 27.045,
-     "end": 27.165
+     "start": 26.7,
+     "end": 26.82
     },
     {
      "w": "of",
-     "start": 27.245,
-     "end": 27.325
+     "start": 26.9,
+     "end": 26.98
     },
     {
      "w": "each",
-     "start": 27.405,
-     "end": 27.485
+     "start": 27.06,
+     "end": 27.14
     },
     {
      "w": "call",
-     "start": 27.565,
-     "end": 28.405
+     "start": 27.22,
+     "end": 28.06
     },
     {
      "w": "The",
-     "start": 28.12,
-     "end": 28.2
+     "start": 27.7,
+     "end": 27.78
     },
     {
      "w": "agents",
-     "start": 28.28,
-     "end": 28.68
+     "start": 27.86,
+     "end": 28.26
     },
     {
      "w": "live",
-     "start": 28.76,
-     "end": 28.92
+     "start": 28.34,
+     "end": 28.5
     },
     {
      "w": "on",
-     "start": 29,
-     "end": 29.08
+     "start": 28.58,
+     "end": 28.66
     },
     {
      "w": "the",
-     "start": 29.16,
-     "end": 29.24
+     "start": 28.74,
+     "end": 28.82
     },
     {
      "w": "same",
-     "start": 29.32,
-     "end": 29.56
+     "start": 28.9,
+     "end": 29.14
     },
     {
      "w": "graph",
-     "start": 30.04,
-     "end": 30.38
+     "start": 29.53,
+     "end": 29.71
     },
     {
      "w": "What",
-     "start": 30.42,
-     "end": 30.58
+     "start": 29.75,
+     "end": 29.91
     },
     {
      "w": "each",
-     "start": 30.66,
-     "end": 30.74
+     "start": 29.99,
+     "end": 30.07
     },
     {
      "w": "one",
-     "start": 30.82,
-     "end": 30.98
+     "start": 30.15,
+     "end": 30.31
     },
     {
      "w": "claims",
-     "start": 31.06,
-     "end": 31.66
+     "start": 30.39,
+     "end": 30.99
     },
     {
      "w": "and",
-     "start": 31.7,
-     "end": 31.94
+     "start": 31.03,
+     "end": 31.27
     },
     {
      "w": "every",
-     "start": 32.02,
-     "end": 32.26
+     "start": 31.35,
+     "end": 31.59
     },
     {
      "w": "caller",
-     "start": 32.46,
-     "end": 32.66
+     "start": 31.79,
+     "end": 31.99
     },
     {
      "w": "and",
-     "start": 32.74,
-     "end": 32.82
+     "start": 32.07,
+     "end": 32.15
     },
     {
      "w": "test",
-     "start": 33.02,
-     "end": 33.22
+     "start": 32.35,
+     "end": 32.55
     },
     {
      "w": "two",
-     "start": 33.34,
-     "end": 33.46
+     "start": 32.67,
+     "end": 32.79
     },
     {
      "w": "hops",
-     "start": 33.5,
-     "end": 33.78
+     "start": 32.83,
+     "end": 33.11
     },
     {
      "w": "out",
-     "start": 33.86,
-     "end": 34.367
+     "start": 33.19,
+     "end": 33.697
     },
     {
      "w": "is",
-     "start": 34.393,
-     "end": 34.42
+     "start": 33.723,
+     "end": 33.75
     },
     {
      "w": "its",
-     "start": 34.5,
-     "end": 34.74
+     "start": 33.83,
+     "end": 34.07
     },
     {
      "w": "airspace",
-     "start": 34.9,
-     "end": 36.02
+     "start": 34.23,
+     "end": 35.35
     },
     {
      "w": "Every",
-     "start": 35.81,
-     "end": 36.05
+     "start": 35.115,
+     "end": 35.355
     },
     {
      "w": "edit",
-     "start": 36.13,
-     "end": 36.29
+     "start": 35.435,
+     "end": 35.595
     },
     {
      "w": "is",
-     "start": 36.37,
-     "end": 36.61
+     "start": 35.675,
+     "end": 35.915
     },
     {
      "w": "checked",
-     "start": 36.73,
-     "end": 36.85
+     "start": 36.035,
+     "end": 36.155
     },
     {
      "w": "against",
-     "start": 37.01,
-     "end": 37.17
+     "start": 36.315,
+     "end": 36.475
     },
     {
      "w": "the",
-     "start": 37.21,
-     "end": 37.25
+     "start": 36.515,
+     "end": 36.555
     },
     {
      "w": "graph",
-     "start": 37.33,
-     "end": 37.65
+     "start": 36.635,
+     "end": 36.955
     },
     {
      "w": "before",
-     "start": 37.81,
-     "end": 37.97
+     "start": 37.115,
+     "end": 37.275
     },
     {
      "w": "it",
-     "start": 38.01,
-     "end": 38.05
+     "start": 37.315,
+     "end": 37.355
     },
     {
      "w": "is",
-     "start": 38.13,
-     "end": 38.21
+     "start": 37.435,
+     "end": 37.515
     },
     {
      "w": "written",
-     "start": 38.65,
-     "end": 39.13
+     "start": 37.955,
+     "end": 38.435
     },
     {
      "w": "If",
-     "start": 38.9,
-     "end": 38.98
+     "start": 38.18,
+     "end": 38.26
     },
     {
      "w": "it",
-     "start": 39.02,
-     "end": 39.06
+     "start": 38.3,
+     "end": 38.34
     },
     {
      "w": "would",
-     "start": 39.14,
-     "end": 39.22
+     "start": 38.42,
+     "end": 38.5
     },
     {
      "w": "break",
-     "start": 39.34,
-     "end": 39.46
+     "start": 38.62,
+     "end": 38.74
     },
     {
      "w": "another",
-     "start": 39.62,
-     "end": 39.78
+     "start": 38.9,
+     "end": 39.06
     },
     {
      "w": "agent's",
-     "start": 39.86,
-     "end": 40.18
+     "start": 39.14,
+     "end": 39.46
     },
     {
      "w": "work",
-     "start": 40.46,
-     "end": 40.78
+     "start": 39.74,
+     "end": 40.01
     },
     {
      "w": "it",
-     "start": 40.82,
-     "end": 40.86
+     "start": 40.05,
+     "end": 40.09
     },
     {
      "w": "is",
-     "start": 40.9,
-     "end": 40.98
+     "start": 40.13,
+     "end": 40.21
     },
     {
      "w": "held",
-     "start": 41.06,
-     "end": 41.673
+     "start": 40.29,
+     "end": 40.703
     },
     {
      "w": "and",
-     "start": 41.727,
-     "end": 41.78
+     "start": 40.757,
+     "end": 40.81
     },
     {
      "w": "the",
-     "start": 41.86,
-     "end": 41.94
+     "start": 40.89,
+     "end": 40.97
     },
     {
      "w": "agent",
-     "start": 42.02,
-     "end": 42.26
+     "start": 41.05,
+     "end": 41.29
     },
     {
      "w": "is",
-     "start": 42.34,
-     "end": 42.42
+     "start": 41.37,
+     "end": 41.45
     },
     {
      "w": "told",
-     "start": 42.46,
-     "end": 42.66
+     "start": 41.49,
+     "end": 41.69
     },
     {
      "w": "why",
-     "start": 42.74,
-     "end": 43.66
+     "start": 41.77,
+     "end": 42.69
     },
     {
      "w": "The",
-     "start": 43.33,
-     "end": 43.41
+     "start": 42.305,
+     "end": 42.385
     },
     {
      "w": "decision",
-     "start": 43.69,
-     "end": 43.97
+     "start": 42.665,
+     "end": 42.945
     },
     {
      "w": "is",
-     "start": 44.01,
-     "end": 44.05
+     "start": 42.985,
+     "end": 43.025
     },
     {
      "w": "a",
-     "start": 44.29,
-     "end": 44.37
+     "start": 43.265,
+     "end": 43.345
     },
     {
      "w": "Cypher",
-     "start": 44.45,
-     "end": 44.69
+     "start": 43.425,
+     "end": 43.665
     },
     {
      "w": "query",
-     "start": 45.01,
-     "end": 45.383
+     "start": 43.985,
+     "end": 44.358
     },
     {
      "w": "not",
-     "start": 45.437,
-     "end": 45.49
+     "start": 44.412,
+     "end": 44.465
     },
     {
      "w": "a",
-     "start": 45.57,
-     "end": 45.61
+     "start": 44.545,
+     "end": 44.585
     },
     {
      "w": "model",
-     "start": 45.65,
-     "end": 45.89
+     "start": 44.625,
+     "end": 44.865
     },
     {
      "w": "call",
-     "start": 45.97,
-     "end": 47.01
+     "start": 44.945,
+     "end": 45.985
     }
    ]
   },
   "tower": {
-   "start": 46.455,
-   "end": 80.205,
+   "start": 45.345,
+   "end": 78.405,
    "chunks": [
     {
      "text": "This is Tower, the session view, replaying two real Claude Code sessions.",
-     "start": 46.455,
-     "end": 50.985
+     "start": 45.345,
+     "end": 49.86
     },
     {
      "text": "Everything here is read live from the graph.",
-     "start": 51.265,
-     "end": 53.575
+     "start": 50.14,
+     "end": 52.405
     },
     {
      "text": "agent-a makes slugify's option keyword-only. Its airspace covers slugify and everything that calls it.",
-     "start": 53.855,
-     "end": 60.143
+     "start": 52.61,
+     "end": 58.788
     },
     {
      "text": "agent-b, on its own branch, writes a call with the old keyword.",
-     "start": 60.423,
-     "end": 64.247
+     "start": 59.068,
+     "end": 62.817
     },
     {
      "text": "The airspaces overlap, so the edit is held before it is written.",
-     "start": 64.527,
-     "end": 68.04
+     "start": 63.097,
+     "end": 66.59
     },
     {
      "text": "The hold names who is changing slugify, the new signature, and the path from agent-b's code to it.",
-     "start": 68.32,
-     "end": 74.315
+     "start": 66.87,
+     "end": 72.77
     },
     {
      "text": "agent-b retries with the new keyword. The call fits, so it is cleared, and both agents land.",
-     "start": 74.595,
-     "end": 80.205
+     "start": 73.05,
+     "end": 78.405
     }
    ],
    "words": [
     {
      "w": "This",
-     "start": 46.455,
-     "end": 46.615
+     "start": 45.345,
+     "end": 45.505
     },
     {
      "w": "is",
-     "start": 46.695,
-     "end": 46.855
+     "start": 45.585,
+     "end": 45.745
     },
     {
      "w": "Tower",
-     "start": 47.055,
-     "end": 47.495
+     "start": 45.945,
+     "end": 46.385
     },
     {
      "w": "the",
-     "start": 47.575,
-     "end": 47.655
+     "start": 46.465,
+     "end": 46.545
     },
     {
      "w": "session",
-     "start": 47.815,
-     "end": 47.975
+     "start": 46.705,
+     "end": 46.865
     },
     {
      "w": "view",
-     "start": 48.055,
-     "end": 48.535
+     "start": 46.945,
+     "end": 47.425
     },
     {
      "w": "replaying",
-     "start": 48.615,
-     "end": 49.175
+     "start": 47.505,
+     "end": 48.065
     },
     {
      "w": "two",
-     "start": 49.295,
-     "end": 49.415
+     "start": 48.185,
+     "end": 48.305
     },
     {
      "w": "real",
-     "start": 49.575,
-     "end": 49.815
+     "start": 48.465,
+     "end": 48.705
     },
     {
      "w": "Claude",
-     "start": 49.895,
-     "end": 50.135
+     "start": 48.785,
+     "end": 49.025
     },
     {
      "w": "Code",
-     "start": 50.215,
-     "end": 50.455
+     "start": 49.105,
+     "end": 49.345
     },
     {
      "w": "sessions",
-     "start": 50.695,
-     "end": 51.575
+     "start": 49.585,
+     "end": 50.465
     },
     {
      "w": "Everything",
-     "start": 51.33,
-     "end": 51.73
+     "start": 50.205,
+     "end": 50.605
     },
     {
      "w": "here",
-     "start": 51.81,
-     "end": 52.05
+     "start": 50.685,
+     "end": 50.925
     },
     {
      "w": "is",
-     "start": 52.13,
-     "end": 52.21
+     "start": 51.005,
+     "end": 51.085
     },
     {
      "w": "read",
-     "start": 52.29,
-     "end": 52.45
+     "start": 51.165,
+     "end": 51.325
     },
     {
      "w": "live",
-     "start": 52.61,
-     "end": 52.85
+     "start": 51.485,
+     "end": 51.725
     },
     {
      "w": "from",
-     "start": 52.93,
-     "end": 53.01
+     "start": 51.805,
+     "end": 51.885
     },
     {
      "w": "the",
-     "start": 53.05,
-     "end": 53.09
+     "start": 51.925,
+     "end": 51.965
     },
     {
      "w": "graph",
-     "start": 53.17,
-     "end": 54.17
+     "start": 52.045,
+     "end": 52.97
     },
     {
      "w": "Agent",
-     "start": 53.905,
-     "end": 54.225
+     "start": 52.66,
+     "end": 52.98
     },
     {
      "w": "A",
-     "start": 54.385,
-     "end": 54.465
+     "start": 53.14,
+     "end": 53.22
     },
     {
      "w": "makes",
-     "start": 54.545,
-     "end": 54.785
+     "start": 53.3,
+     "end": 53.54
     },
     {
      "w": "slugify's",
-     "start": 54.905,
-     "end": 55.425
+     "start": 53.66,
+     "end": 54.18
     },
     {
      "w": "option",
-     "start": 55.505,
-     "end": 55.905
+     "start": 54.26,
+     "end": 54.66
     },
     {
      "w": "keyword-only",
-     "start": 55.985,
-     "end": 57.145
+     "start": 54.74,
+     "end": 55.82
     },
     {
      "w": "Its",
-     "start": 57.225,
-     "end": 57.305
+     "start": 55.9,
+     "end": 55.98
     },
     {
      "w": "airspace",
-     "start": 57.385,
-     "end": 57.865
+     "start": 56.06,
+     "end": 56.54
     },
     {
      "w": "covers",
-     "start": 58.025,
-     "end": 58.185
+     "start": 56.7,
+     "end": 56.86
     },
     {
      "w": "slugify",
-     "start": 58.305,
-     "end": 58.985
+     "start": 56.98,
+     "end": 57.66
     },
     {
      "w": "and",
-     "start": 59.065,
-     "end": 59.145
+     "start": 57.74,
+     "end": 57.82
     },
     {
      "w": "everything",
-     "start": 59.225,
-     "end": 59.545
+     "start": 57.9,
+     "end": 58.22
     },
     {
      "w": "that",
-     "start": 59.625,
-     "end": 59.705
+     "start": 58.3,
+     "end": 58.38
     },
     {
      "w": "calls",
-     "start": 59.785,
-     "end": 60.025
+     "start": 58.46,
+     "end": 58.7
     },
     {
      "w": "it",
-     "start": 60.425,
-     "end": 60.932
+     "start": 59.1,
+     "end": 59.607
     },
     {
      "w": "Agent",
-     "start": 60.673,
-     "end": 60.78
+     "start": 59.313,
+     "end": 59.42
     },
     {
      "w": "B",
-     "start": 60.86,
-     "end": 61.367
+     "start": 59.5,
+     "end": 60.007
     },
     {
      "w": "on",
-     "start": 61.393,
-     "end": 61.42
+     "start": 60.033,
+     "end": 60.06
     },
     {
      "w": "its",
-     "start": 61.5,
-     "end": 61.66
+     "start": 60.14,
+     "end": 60.3
     },
     {
      "w": "own",
-     "start": 61.74,
-     "end": 61.9
+     "start": 60.38,
+     "end": 60.54
     },
     {
      "w": "branch",
-     "start": 62.22,
-     "end": 62.62
+     "start": 60.86,
+     "end": 61.26
     },
     {
      "w": "writes",
-     "start": 62.7,
-     "end": 62.78
+     "start": 61.34,
+     "end": 61.42
     },
     {
      "w": "a",
-     "start": 62.82,
-     "end": 62.86
+     "start": 61.46,
+     "end": 61.5
     },
     {
      "w": "call",
-     "start": 62.94,
-     "end": 63.18
+     "start": 61.58,
+     "end": 61.82
     },
     {
      "w": "with",
-     "start": 63.26,
-     "end": 63.34
+     "start": 61.9,
+     "end": 61.98
     },
     {
      "w": "the",
-     "start": 63.42,
-     "end": 63.5
+     "start": 62.06,
+     "end": 62.14
     },
     {
      "w": "old",
-     "start": 63.58,
-     "end": 63.74
+     "start": 62.22,
+     "end": 62.38
     },
     {
      "w": "keyword",
-     "start": 63.82,
-     "end": 64.833
+     "start": 62.46,
+     "end": 63.473
     },
     {
      "w": "The",
-     "start": 64.627,
-     "end": 64.68
+     "start": 63.192,
+     "end": 63.245
     },
     {
      "w": "airspaces",
-     "start": 64.8,
-     "end": 65.32
+     "start": 63.365,
+     "end": 63.885
     },
     {
      "w": "overlap",
-     "start": 65.4,
-     "end": 66.08
+     "start": 63.965,
+     "end": 64.645
     },
     {
      "w": "so",
-     "start": 66.12,
-     "end": 66.2
+     "start": 64.685,
+     "end": 64.765
     },
     {
      "w": "the",
-     "start": 66.28,
-     "end": 66.36
+     "start": 64.845,
+     "end": 64.925
     },
     {
      "w": "edit",
-     "start": 66.44,
-     "end": 66.6
+     "start": 65.005,
+     "end": 65.165
     },
     {
      "w": "is",
-     "start": 66.68,
-     "end": 66.84
+     "start": 65.245,
+     "end": 65.405
     },
     {
      "w": "held",
-     "start": 67,
-     "end": 67.16
+     "start": 65.565,
+     "end": 65.725
     },
     {
      "w": "before",
-     "start": 67.32,
-     "end": 67.48
+     "start": 65.885,
+     "end": 66.045
     },
     {
      "w": "it",
-     "start": 67.52,
-     "end": 67.56
+     "start": 66.085,
+     "end": 66.125
     },
     {
      "w": "is",
-     "start": 67.64,
-     "end": 67.72
+     "start": 66.205,
+     "end": 66.285
     },
     {
      "w": "written",
-     "start": 68.16,
-     "end": 68.64
+     "start": 66.725,
+     "end": 67.205
     },
     {
      "w": "The",
-     "start": 68.36,
-     "end": 68.44
+     "start": 66.905,
+     "end": 66.985
     },
     {
      "w": "hold",
-     "start": 68.52,
-     "end": 68.84
+     "start": 67.065,
+     "end": 67.385
     },
     {
      "w": "names",
-     "start": 68.92,
-     "end": 69.24
+     "start": 67.465,
+     "end": 67.785
     },
     {
      "w": "who",
-     "start": 69.32,
-     "end": 69.4
+     "start": 67.865,
+     "end": 67.945
     },
     {
      "w": "is",
-     "start": 69.48,
-     "end": 69.64
+     "start": 68.025,
+     "end": 68.185
     },
     {
      "w": "changing",
-     "start": 69.8,
-     "end": 69.96
+     "start": 68.345,
+     "end": 68.505
     },
     {
      "w": "slugify",
-     "start": 70.04,
-     "end": 70.947
+     "start": 68.585,
+     "end": 69.492
     },
     {
      "w": "the",
-     "start": 70.973,
-     "end": 71
+     "start": 69.518,
+     "end": 69.545
     },
     {
      "w": "new",
-     "start": 71.08,
-     "end": 71.24
+     "start": 69.625,
+     "end": 69.785
     },
     {
      "w": "signature",
-     "start": 71.68,
-     "end": 72.16
+     "start": 70.225,
+     "end": 70.645
     },
     {
      "w": "and",
-     "start": 72.2,
-     "end": 72.28
+     "start": 70.685,
+     "end": 70.765
     },
     {
      "w": "the",
-     "start": 72.36,
-     "end": 72.44
+     "start": 70.845,
+     "end": 70.925
     },
     {
      "w": "path",
-     "start": 72.52,
-     "end": 72.76
+     "start": 71.005,
+     "end": 71.245
     },
     {
      "w": "from",
-     "start": 72.84,
-     "end": 73
+     "start": 71.325,
+     "end": 71.485
     },
     {
      "w": "agent",
-     "start": 73.08,
-     "end": 73.32
+     "start": 71.565,
+     "end": 71.805
     },
     {
      "w": "B's",
-     "start": 73.4,
-     "end": 73.64
+     "start": 71.885,
+     "end": 72.125
     },
     {
      "w": "code",
-     "start": 73.8,
-     "end": 73.96
+     "start": 72.285,
+     "end": 72.445
     },
     {
      "w": "to",
-     "start": 74.04,
-     "end": 74.2
+     "start": 72.525,
+     "end": 72.685
     },
     {
      "w": "it",
-     "start": 74.56,
-     "end": 74.96
+     "start": 73.045,
+     "end": 73.445
     },
     {
      "w": "Agent",
-     "start": 74.65,
-     "end": 74.97
+     "start": 73.1,
+     "end": 73.42
     },
     {
      "w": "B",
-     "start": 75.09,
-     "end": 75.21
+     "start": 73.54,
+     "end": 73.66
     },
     {
      "w": "retries",
-     "start": 75.29,
-     "end": 75.85
+     "start": 73.74,
+     "end": 74.3
     },
     {
      "w": "with",
-     "start": 75.93,
-     "end": 76.01
+     "start": 74.38,
+     "end": 74.46
     },
     {
      "w": "the",
-     "start": 76.05,
-     "end": 76.09
+     "start": 74.5,
+     "end": 74.54
     },
     {
      "w": "new",
-     "start": 76.17,
-     "end": 76.33
+     "start": 74.62,
+     "end": 74.78
     },
     {
      "w": "keyword",
-     "start": 76.77,
-     "end": 77.03
+     "start": 75.22,
+     "end": 75.31
     },
     {
      "w": "The",
-     "start": 77.07,
-     "end": 77.15
+     "start": 75.35,
+     "end": 75.43
     },
     {
      "w": "call",
-     "start": 77.27,
-     "end": 77.39
+     "start": 75.55,
+     "end": 75.67
     },
     {
      "w": "fits",
-     "start": 77.47,
-     "end": 77.99
+     "start": 75.75,
+     "end": 76.27
     },
     {
      "w": "so",
-     "start": 78.03,
-     "end": 78.11
+     "start": 76.31,
+     "end": 76.39
     },
     {
      "w": "it",
-     "start": 78.19,
-     "end": 78.23
+     "start": 76.47,
+     "end": 76.51
     },
     {
      "w": "is",
-     "start": 78.27,
-     "end": 78.35
+     "start": 76.55,
+     "end": 76.63
     },
     {
      "w": "cleared",
-     "start": 78.43,
-     "end": 78.95
+     "start": 76.71,
+     "end": 77.23
     },
     {
      "w": "and",
-     "start": 78.99,
-     "end": 79.15
+     "start": 77.27,
+     "end": 77.43
     },
     {
      "w": "both",
-     "start": 79.27,
-     "end": 79.39
+     "start": 77.55,
+     "end": 77.67
     },
     {
      "w": "agents",
-     "start": 79.47,
-     "end": 79.79
+     "start": 77.75,
+     "end": 78.07
     },
     {
      "w": "land",
-     "start": 79.87,
-     "end": 80.75
+     "start": 78.15,
+     "end": 79.03
     }
    ]
   },
   "preflight": {
-   "start": 80.485,
-   "end": 101.53,
+   "start": 78.685,
+   "end": 99.44,
    "chunks": [
     {
      "text": "Pre-flight plans the work before any agent starts.",
-     "start": 80.485,
-     "end": 83.635
+     "start": 78.685,
+     "end": 81.815
     },
     {
      "text": "On the real Flask repo, five tasks come back in about 20 milliseconds:",
-     "start": 83.915,
-     "end": 88.195
+     "start": 82.095,
+     "end": 86.355
     },
     {
      "text": "two pairs must coordinate, with the path between them, and one task is free to run.",
-     "start": 88.475,
-     "end": 92.915
+     "start": 86.635,
+     "end": 91.045
     },
     {
      "text": "Each task's reach is a Cypher traversal, the groups are connected components, and the explanation is a shortest path, all in FalkorDB.",
-     "start": 93.195,
-     "end": 101.53
+     "start": 91.325,
+     "end": 99.44
     }
    ],
    "words": [
     {
      "w": "Pre-flight",
-     "start": 80.48,
-     "end": 80.96
+     "start": 78.675,
+     "end": 79.155
     },
     {
      "w": "plans",
-     "start": 81.12,
-     "end": 81.44
+     "start": 79.315,
+     "end": 79.635
     },
     {
      "w": "the",
-     "start": 81.52,
-     "end": 81.56
+     "start": 79.715,
+     "end": 79.755
     },
     {
      "w": "work",
-     "start": 81.6,
-     "end": 81.92
+     "start": 79.795,
+     "end": 80.115
     },
     {
      "w": "before",
-     "start": 82.16,
-     "end": 82.4
+     "start": 80.355,
+     "end": 80.595
     },
     {
      "w": "any",
-     "start": 82.52,
-     "end": 82.64
+     "start": 80.715,
+     "end": 80.835
     },
     {
      "w": "agent",
-     "start": 82.72,
-     "end": 83.04
+     "start": 80.915,
+     "end": 81.235
     },
     {
      "w": "starts",
-     "start": 83.12,
-     "end": 84.32
+     "start": 81.315,
+     "end": 82.515
     },
     {
      "w": "On",
-     "start": 83.975,
-     "end": 84.055
+     "start": 82.15,
+     "end": 82.23
     },
     {
      "w": "the",
-     "start": 84.095,
-     "end": 84.135
+     "start": 82.27,
+     "end": 82.31
     },
     {
      "w": "real",
-     "start": 84.215,
-     "end": 84.455
+     "start": 82.39,
+     "end": 82.63
     },
     {
      "w": "Flask",
-     "start": 84.535,
-     "end": 84.775
+     "start": 82.71,
+     "end": 82.95
     },
     {
      "w": "repo",
-     "start": 84.855,
-     "end": 85.535
+     "start": 83.03,
+     "end": 83.71
     },
     {
      "w": "five",
-     "start": 85.575,
-     "end": 85.815
+     "start": 83.75,
+     "end": 83.99
     },
     {
      "w": "tasks",
-     "start": 85.895,
-     "end": 86.295
+     "start": 84.07,
+     "end": 84.47
     },
     {
      "w": "come",
-     "start": 86.375,
-     "end": 86.535
+     "start": 84.55,
+     "end": 84.71
     },
     {
      "w": "back",
-     "start": 86.615,
-     "end": 86.775
+     "start": 84.79,
+     "end": 84.95
     },
     {
      "w": "in",
-     "start": 86.815,
-     "end": 86.855
+     "start": 84.99,
+     "end": 85.03
     },
     {
      "w": "about",
-     "start": 86.935,
-     "end": 87.175
+     "start": 85.11,
+     "end": 85.35
     },
     {
      "w": "twenty",
-     "start": 87.295,
-     "end": 87.415
+     "start": 85.47,
+     "end": 85.59
     },
     {
      "w": "milliseconds",
-     "start": 87.495,
-     "end": 88.655
+     "start": 85.67,
+     "end": 86.83
     },
     {
      "w": "two",
-     "start": 88.52,
-     "end": 88.68
+     "start": 86.675,
+     "end": 86.835
     },
     {
      "w": "pairs",
-     "start": 88.76,
-     "end": 89
+     "start": 86.915,
+     "end": 87.155
     },
     {
      "w": "must",
-     "start": 89.08,
-     "end": 89.24
+     "start": 87.235,
+     "end": 87.395
     },
     {
      "w": "coordinate",
-     "start": 89.32,
-     "end": 90
+     "start": 87.475,
+     "end": 88.155
     },
     {
      "w": "with",
-     "start": 90.04,
-     "end": 90.12
+     "start": 88.195,
+     "end": 88.275
     },
     {
      "w": "the",
-     "start": 90.2,
-     "end": 90.28
+     "start": 88.355,
+     "end": 88.435
     },
     {
      "w": "path",
-     "start": 90.4,
-     "end": 90.52
+     "start": 88.555,
+     "end": 88.675
     },
     {
      "w": "between",
-     "start": 90.6,
-     "end": 90.92
+     "start": 88.755,
+     "end": 89.075
     },
     {
      "w": "them",
-     "start": 91,
-     "end": 91.453
+     "start": 89.155,
+     "end": 89.608
     },
     {
      "w": "and",
-     "start": 91.507,
-     "end": 91.56
+     "start": 89.662,
+     "end": 89.715
     },
     {
      "w": "one",
-     "start": 91.64,
-     "end": 91.8
+     "start": 89.795,
+     "end": 89.955
     },
     {
      "w": "task",
-     "start": 92,
-     "end": 92.2
+     "start": 90.155,
+     "end": 90.355
     },
     {
      "w": "is",
-     "start": 92.28,
-     "end": 92.36
+     "start": 90.435,
+     "end": 90.515
     },
     {
      "w": "free",
-     "start": 92.44,
-     "end": 92.52
+     "start": 90.595,
+     "end": 90.675
     },
     {
      "w": "to",
-     "start": 92.6,
-     "end": 92.68
+     "start": 90.755,
+     "end": 90.835
     },
     {
      "w": "run",
-     "start": 93.12,
-     "end": 93.6
+     "start": 91.275,
+     "end": 91.755
     },
     {
      "w": "Each",
-     "start": 93.265,
-     "end": 93.505
+     "start": 91.39,
+     "end": 91.63
     },
     {
      "w": "task's",
-     "start": 93.665,
-     "end": 93.985
+     "start": 91.79,
+     "end": 92.11
     },
     {
      "w": "reach",
-     "start": 94.145,
-     "end": 94.305
+     "start": 92.27,
+     "end": 92.43
     },
     {
      "w": "is",
-     "start": 94.385,
-     "end": 94.465
+     "start": 92.51,
+     "end": 92.59
     },
     {
      "w": "a",
-     "start": 94.625,
-     "end": 94.705
+     "start": 92.75,
+     "end": 92.83
     },
     {
      "w": "Cypher",
-     "start": 94.785,
-     "end": 95.025
+     "start": 92.91,
+     "end": 93.15
     },
     {
      "w": "traversal",
-     "start": 95.065,
-     "end": 95.865
+     "start": 93.19,
+     "end": 93.91
     },
     {
      "w": "the",
-     "start": 95.905,
-     "end": 95.985
+     "start": 93.95,
+     "end": 94.03
     },
     {
      "w": "groups",
-     "start": 96.145,
-     "end": 96.305
+     "start": 94.19,
+     "end": 94.35
     },
     {
      "w": "are",
-     "start": 96.385,
-     "end": 96.465
+     "start": 94.43,
+     "end": 94.51
     },
     {
      "w": "connected",
-     "start": 96.665,
-     "end": 96.865
+     "start": 94.71,
+     "end": 94.91
     },
     {
      "w": "components",
-     "start": 97.305,
-     "end": 97.772
+     "start": 95.35,
+     "end": 95.817
     },
     {
      "w": "and",
-     "start": 97.798,
-     "end": 97.825
+     "start": 95.843,
+     "end": 95.87
     },
     {
      "w": "the",
-     "start": 97.865,
-     "end": 97.905
+     "start": 95.91,
+     "end": 95.95
     },
     {
      "w": "explanation",
-     "start": 97.985,
-     "end": 98.705
+     "start": 96.03,
+     "end": 96.75
     },
     {
      "w": "is",
-     "start": 98.745,
-     "end": 98.785
+     "start": 96.79,
+     "end": 96.83
     },
     {
      "w": "a",
-     "start": 98.945,
-     "end": 98.985
+     "start": 96.99,
+     "end": 97.03
     },
     {
      "w": "shortest",
-     "start": 99.025,
-     "end": 99.425
+     "start": 97.07,
+     "end": 97.47
     },
     {
      "w": "path",
-     "start": 99.745,
-     "end": 100.105
+     "start": 97.79,
+     "end": 98.04
     },
     {
      "w": "all",
-     "start": 100.145,
-     "end": 100.385
+     "start": 98.08,
+     "end": 98.32
     },
     {
      "w": "in",
-     "start": 100.465,
-     "end": 100.625
+     "start": 98.4,
+     "end": 98.56
     },
     {
      "w": "Falkor",
-     "start": 100.665,
-     "end": 101.025
+     "start": 98.6,
+     "end": 98.96
     },
     {
      "w": "DB",
-     "start": 101.105,
-     "end": 102.145
+     "start": 99.04,
+     "end": 100.08
     }
    ]
   },
   "memory": {
-   "start": 101.81,
-   "end": 114.37,
+   "start": 99.72,
+   "end": 111.985,
    "chunks": [
     {
      "text": "Airspace also remembers. When a hold clears, the fix is written to the graph, on the code it is about.",
-     "start": 101.81,
-     "end": 108.135
+     "start": 99.72,
+     "end": 105.82
     },
     {
      "text": "The next agent to touch slugify, even in a later session, is told the fix before it writes the call.",
-     "start": 108.415,
-     "end": 114.37
+     "start": 106.1,
+     "end": 111.985
     }
    ],
    "words": [
     {
      "w": "Airspace",
-     "start": 101.79,
-     "end": 102.43
+     "start": 99.695,
+     "end": 100.335
     },
     {
      "w": "also",
-     "start": 102.51,
-     "end": 102.83
+     "start": 100.415,
+     "end": 100.735
     },
     {
      "w": "remembers",
-     "start": 102.91,
-     "end": 103.83
+     "start": 100.815,
+     "end": 101.685
     },
     {
      "w": "When",
-     "start": 103.91,
-     "end": 103.99
+     "start": 101.765,
+     "end": 101.845
     },
     {
      "w": "a",
-     "start": 104.03,
-     "end": 104.07
+     "start": 101.885,
+     "end": 101.925
     },
     {
      "w": "hold",
-     "start": 104.19,
-     "end": 104.31
+     "start": 102.045,
+     "end": 102.165
     },
     {
      "w": "clears",
-     "start": 104.47,
-     "end": 105.163
+     "start": 102.325,
+     "end": 103.018
     },
     {
      "w": "the",
-     "start": 105.217,
-     "end": 105.27
+     "start": 103.072,
+     "end": 103.125
     },
     {
      "w": "fix",
-     "start": 105.35,
-     "end": 105.59
+     "start": 103.205,
+     "end": 103.445
     },
     {
      "w": "is",
-     "start": 105.67,
-     "end": 105.75
+     "start": 103.525,
+     "end": 103.605
     },
     {
      "w": "written",
-     "start": 105.87,
-     "end": 105.99
+     "start": 103.725,
+     "end": 103.845
     },
     {
      "w": "to",
-     "start": 106.07,
-     "end": 106.11
+     "start": 103.925,
+     "end": 103.965
     },
     {
      "w": "the",
-     "start": 106.15,
-     "end": 106.23
+     "start": 104.005,
+     "end": 104.085
     },
     {
      "w": "graph",
-     "start": 106.31,
-     "end": 106.91
+     "start": 104.165,
+     "end": 104.705
     },
     {
      "w": "on",
-     "start": 106.95,
-     "end": 107.03
+     "start": 104.745,
+     "end": 104.825
     },
     {
      "w": "the",
-     "start": 107.11,
-     "end": 107.19
+     "start": 104.905,
+     "end": 104.985
     },
     {
      "w": "code",
-     "start": 107.31,
-     "end": 107.43
+     "start": 105.105,
+     "end": 105.225
     },
     {
      "w": "it",
-     "start": 107.51,
-     "end": 107.59
+     "start": 105.305,
+     "end": 105.385
     },
     {
      "w": "is",
-     "start": 107.63,
-     "end": 107.67
+     "start": 105.425,
+     "end": 105.465
     },
     {
      "w": "about",
-     "start": 107.75,
-     "end": 108.67
+     "start": 105.545,
+     "end": 106.465
     },
     {
      "w": "The",
-     "start": 108.44,
-     "end": 108.52
+     "start": 106.12,
+     "end": 106.2
     },
     {
      "w": "next",
-     "start": 108.6,
-     "end": 108.84
+     "start": 106.28,
+     "end": 106.52
     },
     {
      "w": "agent",
-     "start": 108.92,
-     "end": 109.24
+     "start": 106.6,
+     "end": 106.92
     },
     {
      "w": "to",
-     "start": 109.32,
-     "end": 109.4
+     "start": 107,
+     "end": 107.08
     },
     {
      "w": "touch",
-     "start": 109.52,
-     "end": 109.64
+     "start": 107.2,
+     "end": 107.32
     },
     {
      "w": "slugify",
-     "start": 109.72,
-     "end": 110.56
+     "start": 107.4,
+     "end": 108.24
     },
     {
      "w": "even",
-     "start": 110.6,
-     "end": 110.84
+     "start": 108.28,
+     "end": 108.52
     },
     {
      "w": "in",
-     "start": 110.88,
-     "end": 110.92
+     "start": 108.56,
+     "end": 108.6
     },
     {
      "w": "a",
-     "start": 111,
-     "end": 111.04
+     "start": 108.68,
+     "end": 108.72
     },
     {
      "w": "later",
-     "start": 111.08,
-     "end": 111.32
+     "start": 108.76,
+     "end": 109
     },
     {
      "w": "session",
-     "start": 111.4,
-     "end": 112.08
+     "start": 109.08,
+     "end": 109.75
     },
     {
      "w": "is",
-     "start": 112.12,
-     "end": 112.28
+     "start": 109.79,
+     "end": 109.95
     },
     {
      "w": "told",
-     "start": 112.36,
-     "end": 112.52
+     "start": 110.03,
+     "end": 110.19
     },
     {
      "w": "the",
-     "start": 112.6,
-     "end": 112.76
+     "start": 110.27,
+     "end": 110.43
     },
     {
      "w": "fix",
-     "start": 112.92,
-     "end": 113.08
+     "start": 110.59,
+     "end": 110.75
     },
     {
      "w": "before",
-     "start": 113.28,
-     "end": 113.48
+     "start": 110.95,
+     "end": 111.15
     },
     {
      "w": "it",
-     "start": 113.56,
-     "end": 113.64
+     "start": 111.23,
+     "end": 111.31
     },
     {
      "w": "writes",
-     "start": 113.76,
-     "end": 113.88
+     "start": 111.43,
+     "end": 111.55
     },
     {
      "w": "the",
-     "start": 113.96,
-     "end": 114.04
+     "start": 111.63,
+     "end": 111.71
     },
     {
      "w": "call",
-     "start": 114.48,
-     "end": 115
+     "start": 112.15,
+     "end": 112.67
     }
    ]
   },
   "playground": {
-   "start": 114.65,
-   "end": 123.39,
+   "start": 112.265,
+   "end": 120.675,
    "chunks": [
     {
      "text": "You can try the check in your browser.",
-     "start": 114.65,
-     "end": 116.21
+     "start": 112.265,
+     "end": 113.78
     },
     {
      "text": "Change a signature as agent-a, write a call as agent-b, and the real engine gives the verdict and the path.",
-     "start": 116.49,
-     "end": 123.39
+     "start": 114.06,
+     "end": 120.675
     }
    ],
    "words": [
     {
      "w": "You",
-     "start": 114.645,
-     "end": 114.725
+     "start": 112.255,
+     "end": 112.335
     },
     {
      "w": "can",
-     "start": 114.805,
-     "end": 114.885
+     "start": 112.415,
+     "end": 112.495
     },
     {
      "w": "try",
-     "start": 114.965,
-     "end": 115.125
+     "start": 112.575,
+     "end": 112.735
     },
     {
      "w": "the",
-     "start": 115.205,
-     "end": 115.285
+     "start": 112.815,
+     "end": 112.895
     },
     {
      "w": "check",
-     "start": 115.405,
-     "end": 115.525
+     "start": 113.015,
+     "end": 113.135
     },
     {
      "w": "in",
-     "start": 115.565,
-     "end": 115.605
+     "start": 113.175,
+     "end": 113.215
     },
     {
      "w": "your",
-     "start": 115.685,
-     "end": 115.765
+     "start": 113.295,
+     "end": 113.375
     },
     {
      "w": "browser",
-     "start": 116.245,
-     "end": 116.805
+     "start": 113.855,
+     "end": 114.415
     },
     {
      "w": "Change",
-     "start": 116.565,
-     "end": 116.725
+     "start": 114.13,
+     "end": 114.29
     },
     {
      "w": "a",
-     "start": 116.805,
-     "end": 116.885
+     "start": 114.37,
+     "end": 114.45
     },
     {
      "w": "signature",
-     "start": 116.965,
-     "end": 117.445
+     "start": 114.53,
+     "end": 115.01
     },
     {
      "w": "as",
-     "start": 117.525,
-     "end": 117.685
+     "start": 115.09,
+     "end": 115.25
     },
     {
      "w": "agent",
-     "start": 117.765,
-     "end": 118.085
+     "start": 115.33,
+     "end": 115.65
     },
     {
      "w": "A",
-     "start": 118.245,
-     "end": 118.785
+     "start": 115.81,
+     "end": 116.3
     },
     {
      "w": "write",
-     "start": 118.825,
-     "end": 118.905
+     "start": 116.34,
+     "end": 116.42
     },
     {
      "w": "a",
-     "start": 118.985,
-     "end": 119.065
+     "start": 116.5,
+     "end": 116.58
     },
     {
      "w": "call",
-     "start": 119.145,
-     "end": 119.465
+     "start": 116.66,
+     "end": 116.98
     },
     {
      "w": "as",
-     "start": 119.545,
-     "end": 119.705
+     "start": 117.06,
+     "end": 117.22
     },
     {
      "w": "agent",
-     "start": 119.785,
-     "end": 120.105
+     "start": 117.3,
+     "end": 117.62
     },
     {
      "w": "B",
-     "start": 120.425,
-     "end": 120.798
+     "start": 117.94,
+     "end": 118.313
     },
     {
      "w": "and",
-     "start": 120.852,
-     "end": 120.905
+     "start": 118.367,
+     "end": 118.42
     },
     {
      "w": "the",
-     "start": 120.985,
-     "end": 121.065
+     "start": 118.5,
+     "end": 118.58
     },
     {
      "w": "real",
-     "start": 121.185,
-     "end": 121.305
+     "start": 118.7,
+     "end": 118.82
     },
     {
      "w": "engine",
-     "start": 121.385,
-     "end": 121.705
+     "start": 118.9,
+     "end": 119.22
     },
     {
      "w": "gives",
-     "start": 121.785,
-     "end": 121.945
+     "start": 119.3,
+     "end": 119.46
     },
     {
      "w": "the",
-     "start": 122.025,
-     "end": 122.105
+     "start": 119.54,
+     "end": 119.62
     },
     {
      "w": "verdict",
-     "start": 122.185,
-     "end": 122.705
+     "start": 119.7,
+     "end": 120.015
     },
     {
      "w": "and",
-     "start": 122.745,
-     "end": 122.825
+     "start": 120.055,
+     "end": 120.135
     },
     {
      "w": "the",
-     "start": 122.905,
-     "end": 122.985
+     "start": 120.215,
+     "end": 120.295
     },
     {
      "w": "path",
-     "start": 123.425,
-     "end": 123.945
+     "start": 120.72,
+     "end": 121.22
     }
    ]
   },
   "workspaces": {
-   "start": 123.67,
-   "end": 140.51,
+   "start": 120.92,
+   "end": 137.475,
    "chunks": [
     {
      "text": "For your own repo, sign in with GitHub and create a workspace.",
-     "start": 123.67,
-     "end": 127.4
+     "start": 120.92,
+     "end": 124.605
     },
     {
      "text": "Connect it with one command, and your sessions show up live in Tower,",
-     "start": 127.68,
-     "end": 131.395
+     "start": 124.885,
+     "end": 128.525
     },
     {
      "text": "Parsing stays on your machine: hooks send symbol names and call shapes, never whole files.",
-     "start": 131.675,
-     "end": 137.212
+     "start": 128.805,
+     "end": 134.212
     },
     {
      "text": "where you can release a hold, pause an agent, or message it.",
-     "start": 137.492,
-     "end": 140.51
+     "start": 134.492,
+     "end": 137.475
     }
    ],
    "words": [
     {
      "w": "For",
-     "start": 123.66,
-     "end": 123.74
+     "start": 120.88,
+     "end": 120.96
     },
     {
      "w": "your",
-     "start": 123.82,
-     "end": 123.98
+     "start": 121.04,
+     "end": 121.2
     },
     {
      "w": "own",
-     "start": 124.1,
-     "end": 124.22
+     "start": 121.32,
+     "end": 121.44
     },
     {
      "w": "repo",
-     "start": 124.42,
-     "end": 124.94
+     "start": 121.64,
+     "end": 122.16
     },
     {
      "w": "sign",
-     "start": 125.1,
-     "end": 125.26
+     "start": 122.32,
+     "end": 122.48
     },
     {
      "w": "in",
-     "start": 125.34,
-     "end": 125.42
+     "start": 122.56,
+     "end": 122.64
     },
     {
      "w": "with",
-     "start": 125.5,
-     "end": 125.58
+     "start": 122.72,
+     "end": 122.8
     },
     {
      "w": "GitHub",
-     "start": 125.66,
-     "end": 126.14
+     "start": 122.88,
+     "end": 123.36
     },
     {
      "w": "and",
-     "start": 126.22,
-     "end": 126.3
+     "start": 123.44,
+     "end": 123.52
     },
     {
      "w": "create",
-     "start": 126.46,
-     "end": 126.62
+     "start": 123.68,
+     "end": 123.84
     },
     {
      "w": "a",
-     "start": 126.66,
-     "end": 126.7
+     "start": 123.88,
+     "end": 123.92
     },
     {
      "w": "workspace",
-     "start": 127.02,
-     "end": 127.9
+     "start": 124.24,
+     "end": 125.12
     },
     {
      "w": "Connect",
-     "start": 127.82,
-     "end": 127.98
+     "start": 125.02,
+     "end": 125.18
     },
     {
      "w": "it",
+     "start": 125.26,
+     "end": 125.34
+    },
+    {
+     "w": "with",
+     "start": 125.46,
+     "end": 125.58
+    },
+    {
+     "w": "one",
+     "start": 125.66,
+     "end": 125.82
+    },
+    {
+     "w": "command",
+     "start": 125.9,
+     "end": 126.487
+    },
+    {
+     "w": "and",
+     "start": 126.513,
+     "end": 126.54
+    },
+    {
+     "w": "your",
+     "start": 126.62,
+     "end": 126.78
+    },
+    {
+     "w": "sessions",
+     "start": 126.98,
+     "end": 127.18
+    },
+    {
+     "w": "show",
+     "start": 127.26,
+     "end": 127.42
+    },
+    {
+     "w": "up",
+     "start": 127.5,
+     "end": 127.66
+    },
+    {
+     "w": "live",
+     "start": 127.74,
+     "end": 127.98
+    },
+    {
+     "w": "in",
      "start": 128.06,
      "end": 128.14
     },
     {
-     "w": "with",
-     "start": 128.26,
-     "end": 128.38
-    },
-    {
-     "w": "one",
-     "start": 128.46,
-     "end": 128.62
-    },
-    {
-     "w": "command",
-     "start": 128.7,
-     "end": 129.287
-    },
-    {
-     "w": "and",
-     "start": 129.313,
-     "end": 129.34
-    },
-    {
-     "w": "your",
-     "start": 129.42,
-     "end": 129.58
-    },
-    {
-     "w": "sessions",
-     "start": 129.78,
-     "end": 129.98
-    },
-    {
-     "w": "show",
-     "start": 130.06,
-     "end": 130.22
-    },
-    {
-     "w": "up",
-     "start": 130.3,
-     "end": 130.46
-    },
-    {
-     "w": "live",
-     "start": 130.54,
-     "end": 130.78
-    },
-    {
-     "w": "in",
-     "start": 130.86,
-     "end": 130.94
-    },
-    {
      "w": "Tower",
-     "start": 131.02,
-     "end": 131.86
+     "start": 128.22,
+     "end": 129.06
     },
     {
      "w": "Parsing",
-     "start": 131.72,
-     "end": 132.12
+     "start": 128.84,
+     "end": 129.24
     },
     {
      "w": "stays",
-     "start": 132.28,
-     "end": 132.52
+     "start": 129.4,
+     "end": 129.64
     },
     {
      "w": "on",
-     "start": 132.6,
-     "end": 132.68
+     "start": 129.72,
+     "end": 129.8
     },
     {
      "w": "your",
-     "start": 132.72,
-     "end": 132.76
+     "start": 129.84,
+     "end": 129.88
     },
     {
      "w": "machine",
-     "start": 133.24,
-     "end": 133.55
+     "start": 130.36,
+     "end": 130.57
     },
     {
      "w": "hooks",
-     "start": 133.59,
-     "end": 133.91
+     "start": 130.61,
+     "end": 130.93
     },
     {
      "w": "send",
-     "start": 133.99,
-     "end": 134.31
+     "start": 131.01,
+     "end": 131.33
     },
     {
      "w": "symbol",
-     "start": 134.39,
-     "end": 134.63
+     "start": 131.41,
+     "end": 131.65
     },
     {
      "w": "names",
-     "start": 134.71,
-     "end": 134.95
+     "start": 131.73,
+     "end": 131.97
     },
     {
      "w": "and",
-     "start": 135.03,
-     "end": 135.11
+     "start": 132.05,
+     "end": 132.13
     },
     {
      "w": "call",
-     "start": 135.19,
-     "end": 135.43
+     "start": 132.21,
+     "end": 132.45
     },
     {
      "w": "shapes",
-     "start": 135.51,
-     "end": 136.11
+     "start": 132.53,
+     "end": 133.13
     },
     {
      "w": "never",
-     "start": 136.15,
-     "end": 136.47
+     "start": 133.17,
+     "end": 133.49
     },
     {
      "w": "whole",
-     "start": 136.59,
-     "end": 136.71
+     "start": 133.61,
+     "end": 133.73
     },
     {
      "w": "files",
-     "start": 137.15,
-     "end": 137.643
+     "start": 134.17,
+     "end": 134.663
     },
     {
      "w": "where",
-     "start": 137.592,
-     "end": 137.645
+     "start": 134.592,
+     "end": 134.645
     },
     {
      "w": "you",
-     "start": 137.685,
-     "end": 137.725
+     "start": 134.685,
+     "end": 134.725
     },
     {
      "w": "can",
-     "start": 137.805,
-     "end": 137.885
+     "start": 134.805,
+     "end": 134.885
     },
     {
      "w": "release",
-     "start": 137.965,
-     "end": 138.205
+     "start": 134.965,
+     "end": 135.205
     },
     {
      "w": "a",
-     "start": 138.285,
-     "end": 138.365
+     "start": 135.285,
+     "end": 135.365
     },
     {
      "w": "hold",
-     "start": 138.645,
-     "end": 138.965
+     "start": 135.645,
+     "end": 135.965
     },
     {
      "w": "pause",
-     "start": 139.005,
-     "end": 139.245
+     "start": 136.005,
+     "end": 136.245
     },
     {
      "w": "an",
-     "start": 139.285,
-     "end": 139.325
+     "start": 136.285,
+     "end": 136.325
     },
     {
      "w": "agent",
-     "start": 139.405,
-     "end": 139.925
+     "start": 136.405,
+     "end": 136.925
     },
     {
      "w": "or",
-     "start": 139.965,
-     "end": 140.045
+     "start": 136.965,
+     "end": 137.045
     },
     {
      "w": "message",
-     "start": 140.205,
-     "end": 140.365
+     "start": 137.205,
+     "end": 137.365
     },
     {
      "w": "it",
-     "start": 140.445,
-     "end": 141.245
+     "start": 137.445,
+     "end": 138.245
     }
    ]
   },
   "numbers": {
-   "start": 141.26,
-   "end": 164.71,
+   "start": 138.225,
+   "end": 161.27,
    "chunks": [
     {
      "text": "On Flask, with real Claude Code agents, graded by Flask's own tests:",
-     "start": 141.26,
-     "end": 146.345
+     "start": 138.225,
+     "end": 143.285
     },
     {
      "text": "worktrees alone merged 0 of 9 green.",
-     "start": 146.625,
-     "end": 149.695
+     "start": 143.565,
+     "end": 146.615
     },
     {
      "text": "Telling each agent the other's task, 5 of 9.",
-     "start": 149.975,
-     "end": 152.97
+     "start": 146.895,
+     "end": 149.76
     },
     {
      "text": "Airspace, 9 of 9.",
-     "start": 153.25,
-     "end": 155.005
+     "start": 150.04,
+     "end": 151.73
     },
     {
      "text": "On our sample repo, 17 of 18.",
-     "start": 155.285,
-     "end": 158.045
+     "start": 152.01,
+     "end": 154.73
     },
     {
      "text": "It is a little slower per pair, because a held agent waits for the change it depends on. The merge is what you ship.",
-     "start": 158.325,
-     "end": 164.71
+     "start": 155.01,
+     "end": 161.27
     }
    ],
    "words": [
     {
      "w": "On",
-     "start": 141.26,
-     "end": 141.42
+     "start": 138.225,
+     "end": 138.385
     },
     {
      "w": "Flask",
-     "start": 141.5,
-     "end": 142.22
+     "start": 138.465,
+     "end": 139.185
     },
     {
      "w": "with",
-     "start": 142.34,
-     "end": 142.46
+     "start": 139.305,
+     "end": 139.425
     },
     {
      "w": "real",
-     "start": 142.54,
-     "end": 142.78
+     "start": 139.505,
+     "end": 139.745
     },
     {
      "w": "Claude",
-     "start": 142.94,
-     "end": 143.18
+     "start": 139.905,
+     "end": 140.145
     },
     {
      "w": "Code",
-     "start": 143.26,
-     "end": 143.5
+     "start": 140.225,
+     "end": 140.465
     },
     {
      "w": "agents",
-     "start": 143.58,
-     "end": 144.3
+     "start": 140.545,
+     "end": 141.265
     },
     {
      "w": "graded",
-     "start": 144.46,
-     "end": 144.62
+     "start": 141.425,
+     "end": 141.585
     },
     {
      "w": "by",
-     "start": 144.7,
-     "end": 144.78
+     "start": 141.665,
+     "end": 141.745
     },
     {
      "w": "Flask's",
-     "start": 144.94,
-     "end": 145.42
+     "start": 141.905,
+     "end": 142.385
     },
     {
      "w": "own",
-     "start": 145.5,
-     "end": 145.66
+     "start": 142.465,
+     "end": 142.625
     },
     {
      "w": "tests",
-     "start": 145.82,
-     "end": 146.78
+     "start": 142.785,
+     "end": 143.745
     },
     {
      "w": "worktrees",
-     "start": 146.745,
-     "end": 147.105
+     "start": 143.685,
+     "end": 144.045
     },
     {
      "w": "alone",
-     "start": 147.185,
-     "end": 147.585
+     "start": 144.125,
+     "end": 144.525
     },
     {
      "w": "merged",
-     "start": 147.745,
-     "end": 148.145
+     "start": 144.685,
+     "end": 145.085
     },
     {
      "w": "zero",
-     "start": 148.305,
-     "end": 148.705
+     "start": 145.245,
+     "end": 145.645
     },
     {
      "w": "of",
-     "start": 148.785,
-     "end": 148.865
+     "start": 145.725,
+     "end": 145.805
     },
     {
      "w": "nine",
-     "start": 149.025,
-     "end": 149.265
+     "start": 145.965,
+     "end": 146.205
     },
     {
      "w": "green",
-     "start": 149.345,
-     "end": 150.225
+     "start": 146.285,
+     "end": 147.165
     },
     {
      "w": "Telling",
-     "start": 150.02,
-     "end": 150.3
+     "start": 146.94,
+     "end": 147.22
     },
     {
      "w": "each",
-     "start": 150.38,
-     "end": 150.54
+     "start": 147.3,
+     "end": 147.46
     },
     {
      "w": "agent",
-     "start": 150.7,
-     "end": 151.02
+     "start": 147.62,
+     "end": 147.94
     },
     {
      "w": "the",
-     "start": 151.06,
-     "end": 151.1
+     "start": 147.98,
+     "end": 148.02
     },
     {
      "w": "other's",
-     "start": 151.18,
-     "end": 151.5
+     "start": 148.1,
+     "end": 148.42
     },
     {
      "w": "task",
-     "start": 151.74,
-     "end": 152.23
+     "start": 148.66,
+     "end": 149.06
     },
     {
      "w": "five",
-     "start": 152.31,
-     "end": 152.55
+     "start": 149.14,
+     "end": 149.38
     },
     {
      "w": "of",
-     "start": 152.63,
-     "end": 152.71
+     "start": 149.46,
+     "end": 149.54
     },
     {
      "w": "nine",
-     "start": 152.87,
-     "end": 153.51
+     "start": 149.7,
+     "end": 150.34
     },
     {
      "w": "Airspace",
-     "start": 153.36,
-     "end": 154.36
+     "start": 150.14,
+     "end": 151.11
     },
     {
      "w": "nine",
-     "start": 154.48,
-     "end": 154.6
+     "start": 151.23,
+     "end": 151.35
     },
     {
      "w": "of",
-     "start": 154.68,
-     "end": 154.76
+     "start": 151.43,
+     "end": 151.51
     },
     {
      "w": "nine",
-     "start": 154.92,
-     "end": 155.56
+     "start": 151.67,
+     "end": 152.31
     },
     {
      "w": "On",
-     "start": 155.35,
-     "end": 155.43
+     "start": 152.07,
+     "end": 152.15
     },
     {
      "w": "our",
-     "start": 155.51,
-     "end": 155.59
+     "start": 152.23,
+     "end": 152.31
     },
     {
      "w": "sample",
-     "start": 155.75,
-     "end": 155.91
+     "start": 152.47,
+     "end": 152.63
     },
     {
      "w": "repo",
-     "start": 155.99,
-     "end": 156.71
+     "start": 152.71,
+     "end": 153.43
     },
     {
      "w": "seventeen",
-     "start": 156.79,
-     "end": 157.27
+     "start": 153.51,
+     "end": 153.99
     },
     {
      "w": "of",
-     "start": 157.43,
-     "end": 157.59
+     "start": 154.15,
+     "end": 154.31
     },
     {
      "w": "eighteen",
-     "start": 157.71,
-     "end": 158.55
+     "start": 154.43,
+     "end": 155.27
     },
     {
      "w": "It",
-     "start": 158.38,
-     "end": 158.46
+     "start": 155.06,
+     "end": 155.14
     },
     {
      "w": "is",
-     "start": 158.54,
-     "end": 158.62
+     "start": 155.22,
+     "end": 155.3
     },
     {
      "w": "a",
-     "start": 158.7,
-     "end": 158.78
+     "start": 155.38,
+     "end": 155.46
     },
     {
      "w": "little",
-     "start": 158.9,
-     "end": 159.02
+     "start": 155.58,
+     "end": 155.7
     },
     {
      "w": "slower",
-     "start": 159.1,
-     "end": 159.5
+     "start": 155.78,
+     "end": 156.18
     },
     {
      "w": "per",
-     "start": 159.62,
-     "end": 159.74
+     "start": 156.3,
+     "end": 156.42
     },
     {
      "w": "pair",
-     "start": 159.94,
-     "end": 160.18
+     "start": 156.62,
+     "end": 156.86
     },
     {
      "w": "because",
-     "start": 160.22,
-     "end": 160.54
+     "start": 156.9,
+     "end": 157.22
     },
     {
      "w": "a",
-     "start": 160.7,
-     "end": 160.74
+     "start": 157.38,
+     "end": 157.42
     },
     {
      "w": "held",
-     "start": 160.78,
-     "end": 161.02
+     "start": 157.46,
+     "end": 157.7
     },
     {
      "w": "agent",
-     "start": 161.1,
-     "end": 161.42
+     "start": 157.78,
+     "end": 158.1
     },
     {
      "w": "waits",
-     "start": 161.5,
-     "end": 161.74
+     "start": 158.18,
+     "end": 158.42
     },
     {
      "w": "for",
-     "start": 161.78,
-     "end": 161.82
+     "start": 158.46,
+     "end": 158.5
     },
     {
      "w": "the",
-     "start": 161.9,
-     "end": 161.98
+     "start": 158.58,
+     "end": 158.66
     },
     {
      "w": "change",
-     "start": 162.06,
-     "end": 162.3
+     "start": 158.74,
+     "end": 158.98
     },
     {
      "w": "it",
-     "start": 162.38,
-     "end": 162.46
+     "start": 159.06,
+     "end": 159.14
     },
     {
      "w": "depends",
-     "start": 162.66,
-     "end": 162.86
+     "start": 159.34,
+     "end": 159.54
     },
     {
      "w": "on",
-     "start": 162.94,
-     "end": 163.443
+     "start": 159.62,
+     "end": 160.023
     },
     {
      "w": "The",
-     "start": 163.497,
-     "end": 163.55
+     "start": 160.077,
+     "end": 160.13
     },
     {
      "w": "merge",
-     "start": 163.79,
-     "end": 164.03
+     "start": 160.37,
+     "end": 160.61
     },
     {
      "w": "is",
-     "start": 164.11,
-     "end": 164.19
+     "start": 160.69,
+     "end": 160.77
     },
     {
      "w": "what",
-     "start": 164.27,
-     "end": 164.35
+     "start": 160.85,
+     "end": 160.93
     },
     {
      "w": "you",
-     "start": 164.43,
-     "end": 164.51
+     "start": 161.01,
+     "end": 161.09
     },
     {
      "w": "ship",
-     "start": 164.67,
-     "end": 165.47
+     "start": 161.25,
+     "end": 162.05
     }
    ]
   },
   "close": {
-   "start": 164.99,
-   "end": 169.885,
+   "start": 161.55,
+   "end": 166.345,
    "chunks": [
     {
      "text": "Airspace. Air-traffic control for coding agents, built on FalkorDB.",
-     "start": 164.99,
-     "end": 169.885
+     "start": 161.55,
+     "end": 166.345
     }
    ],
    "words": [
     {
      "w": "Airspace",
-     "start": 164.985,
-     "end": 165.995
+     "start": 161.54,
+     "end": 162.48
     },
     {
      "w": "Air-traffic",
-     "start": 166.115,
-     "end": 166.555
+     "start": 162.6,
+     "end": 163.04
     },
     {
      "w": "control",
-     "start": 166.635,
-     "end": 167.035
+     "start": 163.12,
+     "end": 163.52
     },
     {
      "w": "for",
-     "start": 167.115,
-     "end": 167.195
+     "start": 163.6,
+     "end": 163.68
     },
     {
      "w": "coding",
-     "start": 167.275,
-     "end": 167.595
+     "start": 163.76,
+     "end": 164.08
     },
     {
      "w": "agents",
-     "start": 167.675,
-     "end": 168.315
+     "start": 164.16,
+     "end": 164.8
     },
     {
      "w": "built",
-     "start": 168.395,
-     "end": 168.635
+     "start": 164.88,
+     "end": 165.12
     },
     {
      "w": "on",
-     "start": 168.715,
-     "end": 168.875
+     "start": 165.2,
+     "end": 165.36
     },
     {
      "w": "Falkor",
-     "start": 168.955,
-     "end": 169.355
+     "start": 165.44,
+     "end": 165.84
     },
     {
      "w": "DB",
-     "start": 169.435,
-     "end": 170.075
+     "start": 165.92,
+     "end": 166.56
     }
    ]
   }
@@ -2708,5 +2708,5 @@
   "numbers",
   "close"
  ],
- "total": 173.485
+ "total": 168.145
 }

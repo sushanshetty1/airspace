@@ -28,24 +28,9 @@ export function Close() {
           Air-traffic control for coding agents.
         </div>
 
-        <div style={{ marginTop: 70, display: 'flex', gap: 22, opacity: links, transform: `translateY(${(1 - links) * 14}px)` }}>
-          {['airspace.sushans.dev', 'github.com/sushanshetty1/airspace'].map((l, i) => (
-            <div
-              key={l}
-              style={{
-                fontFamily: SANS,
-                fontSize: 30,
-                fontWeight: 600,
-                color: i === 0 ? C.accentInk : C.text,
-                background: i === 0 ? C.accent : 'transparent',
-                boxShadow: i === 0 ? undefined : `inset 0 0 0 1.5px ${C.lineStrong}`,
-                padding: '16px 28px',
-                borderRadius: 12,
-              }}
-            >
-              {l}
-            </div>
-          ))}
+        <div style={{ marginTop: 74, display: 'flex', alignItems: 'baseline', gap: 30, fontFamily: SANS, opacity: links, transform: `translateY(${(1 - links) * 14}px)` }}>
+          <span style={{ fontSize: 38, fontWeight: 600, letterSpacing: '-0.02em', color: C.text }}>airspace.sushans.dev</span>
+          <span style={{ fontSize: 30, color: C.muted }}>github.com/sushanshetty1/airspace</span>
         </div>
 
         <div style={{ marginTop: 64, display: 'flex', alignItems: 'center', gap: 14, opacity: built }}>

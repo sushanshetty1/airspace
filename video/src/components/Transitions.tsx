@@ -69,8 +69,17 @@ function LensOverlay({ sec, fps, label }: { sec: number; fps: number; label: str
           <clipPath id="lensA">
             <circle cx={CX - off} cy={CY} r={r} />
           </clipPath>
+          <clipPath id="lensB">
+            <circle cx={CX + off} cy={CY} r={r} />
+          </clipPath>
         </defs>
-        <circle cx={CX + off} cy={CY} r={r} fill={C.accent} opacity={fill * (1 - open)} clipPath="url(#lensA)" />
+        {/* The lens fills orange while the airspaces meet, then clears as it opens: only its edge stays, a thin
+            orange band around the next scene, so the frame reads straight through it. */}
+        <circle cx={CX + off} cy={CY} r={r} fill={C.accent} opacity={fill * (1 - interpolate(open, [0, 0.18], [0, 1], clamp))} clipPath="url(#lensA)" />
+        <g opacity={open > 0 ? 1 - interpolate(open, [0.55, 0.95], [0, 1], clamp) : 0}>
+          <circle cx={CX + off} cy={CY} r={r} fill="none" stroke={C.accent} strokeWidth={7} clipPath="url(#lensA)" />
+          <circle cx={CX - off} cy={CY} r={r} fill="none" stroke={C.accent} strokeWidth={7} clipPath="url(#lensB)" />
+        </g>
         <circle cx={CX - off} cy={CY} r={r - 4} fill="none" stroke={C.a} strokeWidth={5} opacity={ringFade * Math.min(1, close * 1.4)} />
         <circle cx={CX + off} cy={CY} r={r - 4} fill="none" stroke={C.b} strokeWidth={5} opacity={ringFade * Math.min(1, close * 1.4)} />
       </svg>

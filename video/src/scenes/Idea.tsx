@@ -5,24 +5,24 @@
 import { AbsoluteFill, Img, interpolate, staticFile } from 'remotion'
 import { C, MONO, SANS, ease, easeInOut } from '../brand'
 import { Clip } from '../components/Clip'
-import { Cypher, Panel, clamp, pop, ramp, useSec } from '../components/ui'
+import { Cypher, Elbow, Panel, clamp, pop, ramp, useSec } from '../components/ui'
 import { useSceneTime } from '../timeline'
 
 type N = { id: string; x: number; y: number; test?: boolean; agent: 'a' | 'b' | 'both'; hop: 0 | 1 | 2 }
-const A = { x: 700, y: 548, r: 300 }
-const B = { x: 1230, y: 548, r: 290 }
+const A = { x: 700, y: 526, r: 300 }
+const B = { x: 1180, y: 526, r: 290 }
 
 const NODES: N[] = [
   { id: 'slugify', x: A.x, y: A.y, agent: 'a', hop: 0 },
-  { id: 'Post.save', x: 585, y: 668, agent: 'a', hop: 1 },
-  { id: 'Tag.save', x: 545, y: 483, agent: 'a', hop: 1 },
-  { id: 'test_slugify', x: 690, y: 358, agent: 'a', hop: 1, test: true },
-  { id: 'tag_create', x: 455, y: 358, agent: 'a', hop: 2 },
-  { id: 'test_post_save', x: 470, y: 758, agent: 'a', hop: 2, test: true },
-  { id: 'test_render_post', x: 955, y: 718, agent: 'both', hop: 2, test: true },
+  { id: 'Post.save', x: 585, y: 646, agent: 'a', hop: 1 },
+  { id: 'Tag.save', x: 545, y: 461, agent: 'a', hop: 1 },
+  { id: 'test_slugify', x: 690, y: 336, agent: 'a', hop: 1, test: true },
+  { id: 'tag_create', x: 455, y: 336, agent: 'a', hop: 2 },
+  { id: 'test_post_save', x: 470, y: 736, agent: 'a', hop: 2, test: true },
+  { id: 'test_render_post', x: 955, y: 696, agent: 'both', hop: 2, test: true },
   { id: 'render_post', x: B.x, y: B.y, agent: 'b', hop: 0 },
-  { id: 'post_list', x: 1385, y: 428, agent: 'b', hop: 1 },
-  { id: 'LatestPosts.item_description', x: 1360, y: 683, agent: 'b', hop: 1 },
+  { id: 'post_list', x: 1335, y: 406, agent: 'b', hop: 1 },
+  { id: 'LatestPosts.item_description', x: 1310, y: 661, agent: 'b', hop: 1 },
 ]
 const at = (id: string) => NODES.find((n) => n.id === id)!
 
@@ -188,7 +188,7 @@ export function Idea() {
               )
             })}
             {held > 0.02 && (
-              <text x={lensX} y={A.y - 6} textAnchor="middle" fill={C.accentInk} fontFamily={SANS} fontWeight={700} fontSize={34} opacity={held} transform={`translate(${lensX} ${A.y}) scale(${0.6 + 0.4 * held}) translate(${-lensX} ${-A.y})`}>
+              <text x={lensX} y={A.y - 16} textAnchor="middle" fill={C.accentInk} fontFamily={SANS} fontWeight={700} fontSize={27} opacity={held} transform={`translate(${lensX} ${A.y}) scale(${0.6 + 0.4 * held}) translate(${-lensX} ${-A.y})`}>
                 Hold
               </text>
             )}
@@ -198,8 +198,8 @@ export function Idea() {
           <div
             style={{
               position: 'absolute',
-              left: 600,
-              top: 588,
+              right: 1920 - 618,
+              top: 574,
               transform: `translateY(${(1 - shapeChip) * 10}px)`,
               opacity: shapeChip * (1 - ramp(sec, c(3) - 0.3, 0.4)),
               fontFamily: MONO,
@@ -228,7 +228,7 @@ export function Idea() {
                 background: '#0c0f12',
                 padding: '9px 13px',
                 borderRadius: 9,
-                boxShadow: `inset 0 0 0 1.5px ${C.b}, 0 16px 40px -10px rgba(0,0,0,0.8)`,
+                boxShadow: `inset 0 0 0 1px ${C.lineStrong}, 0 16px 40px -10px rgba(0,0,0,0.8)`,
                 whiteSpace: 'nowrap',
                 transform: `scale(${1 - fly * 0.3})`,
                 transformOrigin: '0 0',
@@ -239,27 +239,37 @@ export function Idea() {
             </div>
           )}
 
-          {/* What agent-b is told. */}
+          {/* What agent-b is told, as its terminal prints it: plain lines under the blocked edit. */}
           <div
             style={{
               position: 'absolute',
-              left: 1070,
-              top: 806,
-              width: 690,
+              left: 1040,
+              top: 840,
               opacity: Math.min(1, told * 1.5) * (1 - cardBig),
-              transform: `translateY(${(1 - told) * 24}px)`,
-              background: C.surface,
-              borderRadius: 12,
-              padding: '14px 18px',
-              boxShadow: `0 24px 60px -24px rgba(0,0,0,0.9), inset 3px 0 0 ${C.accent}, inset 0 0 0 1px ${C.line}`,
-              fontFamily: SANS,
-              fontSize: 19,
-              lineHeight: 1.45,
-              color: C.text,
+              transform: `translateY(${(1 - told) * 14}px)`,
+              fontFamily: MONO,
+              fontSize: 17,
+              lineHeight: 1.6,
+              color: '#c9ced3',
+              whiteSpace: 'pre',
+              fontVariantLigatures: 'none',
+              textShadow: `0 0 12px ${C.deep}, 0 0 4px ${C.deep}`,
             }}
           >
-            <span style={{ color: C.accent, fontWeight: 600 }}>Airspace hold:</span> slugify is being changed by <span style={{ color: C.a, fontFamily: MONO }}>agent-a</span>. New
-            signature: <span style={{ fontFamily: MONO, fontSize: 17.5 }}>slugify(value, *, unicode=False)</span>
+            <div style={{ color: '#e8836a' }}>
+              <Elbow />
+              {'  PreToolUse:Edit hook blocked:'}
+            </div>
+            <div>
+              {'   Airspace hold: '}
+              <span style={{ color: C.text, fontWeight: 600 }}>utils.text.slugify</span>
+              {' is being changed by '}
+              <span style={{ color: C.a }}>agent-a</span>.
+            </div>
+            <div>
+              {'   New signature: '}
+              <span style={{ color: '#8fe0b5' }}>slugify(value, *, unicode=False)</span>
+            </div>
           </div>
 
           <AbsoluteFill style={{ background: C.deep, opacity: cardBig * 0.7 }} />
@@ -267,9 +277,9 @@ export function Idea() {
           <div
             style={{
               position: 'absolute',
-              left: interpolate(cardBig, [0, 1], [1225, 360]),
+              left: interpolate(cardBig, [0, 1], [1262, 360]),
               top: interpolate(cardBig, [0, 1], [34, 300]),
-              width: interpolate(cardBig, [0, 1], [560, 1200]),
+              width: interpolate(cardBig, [0, 1], [526, 1200]),
               opacity: Math.min(1, card * 1.5),
               transform: `translateY(${(1 - card) * -20}px)`,
             }}
