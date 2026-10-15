@@ -1,0 +1,192 @@
+{
+  "voice": {
+    "provider": "elevenlabs",
+    "voice_id": "cjVigY5qzO86Huf0OWal",
+    "voice_name": "Eric",
+    "model_id": "eleven_v4",
+    "output_format": "mp3_44100_192",
+    "settings": {
+      "stability": 0.55,
+      "similarity_boost": 0.75,
+      "style": 0.0,
+      "use_speaker_boost": true,
+      "speed": 1.04
+    },
+    "draft_voice": "Samantha"
+  },
+  "pace": {
+    "gap": 0.28,
+    "start": 0.7,
+    "tail": 3.6
+  },
+  "scenes": [
+    {
+      "id": "open",
+      "chunks": [
+        {
+          "text": "Split a feature between two coding agents, and each one passes its own tests."
+        },
+        {
+          "text": "Merge their branches, and the build is red."
+        },
+        {
+          "text": "One agent changed a function. The other, on its own branch, was still calling the old version."
+        },
+        {
+          "text": "With worktrees alone, we measured 0 of 18 merges green.",
+          "speak": "With worktrees alone, we measured zero of eighteen merges green."
+        }
+      ]
+    },
+    {
+      "id": "idea",
+      "chunks": [
+        {
+          "text": "Airspace is air-traffic control for coding agents."
+        },
+        {
+          "text": "It keeps a live graph of your code in FalkorDB: every function, every call, and the shape of each call.",
+          "speak": "It keeps a live graph of your code in Falkor DB: every function, every call, and the shape of each call."
+        },
+        {
+          "text": "The agents live on the same graph. What each one claims, and every caller and test two hops out, is its airspace."
+        },
+        {
+          "text": "Every edit is checked against the graph before it is written."
+        },
+        {
+          "text": "If it would break another agent's work, it is held, and the agent is told why."
+        },
+        {
+          "text": "The decision is a Cypher query, not a model call."
+        }
+      ]
+    },
+    {
+      "id": "tower",
+      "chunks": [
+        {
+          "text": "This is Tower, the session view, replaying two real Claude Code sessions."
+        },
+        {
+          "text": "Everything here is read live from the graph."
+        },
+        {
+          "text": "agent-a makes slugify's option keyword-only. Its airspace covers slugify and everything that calls it.",
+          "speak": "Agent A makes slugify's option keyword-only. Its airspace covers slugify, and everything that calls it."
+        },
+        {
+          "text": "agent-b, on its own branch, writes a call with the old keyword.",
+          "speak": "Agent B, on its own branch, writes a call with the old keyword."
+        },
+        {
+          "text": "The airspaces overlap, so the edit is held before it is written."
+        },
+        {
+          "text": "The hold names who is changing slugify, the new signature, and the path from agent-b's code to it.",
+          "speak": "The hold names who is changing slugify, the new signature, and the path from agent B's code to it."
+        },
+        {
+          "text": "agent-b retries with the new keyword. The call fits, so it is cleared, and both agents land.",
+          "speak": "Agent B retries with the new keyword. The call fits, so it is cleared, and both agents land."
+        }
+      ]
+    },
+    {
+      "id": "preflight",
+      "chunks": [
+        {
+          "text": "Pre-flight plans the work before any agent starts."
+        },
+        {
+          "text": "On the real Flask repo, five tasks come back in about 20 milliseconds:",
+          "speak": "On the real Flask repo, five tasks come back in about twenty milliseconds:"
+        },
+        {
+          "text": "two pairs must coordinate, with the path between them, and one task is free to run."
+        },
+        {
+          "text": "Each task's reach is a Cypher traversal, the groups are connected components, and the explanation is a shortest path, all in FalkorDB.",
+          "speak": "Each task's reach is a Cypher traversal, the groups are connected components, and the explanation is a shortest path, all in Falkor DB."
+        }
+      ]
+    },
+    {
+      "id": "memory",
+      "chunks": [
+        {
+          "text": "Airspace also remembers. When a hold clears, the fix is written to the graph, on the code it is about."
+        },
+        {
+          "text": "The next agent to touch slugify, even in a later session, is told the fix before it writes the call."
+        }
+      ]
+    },
+    {
+      "id": "playground",
+      "chunks": [
+        {
+          "text": "You can try the check in your browser."
+        },
+        {
+          "text": "Change a signature as agent-a, write a call as agent-b, and the real engine gives the verdict and the path.",
+          "speak": "Change a signature as agent A, write a call as agent B, and the real engine gives the verdict, and the path."
+        }
+      ]
+    },
+    {
+      "id": "workspaces",
+      "chunks": [
+        {
+          "text": "For your own repo, sign in with GitHub and create a workspace."
+        },
+        {
+          "text": "Connect it with one command, and your sessions show up live in Tower,"
+        },
+        {
+          "text": "Parsing stays on your machine: hooks send symbol names and call shapes, never whole files."
+        },
+        {
+          "text": "where you can release a hold, pause an agent, or message it."
+        }
+      ]
+    },
+    {
+      "id": "numbers",
+      "gap": 0.75,
+      "chunks": [
+        {
+          "text": "On Flask, with real Claude Code agents, graded by Flask's own tests:"
+        },
+        {
+          "text": "worktrees alone merged 0 of 9 green.",
+          "speak": "worktrees alone merged zero of nine green."
+        },
+        {
+          "text": "Telling each agent the other's task, 5 of 9.",
+          "speak": "Telling each agent the other's task, five of nine."
+        },
+        {
+          "text": "Airspace, 9 of 9.",
+          "speak": "Airspace: nine of nine."
+        },
+        {
+          "text": "On our sample repo, 17 of 18.",
+          "speak": "On our sample repo, seventeen of eighteen."
+        },
+        {
+          "text": "It is a little slower per pair, because a held agent waits for the change it depends on. The merge is what you ship."
+        }
+      ]
+    },
+    {
+      "id": "close",
+      "chunks": [
+        {
+          "text": "Airspace. Air-traffic control for coding agents, built on FalkorDB.",
+          "speak": "Airspace. Air-traffic control for coding agents, built on Falkor DB."
+        }
+      ]
+    }
+  ]
+}

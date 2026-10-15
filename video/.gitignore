@@ -1,0 +1,6 @@
+node_modules/
+out/
+public/captures/
+public/voice/
+.stack-data/
+.scratch/
